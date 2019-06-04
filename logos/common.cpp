@@ -1290,6 +1290,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::proxy_to_self:
             ret = "Cannot proxy to self";
             break;
+        case process_result::invalid_epoch_hash:
+            ret = "Invalid epoch block hash provided";
+            break;
     }
     return ret;
 }

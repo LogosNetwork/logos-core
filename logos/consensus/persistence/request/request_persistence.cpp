@@ -406,6 +406,13 @@ bool PersistenceManager<R>::ValidateRequest(
             break;
         }
         case RequestType::Claim:
+            if(!ValidateRequest(*dynamic_pointer_cast<const Claim>(request),
+                                result,
+                                info))
+            {
+                return false;
+            }
+
             break;
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
@@ -2746,3 +2753,33 @@ bool PersistenceManager<R>::ValidateRequest(
     return true;
 }
 
+bool PersistenceManager<R>::ValidateRequest(
+    const Claim & request,
+    logos::process_return & result,
+    std::shared_ptr<logos::Account> info)
+{
+    auto user_account = dynamic_pointer_cast<logos::account_info>(info);
+
+    auto epoch = _store.epoch_number_stored();
+
+    if(request.epoch_number > epoch || user_account->claim_epoch >= request.epoch_number)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    ApprovedEB eb;
+    if(_store.epoch_get(request.epoch_hash, eb))
+    {
+        result.code = logos::process_result::invalid_epoch_hash;
+        return false;
+    }
+
+    if(request.epoch_number != eb.sequence)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    return true;
+}

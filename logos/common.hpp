@@ -331,77 +331,78 @@ enum class vote_code
 //
 enum class process_result
 {
-    progress,                   // Hasn't been seen before, signed correctly
-    bad_signature,              // Signature was bad, forged or transmission error
-    old,                        // Already seen and was valid
-    negative_spend,             // Malicious attempt to spend a negative amount
-    fork,                       // Malicious fork based on previous
-    unreceivable,               // Source block doesn't exist or has already been received
-    gap_previous,               // Block marked as previous is unknown
-    gap_source,                 // Block marked as source is unknown
-    state_block_disabled,       // Awaiting state block canary block
-    not_receive_from_send,      // Receive does not have a send source
-    account_mismatch,           // Account number in open block doesn't match send destination
-    opened_burn_account,        // The impossible happened, someone found the private key associated with the public key '0'.
-    balance_mismatch,           // Balance and amount delta don't match
-    block_position,             // This block cannot follow the previous block
-    invalid_block_type,         // Logos - Only allow state blocks
-    unknown_source_account,     // Logos - The source account is unknown.
-    unknown_origin,             // Logos - The sender's account is unknown.
-    buffered,                   // Logos - The block has been buffered for benchmarking.
-    buffering_done,             // Logos - The last block has been buffered and consensus will begin.
-    pending,                    // Logos - The block has already been received and is pending consensus.
-    already_reserved,           // Logos - The account is already reserved with different request.
-    initializing,               // Logos - The delegate is initializing and not accepting transactions.
-    insufficient_fee,           // Logos - Transaction fee is insufficient.
-    insufficient_balance,       // Logos - Balance is insufficient.
-    not_delegate,               // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
-    clock_drift,                // Logos - timestamp exceeds allowed clock drift
-    wrong_sequence_number,      // Logos - invalid block sequence number
-    invalid_request,            // Logos - An incoming request is invalid.
-    invalid_tip,                // Logos - invalid microblock tip
-    invalid_number_blocks,      // Logos - invalid number of blocks in microblock
-    revert_immutability,        // Logos - Attempting to change a token account mutability setting from false to true
-    immutable,                  // Logos - Attempting to update an immutable token account setting
-    redundant,                  // Logos - The token account setting change was idempotent
-    insufficient_token_balance, // Logos - Token balance is insufficient.
-    invalid_token_id,           // Logos - Token ID is invalid.
-    untethered_account,         // Logos - User account has not been tethered to the specified token account.
-    invalid_controller,         // Logos - An invalid controller was specified.
-    controller_capacity,        // Logos - No more controllers can be added.
-    invalid_controller_action,  // Logos - An invalid controller action was specified.
-    unauthorized_request,       // Logos - Unauthorized to make request.
-    prohibitted_request,        // Logos - The request is not allowed.
-    not_whitelisted,            // Logos - Whitelisting is required.
-    frozen,                     // Logos - Account is frozen.
-    insufficient_token_fee,     // Logos - Token fee is insufficient.
-    invalid_token_symbol,       // Logos - Token symbol is invalid.
-    invalid_token_name,         // Logos - Token name is invalid.
-    invalid_token_amount,       // Logos - Token amount is invalid.
-    total_supply_overflow,      // Logos - The request would case the token total supply to overflow.
-    key_collision,              // Logos - There is already a user account or token account with the same key.
-    invalid_fee,                // Logos - The fee settings are invalid.
-    invalid_issuer_info,        // Logos - The issuer info supplied is invalid.
-    too_many_token_entries,     // Logos - The account has too many token entries.
-    elections_dead_period,      // Logos - the time between epoch start and epoch block post-commit
-    not_a_rep,                  // Logos - the account is not a representative
-    already_voted,              // Logos - the rep already voted this epoch
-    invalid_candidate,          // Logos - the vote is for an account that is not a candidate
-    not_enough_stake,           // Logos - the rep does not have enough stake for action
-    never_announced_candidacy,  // Logos - the rep has never announced candidacy
-    already_renounced_candidacy,// Logos - the rep is already in a renounced candidacy state
-    already_announced_candidacy,// Logos - the rep is already in an announced candidacy state
-    is_rep,                     // Logos - the account is a representative
-    is_candidate,               // Logos - the account is a candidate
-    is_delegate,                // Logos - the account is a delegate
-    wrong_epoch_number,         // Logos - the request has an incorrect epoch number
-    no_elections,               // Logos - elections are not being held currently
-    pending_rep_action,         // Logos - the account has a pending representative action for this epoch
-    pending_candidacy_action,   // Logos - the account has a pending candidacy action for this epoch
-    invalid_staking_subchain,   // Logos - hash sent as staking_subchain_prev does not match staking_subchain_head of account
+    progress,                     // Hasn't been seen before, signed correctly
+    bad_signature,                // Signature was bad, forged or transmission error
+    old,                          // Already seen and was valid
+    negative_spend,               // Malicious attempt to spend a negative amount
+    fork,                         // Malicious fork based on previous
+    unreceivable,                 // Source block doesn't exist or has already been received
+    gap_previous,                 // Block marked as previous is unknown
+    gap_source,                   // Block marked as source is unknown
+    state_block_disabled,         // Awaiting state block canary block
+    not_receive_from_send,        // Receive does not have a send source
+    account_mismatch,             // Account number in open block doesn't match send destination
+    opened_burn_account,          // The impossible happened, someone found the private key associated with the public key '0'.
+    balance_mismatch,             // Balance and amount delta don't match
+    block_position,               // This block cannot follow the previous block
+    invalid_block_type,           // Logos - Only allow state blocks
+    unknown_source_account,       // Logos - The source account is unknown.
+    unknown_origin,               // Logos - The sender's account is unknown.
+    buffered,                     // Logos - The block has been buffered for benchmarking.
+    buffering_done,               // Logos - The last block has been buffered and consensus will begin.
+    pending,                      // Logos - The block has already been received and is pending consensus.
+    already_reserved,             // Logos - The account is already reserved with different request.
+    initializing,                 // Logos - The delegate is initializing and not accepting transactions.
+    insufficient_fee,             // Logos - Transaction fee is insufficient.
+    insufficient_balance,         // Logos - Balance is insufficient.
+    not_delegate,                 // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
+    clock_drift,                  // Logos - timestamp exceeds allowed clock drift
+    wrong_sequence_number,        // Logos - invalid block sequence number
+    invalid_request,              // Logos - An incoming request is invalid.
+    invalid_tip,                  // Logos - invalid microblock tip
+    invalid_number_blocks,        // Logos - invalid number of blocks in microblock
+    revert_immutability,          // Logos - Attempting to change a token account mutability setting from false to true
+    immutable,                    // Logos - Attempting to update an immutable token account setting
+    redundant,                    // Logos - The token account setting change was idempotent
+    insufficient_token_balance,   // Logos - Token balance is insufficient.
+    invalid_token_id,             // Logos - Token ID is invalid.
+    untethered_account,           // Logos - User account has not been tethered to the specified token account.
+    invalid_controller,           // Logos - An invalid controller was specified.
+    controller_capacity,          // Logos - No more controllers can be added.
+    invalid_controller_action,    // Logos - An invalid controller action was specified.
+    unauthorized_request,         // Logos - Unauthorized to make request.
+    prohibitted_request,          // Logos - The request is not allowed.
+    not_whitelisted,              // Logos - Whitelisting is required.
+    frozen,                       // Logos - Account is frozen.
+    insufficient_token_fee,       // Logos - Token fee is insufficient.
+    invalid_token_symbol,         // Logos - Token symbol is invalid.
+    invalid_token_name,           // Logos - Token name is invalid.
+    invalid_token_amount,         // Logos - Token amount is invalid.
+    total_supply_overflow,        // Logos - The request would case the token total supply to overflow.
+    key_collision,                // Logos - There is already a user account or token account with the same key.
+    invalid_fee,                  // Logos - The fee settings are invalid.
+    invalid_issuer_info,          // Logos - The issuer info supplied is invalid.
+    too_many_token_entries,       // Logos - The account has too many token entries.
+    elections_dead_period,        // Logos - the time between epoch start and epoch block post-commit
+    not_a_rep,                    // Logos - the account is not a representative
+    already_voted,                // Logos - the rep already voted this epoch
+    invalid_candidate,            // Logos - the vote is for an account that is not a candidate
+    not_enough_stake,             // Logos - the rep does not have enough stake for action
+    never_announced_candidacy,    // Logos - the rep has never announced candidacy
+    already_renounced_candidacy,  // Logos - the rep is already in a renounced candidacy state
+    already_announced_candidacy,  // Logos - the rep is already in an announced candidacy state
+    is_rep,                       // Logos - the account is a representative
+    is_candidate,                 // Logos - the account is a candidate
+    is_delegate,                  // Logos - the account is a delegate
+    wrong_epoch_number,           // Logos - the request has an incorrect epoch number
+    no_elections,                 // Logos - elections are not being held currently
+    pending_rep_action,           // Logos - the account has a pending representative action for this epoch
+    pending_candidacy_action,     // Logos - the account has a pending candidacy action for this epoch
+    invalid_staking_subchain,     // Logos - hash sent as staking_subchain_prev does not match staking_subchain_head of account
     insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
-    invalid_account_type,        // Logos - origin account is not the proper type for the request
-    proxy_to_self               // Logos - request is attempting to proxy to self
+    invalid_account_type,         // Logos - origin account is not the proper type for the request
+    proxy_to_self,                // Logos - request is attempting to proxy to self
+    invalid_epoch_hash            // Logos - invalid epoch hash
 };
 
 std::string ProcessResultToString(process_result result);

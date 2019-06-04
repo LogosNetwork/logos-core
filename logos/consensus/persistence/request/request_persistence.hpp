@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/rewards/claim.hpp>
 
 const ConsensusType R = ConsensusType::Request;
 
@@ -155,6 +156,10 @@ protected:
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
+
+    bool ValidateRequest(const Claim & request,
+                         logos::process_return & result,
+                         std::shared_ptr<logos::Account> info);
 
     bool IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn);
 
