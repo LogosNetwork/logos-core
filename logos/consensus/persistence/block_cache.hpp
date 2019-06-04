@@ -19,15 +19,6 @@
 #include <logos/microblock/microblock.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 
-#include <logos/consensus/persistence/persistence.hpp>
-#include <logos/consensus/persistence/persistence_manager.hpp>
-#include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
-#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
-#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
-#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
-#include <logos/consensus/persistence/request/request_persistence.hpp>
-#include <logos/consensus/persistence/request/nondel_request_persistence.hpp>
-
 #include "block_container.hpp"
 #include "block_write_queue.hpp"
 
@@ -134,10 +125,6 @@ private:
     block_store &                   store_;
     PendingBlockContainer           block_container;
     BlockWriteQueue                 write_q;
-
-    NonDelPersistenceManager<ECT>   eb_handler;
-    NonDelPersistenceManager<MBCT>  mb_handler;
-    NonDelPersistenceManager<R>     rb_handler;
 
     std::mutex                      mtx;
     Log                             log;
