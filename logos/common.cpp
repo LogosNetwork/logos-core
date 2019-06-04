@@ -273,11 +273,11 @@ bool logos::Account::Deserialize (stream & stream_a)
                     error = read(stream_a, block_count);
                     if (!error)
                     {
-                            error = read(stream_a, receive_head.bytes);
-                            if (!error)
-                            {
-                                error = read(stream_a, receive_count);
-                            }
+                        error = read(stream_a, receive_head.bytes);
+                        if (!error)
+                        {
+                            error = read(stream_a, receive_count);
+                        }
                     }
                 }
             }
@@ -415,6 +415,7 @@ logos::account_info::account_info ()
     , available_balance (balance)
     , epoch_thawing_updated(0)
     , epoch_secondary_liabilities_updated(0)
+    , claim_epoch(0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
@@ -429,54 +430,63 @@ logos::account_info::account_info (bool & error, logos::stream & stream)
 }
 
 logos::account_info::account_info (
-        logos::block_hash const & head_a,
-        logos::block_hash const & receive_head_a,
-        logos::block_hash const & staking_subchain_head_a,
-        logos::block_hash const & open_block_a,
-        logos::amount const & balance_a,
-        uint64_t modified_a,
-        uint32_t block_count_a,
-        uint32_t receive_count_a)
+        logos::block_hash const & head,
+        logos::block_hash const & receive_head,
+        logos::block_hash const & staking_subchain_head,
+        logos::block_hash const & open_block,
+        logos::amount const & balance,
+        uint64_t modified,
+        uint32_t block_count,
+        uint32_t receive_count,
+        uint32_t claim_epoch)
     : Account(AccountType::LogosAccount,
-              balance_a,
-              modified_a,
-              head_a,
-              block_count_a,
-              receive_head_a,
-              receive_count_a)
-    , staking_subchain_head (staking_subchain_head_a)
+              balance,
+              modified,
+              head,
+              block_count,
+              receive_head,
+              receive_count)
+    , staking_subchain_head (staking_subchain_head)
     , rep(0)
-    , open_block (open_block_a)
-    , available_balance (balance_a)
+    , open_block (open_block)
+    , available_balance (balance)
     , epoch_thawing_updated(0)
     , epoch_secondary_liabilities_updated(0)
+    , claim_epoch(0)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
+
     s += write (stream_a, staking_subchain_head.bytes);
     s += write (stream_a, rep);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
+
     for(auto & entry : entries)
     {
         s += entry.Serialize(stream_a);
     }
+
     s += write (stream_a, epoch_thawing_updated);
     s += write (stream_a, epoch_secondary_liabilities_updated);
     s += write (stream_a, available_balance.bytes);
+    s += write (stream_a, claim_epoch);
+
     return s;
 }
 
 bool logos::account_info::Deserialize(logos::stream &stream_a)
 {
     uint16_t count;
+
     auto error = Account::Deserialize(stream_a)
         || read (stream_a, staking_subchain_head.bytes)
         || read (stream_a, rep)
         || read (stream_a, open_block.bytes)
         || read (stream_a, count);
+
     for(size_t i = 0; i < count && !error; ++i)
     {
         TokenEntry entry(error, stream_a);
@@ -485,12 +495,14 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
             entries.push_back(entry);
         }
     }
+
     error = error
         || read(stream_a, epoch_thawing_updated)
         || read(stream_a, epoch_secondary_liabilities_updated)
-        || read(stream_a, available_balance.bytes);
-    return error;
+        || read(stream_a, available_balance.bytes)
+        || read(stream_a, claim_epoch);
 
+    return error;
 }
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
@@ -501,6 +513,7 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
            available_balance == other_a.available_balance &&
            epoch_thawing_updated  == other_a.epoch_thawing_updated &&
            epoch_secondary_liabilities_updated == other_a.epoch_secondary_liabilities_updated &&
+           claim_epoch == other_a.claim_epoch &&
            Account::operator==(other_a);
 }
 

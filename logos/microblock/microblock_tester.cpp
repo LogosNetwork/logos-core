@@ -155,14 +155,15 @@ MicroBlockTester::precreate_account(
 
     node.store.account_put(account,
                       {
-                              /* Head    */ 0,
-                              /* Previous*/ 0,
-                              /* Rep     */ 0,
-                              /* Open    */ request.GetHash(),
-                              /* Amount  */ amount,
-                              /* Time    */ logos::seconds_since_epoch(),
-                              /* Count   */ 0,
-                              /* Receive */ 0
+                              /* Head        */ 0,
+                              /* Previous    */ 0,
+                              /* Rep         */ 0,
+                              /* Open        */ request.GetHash(),
+                              /* Amount      */ amount,
+                              /* Time        */ logos::seconds_since_epoch(),
+                              /* Count       */ 0,
+                              /* Receive     */ 0,
+                              /* Claim Epoch */ 0
                       },
                       transaction);
 

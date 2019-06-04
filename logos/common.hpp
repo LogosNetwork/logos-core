@@ -171,7 +171,8 @@ struct account_info : Account
                   amount const & balance,
                   uint64_t modified,
                   uint32_t block_count,
-                  uint32_t receive_count);
+                  uint32_t receive_count,
+                  uint32_t claim_epoch);
 
     uint32_t Serialize(stream &stream_a) const override;
     bool Deserialize(stream &stream_a) override;
@@ -211,6 +212,7 @@ struct account_info : Account
     uint32_t   epoch_thawing_updated;
     //the last epoch in which secondary liabilities were checked for expiration for this account
     uint32_t   epoch_secondary_liabilities_updated;
+    uint32_t   claim_epoch;
 
     protected:
     amount available_balance;

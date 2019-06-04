@@ -969,7 +969,7 @@ TEST(Elections,validate)
     DelegateIdentityManager::EpochTransitionEnable(true);
     AccountAddress sender_account = 100;
     AccountAddress sender_account2 = 101;
-    logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+MIN_DELEGATE_STAKE,0,0,0);
+    logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+MIN_DELEGATE_STAKE,0,0,0,0);
 
     store->account_put(sender_account, account_info, txn);
     store->account_put(sender_account2, account_info, txn);
@@ -1504,7 +1504,7 @@ TEST(Elections, apply)
         start_rep.epoch_num = epoch_num;
         start_rep.Hash();
 
-        logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+1000,0,0,0);
+        logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+1000,0,0,0,0);
         store->account_put(start_rep.origin, account_info, txn);
         logos::process_return result;
         ASSERT_TRUE(req_persistence_mgr.ValidateRequest(start_rep,account_info, epoch_num, txn, result));
@@ -1757,7 +1757,7 @@ TEST(Elections, weighted_votes)
     PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
     clear_dbs();
     logos::transaction txn(store->environment,nullptr,true);
-    logos::account_info account_info(0,0,0,0,1000,0,0,0);
+    logos::account_info account_info(0,0,0,0,1000,0,0,0,0);
     logos::account_info account_info2 = account_info;
     std::shared_ptr<StakingManager> sm = StakingManager::GetInstance();
     uint32_t epoch = 10;
