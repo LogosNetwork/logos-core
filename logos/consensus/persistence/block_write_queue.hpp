@@ -1,6 +1,7 @@
 #pragma once
 
 #include <queue>
+#include <mutex>
 
 #include <logos/consensus/messages/messages.hpp>
 
@@ -50,6 +51,10 @@ private:
     NonDelPersistenceManager<ECT>   eb_handler;
     NonDelPersistenceManager<MBCT>  mb_handler;
     NonDelPersistenceManager<R>     rb_handler;
+
+    std::mutex                      eqmutex;
+    std::mutex                      mqmutex;
+    std::mutex                      rqmutex;
 };
 
 }
