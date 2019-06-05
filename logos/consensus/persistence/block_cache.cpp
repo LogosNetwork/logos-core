@@ -268,22 +268,21 @@ void BlockCache::Validate(uint8_t rb_idx)
                 }
                 else
                 {
-                    ApprovedRB & block = *(*to_validate);
-                    std::shared_ptr<ApprovedRB> sblock = std::make_shared<ApprovedRB>(block); // rewrite
+                    RBPtr block = *to_validate;
                     ValidationStatus status;
                     LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
-                            << block.CreateTip().to_string();
+                            << block->CreateTip().to_string();
 
-                    if (write_q.VerifyContent(sblock, &status))
+                    if (write_q.VerifyContent(block, &status))
                     {
-                        write_q.StoreBlock(sblock);
-                        block_container.cached_blocks.erase(block.Hash());
+                        write_q.StoreBlock(block);
+                        block_container.cached_blocks.erase(block->Hash());
                         e->rbs[rb_idx].pop_front();
                         num_rb_chain_no_progress = 0;
                     }
                     else
                     {
-                        LOG_TRACE(log) << "BlockCache::Validate BSB status: "
+                        LOG_TRACE(log) << "BlockCache::Validate RB status: "
                                 << ProcessResultToString(status.reason);
     #ifdef REASON_CLEARED
                         switch (status.reason) {
@@ -297,11 +296,11 @@ void BlockCache::Validate(uint8_t rb_idx)
                                 //Since the agg-sigs are already verified,
                                 //we expect gap-like reasons.
                                 //For any other reason, we log them, and investigate.
-                                LOG_ERROR(log) << "BlockCache::Validate BSB status: "
+                                LOG_ERROR(log) << "BlockCache::Validate RB status: "
                                         << ProcessResultToString(status.reason)
-                                        << " block " << block.CreateTip().to_string();
+                                        << " block " << block->CreateTip().to_string();
                                 //Throw the block out, otherwise it blocks the rest.
-                                block_container.cached_blocks.erase(block.Hash());
+                                block_container.cached_blocks.erase(block->Hash());
                                 e->rbs[rb_idx].pop_front();
                                 //TODO recall?
                                 //TODO detect double spend?
@@ -321,14 +320,13 @@ void BlockCache::Validate(uint8_t rb_idx)
         bool last_mb = false;
         while(!e->mbs.empty())
         {
-            ApprovedMB & block = *(e->mbs.front());
-            std::shared_ptr<ApprovedMB> sblock = std::make_shared<ApprovedMB>(block); // rewrite
+            MBPtr block = e->mbs.front();
             ValidationStatus status;
-            if (write_q.VerifyContent(sblock, &status))
+            if (write_q.VerifyContent(block, &status))
             {
-                write_q.StoreBlock(sblock);
-                last_mb = block.last_micro_block;
-                block_container.cached_blocks.erase(block.Hash());
+                write_q.StoreBlock(block);
+                last_mb = block->last_micro_block;
+                block_container.cached_blocks.erase(block->Hash());
                 e->mbs.pop_front();
                 if(last_mb)
                     assert(e->mbs.empty());
@@ -347,7 +345,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                         LOG_ERROR(log) << "BlockCache::Validate MB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block.CreateTip().to_string();
-                        block_container.cached_blocks.erase(block.Hash());
+                        block_container.cached_blocks.erase(block->Hash());
                         e->mbs.pop_front();
                         //TODO recall?
                         break;
@@ -362,15 +360,14 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             if( e->eb != nullptr)
             {
-                ApprovedEB & block = *e->eb;
-                std::shared_ptr<ApprovedEB> sblock = std::make_shared<ApprovedEB>(block); // rewrite
+                EBPtr block = e->eb;
                 ValidationStatus status;
-                if (write_q.VerifyContent(sblock, &status))
+                if (write_q.VerifyContent(block, &status))
                 {
-                    write_q.StoreBlock(sblock);
+                    write_q.StoreBlock(block);
                     LOG_INFO(log) << "BlockCache::Validated EB, block: "
-                                  << block.CreateTip().to_string();
-                    block_container.cached_blocks.erase(block.Hash());
+                                  << block->CreateTip().to_string();
+                    block_container.cached_blocks.erase(block->Hash());
                     block_container.epochs.erase(e);
                     e_finished = true;
                 }
@@ -387,8 +384,8 @@ void BlockCache::Validate(uint8_t rb_idx)
                         default:
                             LOG_ERROR(log) << "BlockCache::Validate EB status: "
                                 << ProcessResultToString(status.reason)
-                                << " block " << block.CreateTip().to_string();
-                            block_container.cached_blocks.erase(block.Hash());
+                                << " block " << block->CreateTip().to_string();
+                            block_container.cached_blocks.erase(block->Hash());
                             block_container.epochs.pop_front();
                             //TODO recall?
                             break;
