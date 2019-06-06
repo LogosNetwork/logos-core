@@ -94,12 +94,15 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         update("micro block", micro_block, microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
+        const Amount initial_supply = 1000000000;
+
         epoch.primary_delegate = 0xff;
         epoch.epoch_number = e;
         epoch.sequence = 0;
         epoch.timestamp = 0;
         epoch.previous = epoch_hash;
         epoch.micro_block_tip = microblock_tip;
+        epoch.total_supply = initial_supply;
 
         bls::KeyPair bls_key;
         ECIESPublicKey ecies_key;

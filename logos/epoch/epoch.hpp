@@ -201,6 +201,7 @@ public:
         : PrePrepareCommon()
         , micro_block_tip()
         , transaction_fee_pool(0ull)
+        , total_supply(0ull)
         , delegates()
         , is_extension(false)
     {}
@@ -227,6 +228,12 @@ public:
             return;
         }
 
+        error = logos::read(stream, total_supply);
+        if(error)
+        {
+            return;
+        }
+
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
             new (&delegates[i]) Delegate(error, stream);
@@ -244,6 +251,7 @@ public:
         PrePrepareCommon::Hash(hash, true);
         micro_block_tip.Hash(hash);
         blake2b_update(&hash, transaction_fee_pool.bytes.data(), transaction_fee_pool.bytes.size());
+        blake2b_update(&hash, total_supply.bytes.data(), total_supply.bytes.size());
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
             delegates[i].Hash(hash);
@@ -255,6 +263,7 @@ public:
         auto s = PrePrepareCommon::Serialize(stream);
         s += micro_block_tip.Serialize(stream);
         s += logos::write(stream, transaction_fee_pool);
+        s += logos::write(stream, total_supply);
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
             s += delegates[i].Serialize(stream);
@@ -268,6 +277,7 @@ public:
 
     Tip       micro_block_tip;          ///< microblock tip of this epoch
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
+    Amount    total_supply;             ///< Total amount of Native Logos in circulation.
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
-    bool is_extension;
+    bool      is_extension;
 };
