@@ -927,6 +927,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     {
         info->SetBalance(info->GetBalance() - request->fee, cur_epoch_num, transaction);
     }
+
     // Performs the actions required by whitelisting
     // and freezing.
     auto adjust_token_user_status = [this, &transaction](auto message, UserStatus status)
@@ -1383,7 +1384,21 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
         }
         case RequestType::Claim:
+        {
+            auto claim = dynamic_pointer_cast<const Claim>(request);
+
+            Transaction<Amount> t(claim->origin, 0);
+
+            ApplySend(t,
+                      timestamp,
+                      transaction,
+                      request->GetHash(),
+                      {0},
+                      request->origin,
+                      cur_epoch_num);
+
             break;
+        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
                             << "Unknown request type.";
