@@ -15,20 +15,19 @@
 namespace logos
 {
 
-class BlockChain;
-
-using ChainPtr = std::shared_ptr<BlockChain>;
-
-class BlockChain
+struct ChainPtr
 {
     using RBPtr = std::shared_ptr<ApprovedRB>;
+    using MBPtr = std::shared_ptr<ApprovedMB>;
+    using EBPtr = std::shared_ptr<ApprovedEB>;
 
-private:
-    RBPtr       rb;
-    ChainPtr    next;
+    /* This is actually an union. Only one of these pointers is non-empty.
+     * But union is not applicable here because of non-trivial destructor of shared_ptr type.
+     */
+    RBPtr rptr;
+    MBPtr mptr;
+    EBPtr eptr;
 };
-
-class BlockCache;
 
 class PendingBlockContainer
 {
