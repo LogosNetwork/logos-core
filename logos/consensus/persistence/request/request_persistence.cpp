@@ -1698,18 +1698,7 @@ void PersistenceManager<R>::ApplyRequest(
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.rep_action_tip = request.GetHash();
-    CandidateInfo candidate;
-    if(!_store.candidate_get(request.origin,candidate,txn))
-    {
-        rep.candidacy_action_tip = request.GetHash();
-        assert(!_store.candidate_mark_remove(request.origin,txn));
-        candidate.TransitionIfNecessary(request.epoch_num);
-        if(request.set_stake)
-        {
-            candidate.next_stake = request.stake; 
-        }
-        _store.candidate_put(request.origin,candidate,txn);
-    }
+
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.rep_mark_remove(request.origin, txn));
     assert(!_store.request_put(request,txn));
@@ -1722,8 +1711,6 @@ void PersistenceManager<R>::ApplyRequest(
                 request.origin,
                 request.epoch_num,
                 txn); 
-
-
     }
 }
 
@@ -2106,7 +2093,7 @@ bool PersistenceManager<R>::ValidateRequest(
                     return false;
                 }
             }
-            else if(GetEpochNum(candidacy_req) < cur_epoch_num) //Renounce || StopRepresenting
+            else if(GetEpochNum(candidacy_req) < cur_epoch_num) //Renounce
             {
                 result.code = logos::process_result::invalid_candidate;
                 return false;
@@ -2140,6 +2127,25 @@ bool HasMinGovernanceStake(T & request, MDB_txn* txn)
     }
     bool is_announce_candidacy = request.type == RequestType::AnnounceCandidacy;
     return stake >= MIN_REP_STAKE && (!is_announce_candidacy || stake >= MIN_DELEGATE_STAKE);
+}
+
+//Returns true if account is a delegate in the next epoch
+//This function should not be called inside elections dead period
+bool IsDelegateNextEpoch(
+        logos::block_store& store,
+        AccountAddress const & account,
+        MDB_txn* txn)
+{
+    ApprovedEB epoch;
+    store.epoch_get_n(0,epoch,txn);
+    for(auto delegate : epoch.delegates)
+    {
+        if(delegate.account == account)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool PersistenceManager<R>::ValidateRequest(
@@ -2207,7 +2213,7 @@ bool PersistenceManager<R>::ValidateRequest(
             return false;
         }
         //already submitted candidacy action this epoch, reject
-        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy || StopRepresenting
+        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy
         {
             result.code = logos::process_result::pending_candidacy_action;
             return false;
@@ -2277,8 +2283,7 @@ bool PersistenceManager<R>::ValidateRequest(
     assert(!_store.request_get(hash, candidacy_req, txn));
     assert(VerifyCandidacyActionType(candidacy_req->type));
     //if already renounced candidacy, reject
-    if(candidacy_req->type == RequestType::RenounceCandidacy
-            || candidacy_req->type == RequestType::StopRepresenting)
+    if(candidacy_req->type == RequestType::RenounceCandidacy)
     {
         result.code = logos::process_result::already_renounced_candidacy;
         return false;
@@ -2463,6 +2468,9 @@ bool PersistenceManager<R>::ValidateRequest(
         }
 
         //verify candidacy status
+        //StopRepresenting is invalid if origin previously submitted
+        //AnnounceCandidacy, and has not submitted RenounceCandidacy prior
+        //to the current epoch
         hash = rep.candidacy_action_tip;
         if(hash != 0)
         {
@@ -2475,12 +2483,26 @@ bool PersistenceManager<R>::ValidateRequest(
                 result.code = logos::process_result::pending_candidacy_action;
                 return false;
             }
+            //Need to submit RenounceCandidacy prior to StopRepresenting
+            if(candidacy_req->type == RequestType::AnnounceCandidacy)
+            {
+                result.code = logos::process_result::is_candidate;
+                return false;
+            }
         }
     }
     //if origin is not a rep, reject
     else
     {
         result.code = logos::process_result::not_a_rep;
+        return false;
+    }
+
+    //Verify origin is not a delegate next epoch
+    //Delegate must wait until last epoch of term to submit StopRepresenting
+    if(IsDelegateNextEpoch(_store, request.origin, txn))
+    {
+        result.code = logos::process_result::is_delegate;
         return false;
     }
     //Verify origin can stake amount requested
@@ -2521,7 +2543,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //Cannot proxy if origin account is already rep (or will be rep next epoch)
-    //TODO should delegates that are not reps be allowed to proxy?
     RepInfo rep_info;
     if(!_store.rep_get(request.origin,rep_info,txn))
     {
@@ -2535,10 +2556,8 @@ bool PersistenceManager<R>::ValidateRequest(
             trace_and_halt();
         }
         //If origin account is resigning as rep, Proxy request is valid
-        //otherwise, reject. Note, account can resign as rep via StopRepresenting
-        //or RenounceCandidacy
-        if(req->type != RequestType::StopRepresenting
-                && req->type != RequestType::RenounceCandidacy)
+        //otherwise, reject
+        if(req->type != RequestType::StopRepresenting)
         {
             result.code = logos::process_result::is_rep;
             return false;
@@ -2558,8 +2577,7 @@ bool PersistenceManager<R>::ValidateRequest(
             trace_and_halt();
         }
         //request.rep is a current rep, but is not a rep next epoch. Reject
-        if(req->type == RequestType::StopRepresenting
-                || req->type == RequestType::RenounceCandidacy)
+        if(req->type == RequestType::StopRepresenting)
         {
             result.code = logos::process_result::not_a_rep;
             return false;
@@ -2732,8 +2750,7 @@ bool PersistenceManager<R>::ValidateRequest(
                 << " hash = " << hash.to_string();
             trace_and_halt();
         }
-        if(req->type != RequestType::StopRepresenting
-                && req->type != RequestType::RenounceCandidacy)
+        if(req->type != RequestType::StopRepresenting)
         {
             result.code = logos::process_result::not_enough_stake;
             return false;

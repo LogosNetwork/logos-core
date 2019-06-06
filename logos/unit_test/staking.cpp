@@ -31,7 +31,6 @@ bool IsStakingRequest(Request const & req)
         || req.type == RequestType::ElectionVote;
 }
 
-
 TEST(Staking, Basic)
 {
     /*
@@ -590,7 +589,6 @@ TEST(Staking, Basic)
 
 }
 
-
 TEST(Staking, SwitchProxy)
 {
 
@@ -1096,7 +1094,6 @@ TEST(Staking, SwitchProxy)
 
 
 }
-
 
 TEST(Staking, MultipleProxy)
 {
@@ -1771,6 +1768,14 @@ TEST(Staking, StakeUnstake)
     Unstake unstake;
     unstake.origin = rep;
     ASSERT_FALSE(validate(unstake));
+
+    RenounceCandidacy renounce;
+    renounce.origin = rep;
+    ASSERT_TRUE(validate(renounce));
+
+    apply(renounce);
+
+    transition_epoch();
 
     StopRepresenting stop_rep;
     stop_rep.origin = rep;

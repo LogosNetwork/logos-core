@@ -390,6 +390,8 @@ enum class process_result
     already_renounced_candidacy,// Logos - the rep is already in a renounced candidacy state
     already_announced_candidacy,// Logos - the rep is already in an announced candidacy state
     is_rep,                     // Logos - the account is a representative
+    is_candidate,               // Logos - the account is a candidate
+    is_delegate,                // Logos - the account is a delegate
     wrong_epoch_number,         // Logos - the request has an incorrect epoch number
     no_elections,               // Logos - elections are not being held currently
     pending_rep_action,         // Logos - the account has a pending representative action for this epoch
