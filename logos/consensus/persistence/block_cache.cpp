@@ -284,11 +284,22 @@ void BlockCache::Validate(uint8_t rb_idx)
                     {
                         LOG_TRACE(log) << "BlockCache::Validate RB status: "
                                 << ProcessResultToString(status.reason);
-    #ifdef REASON_CLEARED
                         switch (status.reason) {
                             case logos::process_result::gap_previous:
                             case logos::process_result::gap_source:
                                 //TODO any other cases that can be considered as gap?
+                                block_container.AddDependency(block->previous, block);
+                                num_rb_chain_no_progress++;
+                                rb_idx = (rb_idx+1)%NUM_DELEGATES;
+                                break;
+                            case logos::process_result::invalid_request:
+                                for(uint32_t i = 0; i < block->requests.size(); ++i)
+                                {
+                                    if (status.requests[i] == logos::process_result::gap_previous)
+                                    {
+                                        block_container.AddDependency(block->requests[i]->previous, block);
+                                    }
+                                }
                                 num_rb_chain_no_progress++;
                                 rb_idx = (rb_idx+1)%NUM_DELEGATES;
                                 break;
@@ -306,10 +317,6 @@ void BlockCache::Validate(uint8_t rb_idx)
                                 //TODO detect double spend?
                                 break;
                         }
-    #else
-                        num_rb_chain_no_progress++;
-                        rb_idx = (rb_idx+1)%NUM_DELEGATES;
-    #endif
                         break;//for(;;)
                     }
                 }
@@ -335,22 +342,30 @@ void BlockCache::Validate(uint8_t rb_idx)
             {
                 LOG_TRACE(log) << "BlockCache::Validate MB status: "
                         << ProcessResultToString(status.reason);
-#ifdef REASON_CLEARED
                 switch (status.reason) {
                     case logos::process_result::gap_previous:
                     case logos::process_result::gap_source:
                         //TODO any other cases that can be considered as gap?
+                        block_container.AddDependency(block->previous, block);
+                        break;
+                    case logos::process_result::invalid_request:
+                        for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
+                        {
+                            if (status.requests[i] == logos::process_result::gap_previous)
+                            {
+                                block_container.AddDependency(block->tips[i].digest, block);
+                            }
+                        }
                         break;
                     default:
                         LOG_ERROR(log) << "BlockCache::Validate MB status: "
                             << ProcessResultToString(status.reason)
-                            << " block " << block.CreateTip().to_string();
+                            << " block " << block->CreateTip().to_string();
                         block_container.cached_blocks.erase(block->Hash());
                         e->mbs.pop_front();
                         //TODO recall?
                         break;
                 }
-#endif
                 break;
             }
         }
@@ -375,11 +390,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                 {
                     LOG_TRACE(log) << "BlockCache::Validate EB status: "
                             << ProcessResultToString(status.reason);
-    #ifdef REASON_CLEARED
                     switch (status.reason) {
                         case logos::process_result::gap_previous:
                         case logos::process_result::gap_source:
                             //TODO any other cases that can be considered as gap?
+                            block_container.AddDependency(block->previous, block);
+                            break;
+                        case logos::process_result::invalid_tip:
+                            block_container.AddDependency(block->micro_block_tip.digest, block);
                             break;
                         default:
                             LOG_ERROR(log) << "BlockCache::Validate EB status: "
@@ -390,7 +408,6 @@ void BlockCache::Validate(uint8_t rb_idx)
                             //TODO recall?
                             break;
                     }
-    #endif
                 }
             }
             else
