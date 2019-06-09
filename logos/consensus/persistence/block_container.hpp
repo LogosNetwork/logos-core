@@ -85,11 +85,14 @@ public:
     void AddDependency(const BlockHash &hash, EBPtr block);
     void AddDependency(const BlockHash &hash, MBPtr block);
     void AddDependency(const BlockHash &hash, RBPtr block);
+
+    void DelDependencies(const BlockHash &hash, std::list<ChainPtr> &bucket);
 private:
     std::list<EpochPeriod>                          epochs;
-    std::unordered_set<BlockHash>                   cached_blocks;
+    std::set<BlockHash>                             cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
     std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
+    std::mutex                                      hash_dependency_table_mutex;
 
     friend class BlockCache;
 };
