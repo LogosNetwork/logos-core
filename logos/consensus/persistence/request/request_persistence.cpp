@@ -23,6 +23,7 @@ PersistenceManager<R>::PersistenceManager(Store & store,
                                           Milliseconds clock_drift)
     : Persistence(store, clock_drift)
     , _reservations(reservations)
+    , _epoch_handler(nullptr)
 {
     if (_reservations == nullptr)
     {
@@ -72,6 +73,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
         StoreRequestBlock(message, transaction, delegate_id);
         ApplyRequestBlock(message, transaction);
     }
+
     // SYL Integration: clear reservation AFTER flushing to LMDB to ensure safety
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
@@ -136,13 +138,13 @@ bool PersistenceManager<R>::ValidateRequest(
     bool prelim)
 {
     LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request"
-        << request->Hash().to_string();
+                   << request->Hash().to_string();
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
         LOG_WARN(_log) << "PersistenceManager<R> - Validate, bad signature: "
-            << request->signature.to_string()
-            << " account: " << request->origin.to_string();
+                       << request->signature.to_string()
+                       << " account: " << request->origin.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -845,7 +847,8 @@ void PersistenceManager<R>::ApplyRequestBlock(
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         LOG_INFO(_log) << "Applying request: " 
-            << message.requests[i]->Hash().to_string();
+                       << message.requests[i]->Hash().to_string();
+
         ApplyRequest(message.requests[i],
                      message.timestamp,
                      message.epoch_number,
@@ -860,7 +863,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 {
 
     LOG_INFO(_log) << "PersistenceManager::ApplyRequest -"
-        << request->Hash().to_string();
+                   << request->Hash().to_string();
+
     std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(request->GetAccount(), info));
 
@@ -886,6 +890,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                            << "ignoring.";
             return;
         }
+
         // Somehow a fork slipped through
         else
         {
@@ -904,10 +909,26 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         StakingManager::GetInstance()->PruneThawing(request->origin, *account_info, cur_epoch_num, transaction);
     }
 
-    // TODO: Harvest fees
     if(request->type != RequestType::ElectionVote)
     {
         info->SetBalance(info->GetBalance() - request->fee, cur_epoch_num, transaction);
+
+        if(_epoch_handler)
+        {
+            if(request->type != RequestType::Issuance)
+            {
+                _epoch_handler->OnFeeCollected(request->fee);
+            }
+            else
+            {
+                _epoch_handler->OnFeeCollected(MIN_TRANSACTION_FEE);
+            }
+        }
+        else
+        {
+            LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - running persistence manager without "
+                           <<  "an _epoch_handler pointer. Fees are not tracked.";
+        }
     }
 
     // Performs the actions required by whitelisting
@@ -1128,7 +1149,6 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       revoke->token_id,
                       revoke->origin,
                       cur_epoch_num);
-
 
             break;
         }
@@ -1554,125 +1574,6 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     PlaceReceive(receive, timestamp, transaction);
 }
 
-// TODO: Discuss total order of receives in
-//       receive_db of all nodes.
-void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
-                                         uint64_t timestamp,
-                                         MDB_txn * transaction)
-{
-    ReceiveBlock prev;
-    ReceiveBlock cur;
-
-    auto hash = receive.Hash();
-    uint64_t timestamp_a = timestamp;
-
-    if(!_store.receive_get(receive.previous, cur, transaction))
-    {
-        // Returns true if 'a' should precede 'b'
-        // in the receive chain.
-        auto receive_cmp = [&](const ReceiveBlock & a,
-                               const ReceiveBlock & b)
-        {
-            // need b's timestamp
-            std::shared_ptr<Request> request;
-            if(_store.request_get(b.send_hash, request, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
-                                << "Failed to get a previous state block with hash: "
-                                << b.send_hash.to_string();
-                trace_and_halt();
-            }
-
-            ApprovedRB approved;
-            auto timestamp_b = (_store.request_block_get(request->locator.hash, approved, transaction)) ? 0 : approved.timestamp;
-            bool a_is_less;
-            if(timestamp_a != timestamp_b)
-            {
-                a_is_less = timestamp_a < timestamp_b;
-            }
-            else
-            {
-                a_is_less = a.Hash() < b.Hash();
-            }
-
-            // update for next compare if needed
-            timestamp_a = timestamp_b;
-
-            return a_is_less;
-        };
-
-        while(receive_cmp(receive, cur))
-        {
-            prev = cur;
-            if(_store.receive_get(cur.previous,
-                                   cur,
-                                   transaction))
-            {
-                if(!cur.previous.is_zero())
-                {
-                    LOG_FATAL(_log) << "PersistenceManager<B>::PlaceReceive - "
-                                    << "Failed to get a previous receive block with hash: "
-                                    << cur.previous.to_string();
-                    trace_and_halt();
-                }
-                break;
-            }
-        }
-
-        // SYL integration fix: we only want to modify prev in DB if we are inserting somewhere in the middle of the receive chain
-        if(!prev.send_hash.is_zero())
-        {
-            std::shared_ptr<Request> prev_request;
-            if(_store.request_get(prev.send_hash, prev_request, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager<B>::PlaceReceive - "
-                                << "Failed to get a previous state block with hash: "
-                                << prev.send_hash.to_string();
-                trace_and_halt();
-            }
-            if(!prev_request->origin.is_zero())
-            {
-                // point following receive aka prev's 'previous' field to new receive
-                receive.previous = prev.previous;
-                prev.previous = hash;
-                auto prev_hash (prev.Hash());
-                if(_store.receive_put(prev_hash, prev, transaction))
-                {
-                    LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
-                                    << "Failed to store receive block with hash: "
-                                    << prev_hash.to_string();
-
-                    trace_and_halt();
-                }
-            }
-            else  // sending to burn address is already prohibited
-            {
-                LOG_FATAL(_log) << "PersistenceManager<B>::PlaceReceive - "
-                                << "Encountered state block with empty account field, hash: "
-                                << prev.send_hash.to_string();
-                trace_and_halt();
-            }
-        }
-    }
-    else if (!receive.previous.is_zero())
-    {
-        LOG_FATAL(_log) << "PersistenceManager<B>::PlaceReceive - "
-                        << "Failed to get a previous receive block with hash: "
-                        << receive.previous.to_string();
-        trace_and_halt();
-    }
-
-    if(_store.receive_put(hash, receive, transaction))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
-                        << "Failed to store receive block with hash: "
-                        << hash.to_string();
-
-        trace_and_halt();
-    }
-}
-
-
 void PersistenceManager<R>::ApplyRequest(
         const StartRepresenting& request,
         logos::account_info& info,
@@ -1879,9 +1780,6 @@ void PersistenceManager<R>::ApplyRequest(
             request.rep,
             request.epoch_num,
             txn);
-
-
-
 }
 
 void PersistenceManager<R>::ApplyRequest(
@@ -1901,6 +1799,7 @@ void PersistenceManager<R>::ApplyRequest(
     {
         trace_and_halt();
     }
+
     StakingManager::GetInstance()->Stake(
             request.origin,
             info,
@@ -1917,7 +1816,6 @@ void PersistenceManager<R>::ApplyRequest(
         candidate.next_stake = request.stake; 
         _store.candidate_put(request.origin,candidate,txn);
     }
-
 }
 
 
@@ -2128,7 +2026,7 @@ bool HasMinGovernanceStake(T & request, MDB_txn* txn)
         {
             Log log;
             LOG_WARN(log) << "HasMinGovernanceStake - account has no stake. "
-                << "request does not set stake";
+                          << "request does not set stake";
             return false;
         }
         stake = cur_stake.amount;
@@ -2331,7 +2229,7 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
     if(_store.epoch_tip_get(tip,txn))
     {
         LOG_FATAL(_log) << "PersistenceManager<R>::IsDeadPeriod - "
-            << "failed to get epoch_tip";
+                        << "failed to get epoch_tip";
         trace_and_halt();
     }
 
@@ -2339,7 +2237,7 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
     if(_store.epoch_get(hash,eb,txn))
     {
         LOG_FATAL(_log) << "PersistenceManager<R>::IsDeadPeriod - "
-            << "failed to get epoch. hash = " << hash.to_string();
+                        << "failed to get epoch. hash = " << hash.to_string();
         trace_and_halt();
     }
 
@@ -2527,7 +2425,7 @@ bool PersistenceManager<R>::ValidateRequest(
     if(!txn)
     {
         LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
-            << "txn is null";
+                        << "txn is null";
         trace_and_halt();
     }
     //epoch consistency
@@ -2559,8 +2457,8 @@ bool PersistenceManager<R>::ValidateRequest(
         if(_store.request_get(hash,req,txn))
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
-                << " - failed to retrieve rep_action_tip"
-                << " hash = " << hash.to_string();
+                            << " - failed to retrieve rep_action_tip"
+                            << " hash = " << hash.to_string();
             trace_and_halt();
         }
         //If origin account is resigning as rep, Proxy request is valid
@@ -2580,8 +2478,8 @@ bool PersistenceManager<R>::ValidateRequest(
         if(_store.request_get(hash,req,txn))
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
-                << " - failed to retrieve rep_action_tip"
-                << " hash = " << hash.to_string();
+                            << " - failed to retrieve rep_action_tip"
+                            << " hash = " << hash.to_string();
             trace_and_halt();
         }
         //request.rep is a current rep, but is not a rep next epoch. Reject
@@ -2624,7 +2522,7 @@ bool PersistenceManager<R>::ValidateRequest(
     if(!txn)
     {
         LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
-            << "txn is null";
+                        << "txn is null";
         trace_and_halt();
     }
     //epoch consistency
@@ -2657,8 +2555,8 @@ bool PersistenceManager<R>::ValidateRequest(
         if(_store.request_get(hash,req,txn))
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Stake)"
-                << " - failed to retrieve rep_action_tip"
-                << " hash = " << hash.to_string();
+                            << " - failed to retrieve rep_action_tip"
+                            << " hash = " << hash.to_string();
             trace_and_halt();
         }
         //If account is rep next epoch, need to have at least MIN_REP_STAKE
@@ -2677,8 +2575,8 @@ bool PersistenceManager<R>::ValidateRequest(
             if(_store.request_get(hash, req, txn))
             {
                 LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Stake)"
-                    << " - failed to retrieve candidacy_action_tip"
-                    << " hash = " << hash.to_string();
+                                << " - failed to retrieve candidacy_action_tip"
+                                << " hash = " << hash.to_string();
                 trace_and_halt();
             }
             //If account is candidate next epoch (or will be candidate when up
@@ -2720,7 +2618,7 @@ bool PersistenceManager<R>::ValidateRequest(
     if(!txn)
     {
         LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
-            << "txn is null";
+                        << "txn is null";
         trace_and_halt();
     }
     //epoch consistency
@@ -2754,8 +2652,8 @@ bool PersistenceManager<R>::ValidateRequest(
         if(_store.request_get(hash,req,txn))
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
-                << " - failed to retrieve rep_action_tip"
-                << " hash = " << hash.to_string();
+                            << " - failed to retrieve rep_action_tip"
+                            << " hash = " << hash.to_string();
             trace_and_halt();
         }
         if(req->type != RequestType::StopRepresenting)

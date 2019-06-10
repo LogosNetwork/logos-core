@@ -9,6 +9,8 @@
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
+#include <numeric>
+
 PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
                                             Milliseconds clock_drift)
@@ -105,15 +107,17 @@ PersistenceManager<ECT>::ApplyUpdates(
     BlockHash epoch_hash = block.Hash();
     bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
-
     UpdateThawing(block, transaction);
 
-
+    if(block.transaction_fee_pool > 0)
+    {
+        ApplyRewards(block, epoch_hash, transaction);
+    }
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
-                                << epoch_hash.to_string();
+                        << epoch_hash.to_string();
         trace_and_halt();
     }
 
@@ -211,7 +215,7 @@ void PersistenceManager<ECT>::UpdateThawing(ApprovedEB const & block, MDB_txn* t
     if(_store.epoch_tip_get(prev_tip, txn) || _store.epoch_get(prev_tip.digest, prev_epoch, txn))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates - "
-            << "failed to get previous epoch";
+                        << "failed to get previous epoch";
         trace_and_halt();
     }
 
@@ -357,4 +361,114 @@ void PersistenceManager<ECT>::TransitionNextEpoch(MDB_txn* txn, uint32_t next_ep
 {
     TransitionCandidatesDBNextEpoch(txn,next_epoch_num);
     UpdateRepresentativesDB(txn);
+}
+
+void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const BlockHash & hash, MDB_txn * txn)
+{
+    ApprovedEB prev;
+
+    // Retrieve the previous epoch to access
+    // each delegate's staking which determines
+    // to the rewards it earns for the current
+    // epoch.
+    if(_store.epoch_get(block.previous, prev, txn))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                        << "failed to find previous epoch block for epoch number "
+                        << block.sequence;
+
+        trace_and_halt();
+    }
+
+    // Use this comparison function to sort the delegates
+    // according to stake.
+    auto stake_cmp = [](const auto & a, const auto & b)
+    {
+        if(a.raw_stake != b.raw_stake)
+        {
+            return a.raw_stake > b.raw_stake;
+        }
+        else
+        {
+            return Blake2bHash(a).number() > Blake2bHash(b).number();
+        }
+    };
+
+    std::sort(std::begin(prev.delegates), std::end(prev.delegates), stake_cmp);
+
+    auto acc_stake = [](const auto & a, const auto & b)
+    {
+        return a + b.raw_stake;
+    };
+
+    Amount total_stake = std::accumulate(std::begin(prev.delegates),
+                                         std::end(prev.delegates),
+                                         Amount{0},
+                                         acc_stake);
+
+    auto fee_pool = block.transaction_fee_pool;
+    auto remaining_pool = fee_pool;
+
+    // This loop distributes the rewards according to
+    // personal stake.
+    for(int i = 0; i < NUM_DELEGATES; ++i)
+    {
+        if(remaining_pool == 0)
+        {
+            break;
+        }
+
+        auto & d = prev.delegates[i];
+
+        Amount reward;
+
+        if(i < NUM_DELEGATES - 1)
+        {
+            auto ratio = d.raw_stake.number() / total_stake.number();
+            reward = ratio * fee_pool.number();
+
+            if(reward > remaining_pool)
+            {
+                reward = remaining_pool;
+            }
+        }
+        else
+        {
+            reward = remaining_pool;
+        }
+
+        remaining_pool -= reward;
+
+        logos::account_info info;
+        if(_store.account_get(d.account, info, txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                            << "failed to find account for delegate.";
+
+            trace_and_halt();
+        }
+
+        ReceiveBlock receive(
+            /* Previous          */ info.receive_head,
+            /* send_hash         */ hash,
+            /* transaction_index */ 0
+        );
+
+        info.receive_count++;
+        info.receive_head = receive.Hash();
+        info.modified = logos::seconds_since_epoch();
+
+        info.SetBalance(info.GetBalance() + reward, block.sequence, txn);
+
+        if(_store.account_put(d.account, info, txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                            << "Failed to store account: "
+                            << d.account.to_string();
+
+            trace_and_halt();
+        }
+
+        PlaceReceive(receive, block.timestamp, txn);
+    }
 }

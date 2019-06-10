@@ -237,3 +237,9 @@ Archiver::IsRecall()
 {
     return _recall_handler.IsRecall();
 }
+
+EpochHandler &
+Archiver::GetEpochHandler()
+{
+    return _epoch_handler;
+}

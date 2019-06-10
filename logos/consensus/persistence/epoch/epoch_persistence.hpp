@@ -63,4 +63,6 @@ public:
     void AddReelectionCandidates(uint32_t next_epoch_num, MDB_txn* txn);
     void TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
     void UpdateThawing(ApprovedEB const & block, MDB_txn* txn);
+
+    void ApplyRewards(const ApprovedEB & block, const BlockHash & hash, MDB_txn* txn);
 };
