@@ -68,6 +68,11 @@ protected:
         return true;
     }
 
+    void PlaceReceive(
+        ReceiveBlock & receive,
+        uint64_t timestamp,
+        MDB_txn * transaction);
+
     Store &      _store;
     Log          _log;
     Milliseconds _clock_drift;

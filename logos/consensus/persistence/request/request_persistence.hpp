@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/epoch/epoch_handler.hpp>
 #include <logos/rewards/claim.hpp>
 
 const ConsensusType R = ConsensusType::Request;
@@ -168,6 +169,11 @@ protected:
             uint32_t cur_epoch_num,
             MDB_txn * transaction);
 
+    void SetEpochHandler(EpochHandler & handler)
+    {
+        _epoch_handler = &handler;
+    }
+
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
@@ -207,12 +213,9 @@ private:
             uint32_t const & epoch_num,
             uint16_t transaction_index = 0);
 
-    void PlaceReceive(
-            ReceiveBlock & receive,
-            uint64_t timestamp,
-            MDB_txn * transaction);
 
     Log               _log;
     ReservationsPtr   _reservations;
+    EpochHandler *    _epoch_handler;
     static std::mutex _write_mutex;
 };

@@ -50,7 +50,8 @@ public:
                             ConsensusScheduler & scheduler,
                             MessageValidator & validator,
                             p2p_interface & p2p,
-                            uint32_t epoch_number);
+                            uint32_t epoch_number,
+                            EpochHandler & epoch_handler);
 
     ~RequestConsensusManager() = default;
 

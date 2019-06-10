@@ -66,6 +66,8 @@ public:
     /// @returns true if recall
     bool IsRecall();
 
+    EpochHandler & GetEpochHandler();
+
 private:
     static constexpr uint8_t SELECT_PRIMARY_DELEGATE = 0x1F;
 

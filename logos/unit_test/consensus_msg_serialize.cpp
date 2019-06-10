@@ -104,7 +104,7 @@ PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool starting_term 
 {
     PrePrepareMessage<ConsensusType::Epoch> block;
     block.micro_block_tip.digest = 1234;
-    block.transaction_fee_pool = 2345;
+    block.transaction_fee_pool = 0;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
         block.delegates[i] = init_delegate(i, i, i, i && starting_term);

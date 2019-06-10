@@ -15,7 +15,8 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  ConsensusScheduler & scheduler,
                                                  MessageValidator & validator,
                                                  p2p_interface & p2p,
-                                                 uint32_t epoch_number)
+                                                 uint32_t epoch_number,
+                                                 EpochHandler & epoch_handler)
     : Manager(service, store, config,
 	      scheduler, validator, p2p, epoch_number)
     , _init_timer(service)
@@ -33,6 +34,8 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     {
         _sequence = block.sequence + 1;
     }
+
+    _persistence_manager.SetEpochHandler(epoch_handler);
 }
 
 void
