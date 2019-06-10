@@ -51,6 +51,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     {
         block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(block));
         block_container.cached_blocks.insert(block->Hash());
+        block_container.epochs.front().eb_revalidate = true;
         Validate();//TODO optimize: Validate eb first
     }
 
@@ -110,6 +111,8 @@ bool BlockCache::AddMicroBlock(MBPtr block)
                 found = true;
                 auto temp_i = bi;
                 add2begin = ++temp_i == block_container.epochs.rend();
+                if (add2begin)
+                    bi->mbs_revalidate = true;
             }
             break;
         }
@@ -117,6 +120,8 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         {
             block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(block));
             add2begin = block_container.cached_blocks.empty();
+            if (add2begin)
+                --bi, bi->mbs_revalidate = true;
             block_container.cached_blocks.insert(block->Hash());
             found = true;
             break;
@@ -128,6 +133,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
+        block_container.epochs.front().mbs_revalidate = true;
     }
     if(add2begin)
     {
@@ -191,6 +197,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
                 found = true;
                 add2begin = true;
+                bi->rbs_revalidate[block->primary_delegate] = true;
             }
             break;
         }
@@ -200,6 +207,8 @@ bool BlockCache::AddRequestBlock(RBPtr block)
             block_container.cached_blocks.insert(block->Hash());
             found = true;
             add2begin = true;
+            --bi;
+            bi->rbs_revalidate[block->primary_delegate] = true;
             break;
         }
     }
@@ -209,6 +218,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
+        block_container.epochs.front().rbs_revalidate[block->primary_delegate] = true;
     }
     if(add2begin)
     {
@@ -225,26 +235,26 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
 void BlockCache::StoreEpochBlock(EBPtr block)
 {
-    std::list<PendingBlockContainer::ChainPtr> bucket;
+    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    block_container.DelDependencies(block->Hash(), bucket);
-    // todo: revalidate
+    if (block_container.DelDependencies(block->Hash()))
+        Validate();
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
-    std::list<PendingBlockContainer::ChainPtr> bucket;
+    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    block_container.DelDependencies(block->Hash(), bucket);
-    // todo: revalidate
+    if (block_container.DelDependencies(block->Hash()))
+        Validate();
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
-    std::list<PendingBlockContainer::ChainPtr> bucket;
+    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    block_container.DelDependencies(block->Hash(), bucket);
-    // todo: revalidate
+    if (block_container.DelDependencies(block->Hash()))
+        Validate();
 }
 
 bool BlockCache::IsBlockCached(const BlockHash & b)
@@ -258,7 +268,6 @@ void BlockCache::Validate(uint8_t rb_idx)
 {
     LOG_TRACE(log) << "BlockCache::"<<__func__<<"{";
     assert(rb_idx<=NUM_DELEGATES);
-    std::list<PendingBlockContainer::ChainPtr> bucket;
     auto e = block_container.epochs.begin();
     while( e != block_container.epochs.end())
     {
@@ -269,7 +278,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             for(;;)
             {
                 std::list<RBPtr>::iterator to_validate = e->rbs[rb_idx].begin();
-                if(to_validate == e->rbs[rb_idx].end())
+                if(to_validate == e->rbs[rb_idx].end() || !e->rbs_revalidate[rb_idx])
                 {
                     //cannot make progress with empty list
                     num_rb_chain_no_progress++;
@@ -287,9 +296,10 @@ void BlockCache::Validate(uint8_t rb_idx)
                     {
                         BlockHash hash = block->Hash();
                         write_q.StoreBlock(block);
-                        block_container.DelDependencies(hash, bucket);
-                        block_container.cached_blocks.erase(hash);
+                        e->rbs_revalidate[rb_idx] = false;
                         e->rbs[rb_idx].pop_front();
+                        block_container.cached_blocks.erase(hash);
+                        block_container.DelDependencies(hash);
                         num_rb_chain_no_progress = 0;
                     }
                     else
@@ -337,7 +347,7 @@ void BlockCache::Validate(uint8_t rb_idx)
 
         bool mbs_empty = e->mbs.empty();
         bool last_mb = false;
-        while(!e->mbs.empty())
+        while(!e->mbs.empty() && e->mbs_revalidate)
         {
             MBPtr block = e->mbs.front();
             ValidationStatus status;
@@ -346,9 +356,10 @@ void BlockCache::Validate(uint8_t rb_idx)
                 BlockHash hash = block->Hash();
                 write_q.StoreBlock(block);
                 last_mb = block->last_micro_block;
-                block_container.DelDependencies(hash, bucket);
-                block_container.cached_blocks.erase(hash);
+                e->mbs_revalidate = false;
                 e->mbs.pop_front();
+                block_container.cached_blocks.erase(hash);
+                block_container.DelDependencies(hash);
                 if(last_mb)
                     assert(e->mbs.empty());
             }
@@ -387,7 +398,7 @@ void BlockCache::Validate(uint8_t rb_idx)
         bool e_finished = false;
         if(last_mb || mbs_empty)
         {
-            if( e->eb != nullptr)
+            if( e->eb != nullptr && e->eb_revalidate)
             {
                 EBPtr block = e->eb;
                 ValidationStatus status;
@@ -395,11 +406,12 @@ void BlockCache::Validate(uint8_t rb_idx)
                 {
                     BlockHash hash = block->Hash();
                     write_q.StoreBlock(block);
+                    e->eb_revalidate = false;
                     LOG_INFO(log) << "BlockCache::Validated EB, block: "
                                   << block->CreateTip().to_string();
-                    block_container.DelDependencies(hash, bucket);
                     block_container.cached_blocks.erase(hash);
                     block_container.epochs.erase(e);
+                    block_container.DelDependencies(hash);
                     e_finished = true;
                 }
                 else
