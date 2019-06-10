@@ -53,6 +53,9 @@ public:
         std::list<MBPtr>                mbs;
         std::unordered_set<BlockHash>   rbs_next_mb_depend_on;
         std::list<RBPtr>                rbs[NUM_DELEGATES];
+        bool                            eb_revalidate;
+        bool                            mbs_revalidate;
+        bool                            rbs_revalidate[NUM_DELEGATES];
 
         //TODO optimize
         //1 for each unprocessed tip of the oldest mb
@@ -86,8 +89,11 @@ public:
     void AddDependency(const BlockHash &hash, MBPtr block);
     void AddDependency(const BlockHash &hash, RBPtr block);
 
-    void DelDependencies(const BlockHash &hash, std::list<ChainPtr> &bucket);
+    bool DelDependencies(const BlockHash &hash);
 private:
+    EpochPeriod *GetEpoch(uint32_t epoch_num);
+    bool MarkForRevalidation(const ChainPtr &ptr);
+
     std::list<EpochPeriod>                          epochs;
     std::set<BlockHash>                             cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
