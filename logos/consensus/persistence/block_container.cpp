@@ -32,30 +32,19 @@ PendingBlockContainer::EpochPeriod *PendingBlockContainer::GetEpoch(uint32_t epo
 
 bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
 {
-    EpochPeriod *e;
     if (ptr.eptr)
     {
-        e = GetEpoch(ptr.eptr->epoch_number);
-        if (!e || e->eb != ptr.eptr)
-            return false;
-        e->eb_revalidate = true;
+        ptr.eptr->continue_validate = true;
         return true;
     }
     else if (ptr.mptr)
     {
-        e = GetEpoch(ptr.mptr->epoch_number);
-        if (!e || e->mbs.front() != ptr.mptr)
-            return false;
-        e->mbs_revalidate = true;
+        ptr.mptr->continue_validate = true;
         return true;
     }
     else if (ptr.rptr)
     {
-        e = GetEpoch(ptr.mptr->epoch_number);
-        uint8_t id = ptr.rptr->primary_delegate;
-        if (!e || e->rbs[id].front() != ptr.rptr)
-            return false;
-        e->rbs_revalidate[id] = true;
+        ptr.rptr->continue_validate = true;
         return true;
     }
     return false;
