@@ -53,9 +53,6 @@ public:
         std::list<MBPtr>                mbs;
         std::unordered_set<BlockHash>   rbs_next_mb_depend_on;
         std::list<RBPtr>                rbs[NUM_DELEGATES];
-        bool                            eb_revalidate;
-        bool                            mbs_revalidate;
-        bool                            rbs_revalidate[NUM_DELEGATES];
 
         //TODO optimize
         //1 for each unprocessed tip of the oldest mb
