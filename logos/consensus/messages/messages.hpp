@@ -251,7 +251,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     AggSignature post_prepare_sig;
     AggSignature post_commit_sig;
     BlockHash    next;
-    uint8_t      validation_progress;
+    uint32_t     validation_progress;
     bool         continue_validate;
 };
 
