@@ -22,14 +22,19 @@ public:
 
     bool ValidatePreprepare(const PrePrepare & pre_prepare, ValidationStatus * status)
     {
-        if(_clock_drift > Milliseconds(0))
+        if (!status || status->progress < EVP_DRIFT)
         {
-            if (!ValidateTimestamp(pre_prepare.timestamp))
+            if(_clock_drift > Milliseconds(0))
             {
-                LOG_WARN(_logger) << "NonDelPersistenceManager::Validate failed to validate microblock timestamp";
-                UpdateStatusReason(status, logos::process_result::clock_drift);
-                return false;
+                if (!ValidateTimestamp(pre_prepare.timestamp))
+                {
+                    LOG_WARN(_logger) << "NonDelPersistenceManager::Validate failed to validate microblock timestamp";
+                    UpdateStatusReason(status, logos::process_result::clock_drift);
+                    return false;
+                }
             }
+            if (status)
+                status->progress = EVP_DRIFT;
         }
         return PersistenceManager<ECT>::Validate(pre_prepare, status);
     }

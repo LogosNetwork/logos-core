@@ -20,6 +20,16 @@ protected:
     using PrePrepare       = PrePrepareMessage<ECT>;
     using ReservationsPtr  = std::shared_ptr<Reservations>;
 
+    enum epoch_validation_progress
+    {
+        EVP_BEGIN,
+        EVP_DRIFT,
+        EVP_EPOCH_TIP,
+        EVP_MICRO_TIP,
+        EVP_VOTING,
+        EVP_END
+    };
+
 public:
 
     PersistenceManager(Store & store,
