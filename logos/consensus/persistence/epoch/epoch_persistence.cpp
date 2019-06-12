@@ -23,69 +23,94 @@ PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
     ValidationStatus * status)
 {
-    Tip epoch_tip;
-    BlockHash & previous_epoch_hash = epoch_tip.digest;
-    ApprovedEB previous_epoch;
     using namespace logos;
 
-    if (epoch.primary_delegate >= NUM_DELEGATES)
+    if (!status || status->progress < EVP_EPOCH_TIP)
     {
-        UpdateStatusReason(status, process_result::invalid_request);
-        LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) epoch.primary_delegate;
-        return false;
+        Tip epoch_tip;
+        BlockHash & previous_epoch_hash = epoch_tip.digest;
+        ApprovedEB previous_epoch;
+
+        if (epoch.primary_delegate >= NUM_DELEGATES)
+        {
+            UpdateStatusReason(status, process_result::invalid_request);
+            LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) epoch.primary_delegate;
+            return false;
+        }
+
+        if (_store.epoch_tip_get(epoch_tip))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::Validate failed to get epoch tip";
+            trace_and_halt();
+        }
+
+        if (_store.epoch_get(previous_epoch_hash, previous_epoch))
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate failed to get epoch: " <<
+                            previous_epoch_hash.to_string();
+            UpdateStatusReason(status, process_result::gap_previous);
+            return false;
+        }
+
+        // verify epoch number = previous + 1
+        if (epoch.epoch_number != (previous_epoch.epoch_number + 1))
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate account invalid epoch number " <<
+                            epoch.epoch_number << " " << previous_epoch.epoch_number;
+            UpdateStatusReason(status, process_result::block_position);
+            return false;
+        }
+
+        if (status)
+            status->progress = EVP_EPOCH_TIP;
     }
 
-    if (_store.epoch_tip_get(epoch_tip))
+    if (!status || status->progress < EVP_MICRO_TIP)
     {
-        LOG_FATAL(_log) << "PersistenceManager::Validate failed to get epoch tip";
-        trace_and_halt();
+        // verify microblock tip exists
+        Tip micro_block_tip;
+        if (_store.micro_block_tip_get(micro_block_tip))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::Validate failed to get microblock tip";
+            trace_and_halt();
+            return false;
+        }
+
+        if (epoch.micro_block_tip != micro_block_tip)
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate previous micro block doesn't exist " <<
+                            epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
+            UpdateStatusReason(status, process_result::invalid_tip);
+            return false;
+        }
+
+        if (status)
+            status->progress = EVP_MICRO_TIP;
     }
 
-    if (_store.epoch_get(previous_epoch_hash, previous_epoch))
+    if (!status || status->progress < EVP_VOTING)
     {
-        LOG_ERROR(_log) << "PersistenceManager::Validate failed to get epoch: " <<
-                        previous_epoch_hash.to_string();
-        UpdateStatusReason(status, process_result::gap_previous);
-        return false;
+        EpochVotingManager voting_mgr(_store);
+        //epoch block has epoch_number 1 less than current epoch, so +1
+        if (!voting_mgr.ValidateEpochDelegates(epoch.delegates, epoch.epoch_number + 1))
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate invalid delegates ";
+            UpdateStatusReason(status, process_result::not_delegate);
+            return false;
+        }
+
+        if (status)
+            status->progress = EVP_VOTING;
     }
 
-    // verify epoch number = previous + 1
-    if (epoch.epoch_number != (previous_epoch.epoch_number + 1))
+    if (!status || status->progress < EVP_END)
     {
-        LOG_ERROR(_log) << "PersistenceManager::Validate account invalid epoch number " <<
-                        epoch.epoch_number << " " << previous_epoch.epoch_number;
-        UpdateStatusReason(status, process_result::block_position);
-        return false;
-    }
+        // verify transaction fee pool? TBD
+        LOG_WARN(_log) << "PersistenceManager::Validate  WARNING TRANSACTION POOL IS NOT VALIDATED";
 
-    // verify microblock tip exists
-    Tip micro_block_tip;
-    if (_store.micro_block_tip_get(micro_block_tip))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::Validate failed to get microblock tip";
-        trace_and_halt();
-        return false;
+        if (status)
+            status->progress = EVP_END;
     }
-
-    if (epoch.micro_block_tip != micro_block_tip)
-    {
-        LOG_ERROR(_log) << "PersistenceManager::Validate previous micro block doesn't exist " <<
-                        epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
-        UpdateStatusReason(status, process_result::invalid_tip);
-        return false;
-    }
-
-    EpochVotingManager voting_mgr(_store);
-    //epoch block has epoch_number 1 less than current epoch, so +1
-    if (!voting_mgr.ValidateEpochDelegates(epoch.delegates, epoch.epoch_number + 1))
-    {
-        LOG_ERROR(_log) << "PersistenceManager::Validate invalid delegates ";
-        UpdateStatusReason(status, process_result::not_delegate);
-        return false;
-    }
-
-    // verify transaction fee pool? TBD
-    LOG_WARN(_log) << "PersistenceManager::Validate  WARNING TRANSACTION POOL IS NOT VALIDATED";
 
     return true;
 }

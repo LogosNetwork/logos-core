@@ -12,6 +12,7 @@ struct ValidationStatus
 
     Requests              requests;
     logos::process_result reason;
+    uint32_t              progress;
 };
 
 class Persistence
