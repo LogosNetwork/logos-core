@@ -25,6 +25,8 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         return true;
     }
 
+    PendingBlockContainer::EPtr ptr = std::make_shared<PendingBlockContainer::PendingEB>(block);
+
     bool found = false;
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
     {
@@ -33,7 +35,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
             //duplicate
             if(bi->eb == nullptr)
             {
-                bi->eb = block;
+                bi->eb = ptr;
                 block_container.cached_blocks.insert(block->Hash());
             }
             found = true;
@@ -41,7 +43,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         }
         else if(bi->epoch_num < block->epoch_number)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(block));
+            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
             block_container.cached_blocks.insert(block->Hash());
             found = true;
             break;
@@ -49,7 +51,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     }
     if(!found)
     {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(block));
+        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
         block_container.cached_blocks.insert(block->Hash());
         Validate();//TODO optimize: Validate eb first
     }
@@ -79,6 +81,8 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         return true;
     }
 
+    PendingBlockContainer::MPtr ptr = std::make_shared<PendingBlockContainer::PendingMB>(block);
+
     bool found = false;
     bool add2begin = false;
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
@@ -87,15 +91,15 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         {
             for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
             {
-                if((*mbi)->sequence == block->sequence)
+                if((*mbi)->block->sequence == block->sequence)
                 {
                     //duplicate
                     found = true;
                     break;
                 }
-                else if ((*mbi)->sequence < block->sequence)
+                else if ((*mbi)->block->sequence < block->sequence)
                 {
-                    bi->mbs.emplace(mbi.base(), block);
+                    bi->mbs.emplace(mbi.base(), ptr);
                     block_container.cached_blocks.insert(block->Hash());
 
                     found = true;
@@ -104,7 +108,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
             }
             if(!found)
             {
-                bi->mbs.emplace_front(block);
+                bi->mbs.emplace_front(ptr);
                 block_container.cached_blocks.insert(block->Hash());
 
                 found = true;
@@ -115,7 +119,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         }
         else if(bi->epoch_num < block->epoch_number)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(block));
+            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
             add2begin = block_container.cached_blocks.empty();
             block_container.cached_blocks.insert(block->Hash());
             found = true;
@@ -124,7 +128,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
     }
     if(!found)
     {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(block));
+        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
         block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
@@ -160,6 +164,8 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         return true;
     }
 
+    PendingBlockContainer::RPtr ptr = std::make_shared<PendingBlockContainer::PendingRB>(block);
+
     bool found = false;
     bool add2begin = false;
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
@@ -169,15 +175,15 @@ bool BlockCache::AddRequestBlock(RBPtr block)
             for(auto rbi = bi->rbs[block->primary_delegate].rbegin();
                     rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
             {
-                if((*rbi)->sequence == block->sequence)
+                if((*rbi)->block->sequence == block->sequence)
                 {
                     //duplicate
                     found = true;
                     break;
                 }
-                else if ((*rbi)->sequence < block->sequence)
+                else if ((*rbi)->block->sequence < block->sequence)
                 {
-                    bi->rbs[block->primary_delegate].emplace(rbi.base(), block);
+                    bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
                     block_container.cached_blocks.insert(block->Hash());
 
                     found = true;
@@ -186,7 +192,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
             }
             if(!found)
             {
-                bi->rbs[block->primary_delegate].emplace_front(block);
+                bi->rbs[block->primary_delegate].emplace_front(ptr);
                 block_container.cached_blocks.insert(block->Hash());
 
                 found = true;
@@ -196,7 +202,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         }
         else if(bi->epoch_num < block->epoch_number)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(block));
+            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
             block_container.cached_blocks.insert(block->Hash());
             found = true;
             add2begin = true;
@@ -205,7 +211,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
     }
     if(!found)
     {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(block));
+        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
         block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
@@ -267,7 +273,7 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             for(;;)
             {
-                std::list<RBPtr>::iterator to_validate = e->rbs[rb_idx].begin();
+                std::list<PendingBlockContainer::RPtr>::iterator to_validate = e->rbs[rb_idx].begin();
                 if(to_validate == e->rbs[rb_idx].end() || !(*to_validate)->continue_validate)
                 {
                     //cannot make progress with empty list
@@ -277,11 +283,13 @@ void BlockCache::Validate(uint8_t rb_idx)
                 }
                 else
                 {
-                    RBPtr block = *to_validate;
-                    ValidationStatus status;
+                    PendingBlockContainer::RPtr ptr = *to_validate;
+                    RBPtr &block = ptr->block;
+                    ValidationStatus &status = ptr->status;
                     LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
                             << block->CreateTip().to_string();
 
+                    ptr->continue_validate = false;
                     if (write_q.VerifyContent(block, &status))
                     {
                         BlockHash hash = block->Hash();
@@ -299,7 +307,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                             case logos::process_result::gap_previous:
                             case logos::process_result::gap_source:
                                 //TODO any other cases that can be considered as gap?
-                                block_container.AddDependency(block->previous, block);
+                                block_container.AddDependency(block->previous, ptr);
                                 num_rb_chain_no_progress++;
                                 rb_idx = (rb_idx+1)%NUM_DELEGATES;
                                 break;
@@ -308,7 +316,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                                 {
                                     if (status.requests[i] == logos::process_result::gap_previous)
                                     {
-                                        block_container.AddDependency(block->requests[i]->previous, block);
+                                        block_container.AddDependency(block->requests[i]->previous, ptr);
                                     }
                                 }
                                 num_rb_chain_no_progress++;
@@ -338,8 +346,10 @@ void BlockCache::Validate(uint8_t rb_idx)
         bool last_mb = false;
         while(!e->mbs.empty() && e->mbs.front()->continue_validate)
         {
-            MBPtr block = e->mbs.front();
-            ValidationStatus status;
+            PendingBlockContainer::MPtr ptr = e->mbs.front();
+            MBPtr &block = ptr->block;
+            ValidationStatus &status = ptr->status;
+            ptr->continue_validate = false;
             if (write_q.VerifyContent(block, &status))
             {
                 BlockHash hash = block->Hash();
@@ -359,14 +369,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                     case logos::process_result::gap_previous:
                     case logos::process_result::gap_source:
                         //TODO any other cases that can be considered as gap?
-                        block_container.AddDependency(block->previous, block);
+                        block_container.AddDependency(block->previous, ptr);
                         break;
                     case logos::process_result::invalid_request:
                         for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
                         {
                             if (status.requests[i] == logos::process_result::gap_previous)
                             {
-                                block_container.AddDependency(block->tips[i].digest, block);
+                                block_container.AddDependency(block->tips[i].digest, ptr);
                             }
                         }
                         break;
@@ -388,8 +398,10 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             if( e->eb != nullptr && e->eb->continue_validate)
             {
-                EBPtr block = e->eb;
-                ValidationStatus status;
+                PendingBlockContainer::EPtr ptr = e->eb;
+                EBPtr &block = ptr->block;
+                ValidationStatus &status = ptr->status;
+                ptr->continue_validate = false;
                 if (write_q.VerifyContent(block, &status))
                 {
                     BlockHash hash = block->Hash();
@@ -409,10 +421,10 @@ void BlockCache::Validate(uint8_t rb_idx)
                         case logos::process_result::gap_previous:
                         case logos::process_result::gap_source:
                             //TODO any other cases that can be considered as gap?
-                            block_container.AddDependency(block->previous, block);
+                            block_container.AddDependency(block->previous, ptr);
                             break;
                         case logos::process_result::invalid_tip:
-                            block_container.AddDependency(block->micro_block_tip.digest, block);
+                            block_container.AddDependency(block->micro_block_tip.digest, ptr);
                             break;
                         default:
                             LOG_ERROR(log) << "BlockCache::Validate EB status: "

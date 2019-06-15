@@ -27,35 +27,17 @@ bool BlockWriteQueue::VerifyAggSignature(RBPtr block)
 
 bool BlockWriteQueue::VerifyContent(EBPtr block, ValidationStatus *status)
 {
-    block->continue_validate = false;
-    if (status)
-        status->progress = block->validation_progress;
-    bool res = eb_handler.VerifyContent(*block, status);
-    if (status)
-        block->validation_progress = status->progress;
-    return res;
+    return eb_handler.VerifyContent(*block, status);
 }
 
 bool BlockWriteQueue::VerifyContent(MBPtr block, ValidationStatus *status)
 {
-    block->continue_validate = false;
-    if (status)
-        status->progress = block->validation_progress;
-    bool res = mb_handler.VerifyContent(*block, status);
-    if (status)
-        block->validation_progress = status->progress;
-    return res;
+    return mb_handler.VerifyContent(*block, status);
 }
 
 bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
 {
-    block->continue_validate = false;
-    if (status)
-        status->progress = block->validation_progress;
-    bool res = rb_handler.VerifyContent(*block, status);
-    if (status)
-        block->validation_progress = status->progress;
-    return res;
+    return rb_handler.VerifyContent(*block, status);
 }
 
 bool BlockWriteQueue::BlockExists(EBPtr block)

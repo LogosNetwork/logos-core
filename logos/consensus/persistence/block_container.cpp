@@ -2,19 +2,19 @@
 
 namespace logos {
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, EBPtr block)
+void PendingBlockContainer::AddDependency(const BlockHash &hash, EPtr block)
 {
     std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
     hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
 }
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, MBPtr block)
+void PendingBlockContainer::AddDependency(const BlockHash &hash, MPtr block)
 {
     std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
     hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
 }
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, RBPtr block)
+void PendingBlockContainer::AddDependency(const BlockHash &hash, RPtr block)
 {
     std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
     hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
