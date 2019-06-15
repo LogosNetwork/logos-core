@@ -131,8 +131,6 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         , post_prepare_sig(post_prepare_sig)
         , post_commit_sig(post_commit_sig)
         , next()
-        , validation_progress(0)
-        , continue_validate(true)
     { }
 
     PostCommittedBlock(bool & error,
@@ -142,8 +140,6 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
                        bool with_next)
         : MessagePrequel<MessageType::Post_Committed_Block, CT>(version)
         , ConsensusBlock<CT>(error, stream, with_appendix)
-        , validation_progress(0)
-        , continue_validate(true)
     {
         if(error)
         {
@@ -251,8 +247,6 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     AggSignature post_prepare_sig;
     AggSignature post_commit_sig;
     BlockHash    next;
-    uint32_t     validation_progress;
-    bool         continue_validate;
 };
 
 // This should only be called for the first request block in an epoch
