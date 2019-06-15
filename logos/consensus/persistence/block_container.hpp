@@ -11,6 +11,7 @@
 #include <logos/consensus/messages/byte_arrays.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/persistence/persistence.hpp>
 
 namespace logos
 {
@@ -22,6 +23,64 @@ public:
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    struct PendingRB {
+        PendingRB()
+            : block()
+            , continue_validate(true)
+        {
+        }
+
+        PendingRB(const RBPtr &block_)
+            : block(block_)
+            , continue_validate(true)
+        {
+        }
+
+        RBPtr               block;
+        ValidationStatus    status;
+        bool                continue_validate;
+    };
+
+    struct PendingMB {
+        PendingMB()
+            : block()
+            , continue_validate(true)
+        {
+        }
+
+        PendingMB(const MBPtr &block_)
+            : block(block_)
+            , continue_validate(true)
+        {
+        }
+
+        MBPtr               block;
+        ValidationStatus    status;
+        bool                continue_validate;
+    };
+
+    struct PendingEB {
+        PendingEB()
+            : block()
+            , continue_validate(true)
+        {
+        }
+
+        PendingEB(const EBPtr &block_)
+            : block(block_)
+            , continue_validate(true)
+        {
+        }
+
+        EBPtr               block;
+        ValidationStatus    status;
+        bool                continue_validate;
+    };
+
+    using RPtr = std::shared_ptr<PendingRB>;
+    using MPtr = std::shared_ptr<PendingMB>;
+    using EPtr = std::shared_ptr<PendingEB>;
+
     struct EpochPeriod
     {
         EpochPeriod(uint32_t epoch_num)
@@ -29,30 +88,30 @@ public:
             , eb(nullptr)
         {
         }
-        EpochPeriod(EBPtr block)
-            : epoch_num(block->epoch_number)
+        EpochPeriod(EPtr block)
+            : epoch_num(block->block->epoch_number)
             , eb(block)
         {
         }
-        EpochPeriod(MBPtr block)
-            : epoch_num(block->epoch_number)
+        EpochPeriod(MPtr block)
+            : epoch_num(block->block->epoch_number)
             , eb(nullptr)
         {
             mbs.push_front(block);
         }
-        EpochPeriod(RBPtr block)
-            : epoch_num(block->epoch_number)
+        EpochPeriod(RPtr block)
+            : epoch_num(block->block->epoch_number)
             , eb(nullptr)
         {
-            assert(block->primary_delegate < NUM_DELEGATES);
-            rbs[block->primary_delegate].push_front(block);
+            assert(block->block->primary_delegate < NUM_DELEGATES);
+            rbs[block->block->primary_delegate].push_front(block);
         }
 
         uint32_t                        epoch_num;
-        EBPtr                           eb;
-        std::list<MBPtr>                mbs;
+        EPtr                            eb;
+        std::list<MPtr>                 mbs;
         std::unordered_set<BlockHash>   rbs_next_mb_depend_on;
-        std::list<RBPtr>                rbs[NUM_DELEGATES];
+        std::list<RPtr>                 rbs[NUM_DELEGATES];
 
         //TODO optimize
         //1 for each unprocessed tip of the oldest mb
@@ -64,27 +123,27 @@ public:
         /* This is actually an union. Only one of these pointers is non-empty.
          * But union is not applicable here because of non-trivial destructor of shared_ptr type.
          */
-        RBPtr rptr;
-        MBPtr mptr;
-        EBPtr eptr;
+        RPtr rptr;
+        MPtr mptr;
+        EPtr eptr;
 
-        ChainPtr(RBPtr r)
+        ChainPtr(RPtr r)
             : rptr(r)
         {
         }
-        ChainPtr(MBPtr m)
+        ChainPtr(MPtr m)
             : mptr(m)
         {
         }
-        ChainPtr(EBPtr e)
+        ChainPtr(EPtr e)
             : eptr(e)
         {
         }
     };
 
-    void AddDependency(const BlockHash &hash, EBPtr block);
-    void AddDependency(const BlockHash &hash, MBPtr block);
-    void AddDependency(const BlockHash &hash, RBPtr block);
+    void AddDependency(const BlockHash &hash, EPtr block);
+    void AddDependency(const BlockHash &hash, MPtr block);
+    void AddDependency(const BlockHash &hash, RPtr block);
 
     bool DelDependencies(const BlockHash &hash);
 private:
