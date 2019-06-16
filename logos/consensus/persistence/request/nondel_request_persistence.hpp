@@ -24,35 +24,47 @@ public:
     {
         using namespace logos;
 
-        ApprovedRB previous;
-        if ((!message.previous.is_zero()) && _store.request_block_get(message.previous, previous))
+        if (!status || status->progress < RVP_DRIFT)
         {
-            UpdateStatusReason(status, logos::process_result::gap_previous);
-            return false;
+            if(_clock_drift > Milliseconds(0))
+            {
+                if (!ValidateTimestamp(message.timestamp))
+                {
+                    UpdateStatusReason(status, logos::process_result::clock_drift);
+                    return false;
+                }
+            }
+
+            if (status)
+                status->progress = RVP_DRIFT;
         }
 
-        if(_clock_drift > Milliseconds(0))
+        if (!status || status->progress < RVP_PREVIOUS)
         {
-            if (!ValidateTimestamp(message.timestamp))
+            ApprovedRB previous;
+            if ((!message.previous.is_zero()) && _store.request_block_get(message.previous, previous))
             {
-                UpdateStatusReason(status, logos::process_result::clock_drift);
+                UpdateStatusReason(status, logos::process_result::gap_previous);
                 return false;
             }
-        }
 
-        //have previous now
-        if(previous.epoch_number > 0)
-        {
-            if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
-                    ! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
+            //have previous now
+            if(previous.epoch_number > 0)
             {
-                LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":wrong_sequence_number:"
-                        << " previous=" << previous.epoch_number << ":" << previous.sequence
-                        << " verifiee=" << message.epoch_number << ":" << message.sequence;
+                if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
+                        ! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
+                {
+                    LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":wrong_sequence_number:"
+                            << " previous=" << previous.epoch_number << ":" << previous.sequence
+                            << " verifiee=" << message.epoch_number << ":" << message.sequence;
 
-                UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
-                return false;
+                    UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
+                    return false;
+                }
             }
+
+            if (status)
+                status->progress = RVP_PREVIOUS;
         }
 
         return PersistenceManager<R>::Validate(message, status);

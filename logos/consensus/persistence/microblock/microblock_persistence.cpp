@@ -60,20 +60,22 @@ PersistenceManager<MBCT>::Validate(
         ApprovedRB bsb;
         for (int del = 0; del < NUM_DELEGATES; ++del)
         {
-            if ((!status || status->progress < MVP_TIPS_FIRST || status->requests[del] == process_result::gap_previous)
-                    && ! block.tips[del].digest.is_zero()
+            if (!status || status->progress < MVP_TIPS_FIRST || status->requests.find(del) != status->requests.end())
+            {
+                if (! block.tips[del].digest.is_zero()
                     && _store.request_block_get(block.tips[del].digest, bsb))
-            {
-                LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-                                << block.Hash().to_string() << " "
-                                << block.tips[del].to_string();
-                UpdateStatusReason(status, process_result::invalid_request);
-                UpdateStatusRequests(status, del, process_result::gap_previous);
-                valid = false;
-            }
-            else if (status && status->progress >= MVP_TIPS_FIRST)
-            {
-                UpdateStatusRequests(status, del, process_result::progress);
+                {
+                    LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
+                                    << block.Hash().to_string() << " "
+                                    << block.tips[del].to_string();
+                    UpdateStatusReason(status, process_result::invalid_request);
+                    UpdateStatusRequests(status, del, process_result::gap_previous);
+                    valid = false;
+                }
+                else if (status && status->progress >= MVP_TIPS_FIRST)
+                {
+                    status->requests.erase(del);
+                }
             }
         }
 
