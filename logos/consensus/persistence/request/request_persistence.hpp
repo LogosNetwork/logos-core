@@ -25,6 +25,16 @@ protected:
     using ReservationsPtr = std::shared_ptr<Reservations>;
     using RequestPtr      = std::shared_ptr<const Request>;
 
+    enum request_validation_progress
+    {
+        RVP_BEGIN,
+        RVP_DRIFT,
+        RVP_PREVIOUS,
+        RVP_REQUESTS_FIRST,
+        RVP_REQUESTS_DONE,
+        RVP_END
+    };
+
     public:
 
     PersistenceManager(
