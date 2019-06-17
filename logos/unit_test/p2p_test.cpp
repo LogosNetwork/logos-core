@@ -118,6 +118,9 @@ TEST (P2pTest, VerifyPeersInterface)
     }
 }
 
+// cache test will be rewritten later
+#if 0
+
 template <ConsensusType CT>
 static void generate_block(
         PostCommittedBlock<CT> &block,
@@ -354,3 +357,5 @@ TEST (P2pTest, VerifyCache)
     delete cp2pM;
     delete cp2pE;
 }
+
+#endif
