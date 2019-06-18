@@ -72,4 +72,30 @@ bool PendingBlockContainer::DelDependencies(const BlockHash &hash)
     return res;
 }
 
+bool PendingBlockContainer::MarkAsValidated(EBPtr block)
+{
+    BlockHash hash = block->Hash();
+    cached_blocks.erase(hash);
+    return DelDependencies(hash);
+}
+
+bool PendingBlockContainer::MarkAsValidated(MBPtr block)
+{
+    BlockHash hash = block->Hash();
+    cached_blocks.erase(hash);
+    return DelDependencies(hash);
+}
+
+bool PendingBlockContainer::MarkAsValidated(RBPtr block)
+{
+    BlockHash hash = block->Hash();
+    cached_blocks.erase(hash);
+    bool res = DelDependencies(hash);
+    for(uint32_t i = 0; i < block->requests.size(); ++i)
+    {
+        res |= DelDependencies(block->requests[i]->Hash());
+    }
+    return res;
+}
+
 }
