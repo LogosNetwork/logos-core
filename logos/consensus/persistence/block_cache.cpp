@@ -233,7 +233,7 @@ void BlockCache::StoreEpochBlock(EBPtr block)
 {
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    if (block_container.DelDependencies(block->Hash()))
+    if (block_container.MarkAsValidated(block))
         Validate();
 }
 
@@ -241,7 +241,7 @@ void BlockCache::StoreMicroBlock(MBPtr block)
 {
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    if (block_container.DelDependencies(block->Hash()))
+    if (block_container.MarkAsValidated(block))
         Validate();
 }
 
@@ -249,7 +249,7 @@ void BlockCache::StoreRequestBlock(RBPtr block)
 {
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
-    if (block_container.DelDependencies(block->Hash()))
+    if (block_container.MarkAsValidated(block))
         Validate();
 }
 
@@ -292,11 +292,9 @@ void BlockCache::Validate(uint8_t rb_idx)
                     ptr->continue_validate = false;
                     if (write_q.VerifyContent(block, &status))
                     {
-                        BlockHash hash = block->Hash();
                         write_q.StoreBlock(block);
                         e->rbs[rb_idx].pop_front();
-                        block_container.cached_blocks.erase(hash);
-                        block_container.DelDependencies(hash);
+                        block_container.MarkAsValidated(block);
                         num_rb_chain_no_progress = 0;
                     }
                     else
@@ -352,12 +350,10 @@ void BlockCache::Validate(uint8_t rb_idx)
             ptr->continue_validate = false;
             if (write_q.VerifyContent(block, &status))
             {
-                BlockHash hash = block->Hash();
                 write_q.StoreBlock(block);
-                last_mb = block->last_micro_block;
                 e->mbs.pop_front();
-                block_container.cached_blocks.erase(hash);
-                block_container.DelDependencies(hash);
+                block_container.MarkAsValidated(block);
+                last_mb = block->last_micro_block;
                 if(last_mb)
                     assert(e->mbs.empty());
             }
@@ -404,13 +400,11 @@ void BlockCache::Validate(uint8_t rb_idx)
                 ptr->continue_validate = false;
                 if (write_q.VerifyContent(block, &status))
                 {
-                    BlockHash hash = block->Hash();
                     write_q.StoreBlock(block);
+                    block_container.epochs.erase(e);
+                    block_container.MarkAsValidated(block);
                     LOG_INFO(log) << "BlockCache::Validated EB, block: "
                                   << block->CreateTip().to_string();
-                    block_container.cached_blocks.erase(hash);
-                    block_container.epochs.erase(e);
-                    block_container.DelDependencies(hash);
                     e_finished = true;
                 }
                 else
