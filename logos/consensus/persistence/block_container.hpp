@@ -145,8 +145,12 @@ public:
     void AddDependency(const BlockHash &hash, MPtr block);
     void AddDependency(const BlockHash &hash, RPtr block);
 
-    bool DelDependencies(const BlockHash &hash);
+    bool MarkAsValidated(EBPtr block);
+    bool MarkAsValidated(MBPtr block);
+    bool MarkAsValidated(RBPtr block);
+
 private:
+    bool DelDependencies(const BlockHash &hash);
     EpochPeriod *GetEpoch(uint32_t epoch_num);
     bool MarkForRevalidation(const ChainPtr &ptr);
 
