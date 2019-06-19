@@ -203,7 +203,7 @@ struct account_info : Account
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
 
-    block_hash staking_subchain_head;
+    block_hash governance_subchain_head;
     //0 means no rep. Note, reps themselves have this field set to 0
     AccountAddress rep;
     block_hash open_block;
@@ -398,7 +398,7 @@ enum class process_result
     no_elections,                 // Logos - elections are not being held currently
     pending_rep_action,           // Logos - the account has a pending representative action for this epoch
     pending_candidacy_action,     // Logos - the account has a pending candidacy action for this epoch
-    invalid_staking_subchain,     // Logos - hash sent as staking_subchain_prev does not match staking_subchain_head of account
+    invalid_governance_subchain,  // Logos - hash sent as governance_subchain_prev does not match governance_subchain_head of account
     insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
     invalid_account_type,         // Logos - origin account is not the proper type for the request
     proxy_to_self,                // Logos - request is attempting to proxy to self

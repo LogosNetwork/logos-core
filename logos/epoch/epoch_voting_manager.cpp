@@ -6,7 +6,7 @@
 #include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
-#include <logos/elections/requests.hpp>
+#include <logos/governance/requests.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/elections/candidate.hpp>

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <logos/blockstore.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>
-#include <logos/elections/requests.hpp>
+#include <logos/governance/requests.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/elections/candidate.hpp>
@@ -122,7 +122,7 @@ TEST (Elections, blockstore)
         announce.set_stake = true;
         announce.bls_key = 13;
         announce.epoch_num = 11;
-        announce.staking_subchain_prev = 4267;
+        announce.governance_subchain_prev = 4267;
         announce.Hash();
 
         ASSERT_FALSE(store->request_put(announce,txn));
@@ -135,7 +135,7 @@ TEST (Elections, blockstore)
         ASSERT_EQ(announce.set_stake,announce2.set_stake);
         ASSERT_EQ(announce.bls_key,announce2.bls_key);
         ASSERT_EQ(announce.epoch_num,announce2.epoch_num);
-        ASSERT_EQ(announce.staking_subchain_prev,announce2.staking_subchain_prev);
+        ASSERT_EQ(announce.governance_subchain_prev,announce2.governance_subchain_prev);
         ASSERT_EQ(announce,announce2);
 
         AnnounceCandidacy announce_json(res, announce.SerializeJson());
@@ -149,7 +149,7 @@ TEST (Elections, blockstore)
         renounce.sequence = 5;
         renounce.signature = 7;
         renounce.epoch_num = 26;
-        renounce.staking_subchain_prev = 23489;
+        renounce.governance_subchain_prev = 23489;
         renounce.Hash();
         ASSERT_FALSE(store->request_put(renounce,txn));
         RenounceCandidacy renounce2;
@@ -169,7 +169,7 @@ TEST (Elections, blockstore)
         start.stake = 32;
         start.set_stake = true;
         start.epoch_num = 456;
-        start.staking_subchain_prev = 10000654;
+        start.governance_subchain_prev = 10000654;
         start.Hash();
         ASSERT_FALSE(store->request_put(start,txn));
         StartRepresenting start2;
@@ -190,7 +190,7 @@ TEST (Elections, blockstore)
         stop.sequence = 47;
         stop.fee = 12;
         stop.epoch_num = 456;
-        stop.staking_subchain_prev = 7789;
+        stop.governance_subchain_prev = 7789;
         stop.Hash();
         ASSERT_FALSE(store->request_put(stop,txn));
         StopRepresenting stop2;
@@ -1010,11 +1010,12 @@ TEST(Elections,validate)
     eb.previous = 0;
 
 
-    auto update_staking_subchain = [&]() {
-        announce.staking_subchain_prev = account_info.staking_subchain_head;
-        renounce.staking_subchain_prev = account_info.staking_subchain_head;
-        start_rep.staking_subchain_prev = account_info.staking_subchain_head;
-        stop_rep.staking_subchain_prev = account_info.staking_subchain_head;
+    auto update_governance_subchain = [&]() {
+        vote.governance_subchain_prev = account_info.governance_subchain_head;
+        announce.governance_subchain_prev = account_info.governance_subchain_head;
+        renounce.governance_subchain_prev = account_info.governance_subchain_head;
+        start_rep.governance_subchain_prev = account_info.governance_subchain_head;
+        stop_rep.governance_subchain_prev = account_info.governance_subchain_head;
         vote.Hash();
         announce.Hash();
         renounce.Hash();
@@ -1037,7 +1038,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(store->epoch_put(eb,txn));
 
     //epoch block created, but only StartRepresenting and AnnounceCandidacy should pass
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
 
     persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result);
     std::cout << "result.code = " << ProcessResultToString(result.code) << std::endl;
@@ -1047,7 +1048,7 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(start_rep,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
 
 
     VotingPowerInfo vp_info;
@@ -1057,7 +1058,7 @@ TEST(Elections,validate)
 
 
     //all should fail
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
@@ -1076,10 +1077,11 @@ TEST(Elections,validate)
         start_rep.epoch_num = epoch_num;
         stop_rep.epoch_num = epoch_num;
 
-        announce.staking_subchain_prev = account_info.staking_subchain_head;
-        renounce.staking_subchain_prev = account_info.staking_subchain_head;
-        start_rep.staking_subchain_prev = account_info.staking_subchain_head;
-        stop_rep.staking_subchain_prev = account_info.staking_subchain_head;
+        vote.governance_subchain_prev = account_info.governance_subchain_head;
+        announce.governance_subchain_prev = account_info.governance_subchain_head;
+        renounce.governance_subchain_prev = account_info.governance_subchain_head;
+        start_rep.governance_subchain_prev = account_info.governance_subchain_head;
+        stop_rep.governance_subchain_prev = account_info.governance_subchain_head;
         vote.Hash();
         announce.Hash();
         renounce.Hash();
@@ -1122,7 +1124,7 @@ TEST(Elections,validate)
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
 
     //active rep
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
 
     bool res = persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result);
     if(!res)
@@ -1136,10 +1138,10 @@ TEST(Elections,validate)
 
 
     //cast a vote
-    persistence_mgr.ApplyRequest(vote,txn);
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    persistence_mgr.ApplyRequest(vote,account_info,txn);
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     persistence_mgr.ApplyRequest(announce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
@@ -1161,7 +1163,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(store->candidate_get(announce.origin,info,txn));
     ASSERT_EQ(info.votes_received_weighted,0);
 
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
 
@@ -1169,7 +1171,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
@@ -1184,32 +1186,32 @@ TEST(Elections,validate)
     //renounced but still can receive votes
     vote.votes.emplace_back(sender_account,8);
     vote.Hash();
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
-    persistence_mgr.ApplyRequest(vote,txn);
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
+    persistence_mgr.ApplyRequest(vote,account_info,txn);
 
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
 
     transition_epoch();
 
     //no longer candidate
     ASSERT_EQ(get_candidates().size(),0);
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     vote.votes.clear();
     vote.Hash();
 
     //only a rep again
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(stop_rep,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1221,21 +1223,21 @@ TEST(Elections,validate)
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
     //no longer rep
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
     //announce will also auto add account as rep
     persistence_mgr.ApplyRequest(announce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
     transition_epoch();
@@ -1243,30 +1245,30 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     vote.votes.emplace_back(announce.origin,8);
     vote.Hash();
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
 
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     transition_epoch();
 
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(stop_rep,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
-    
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
+
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
@@ -1277,17 +1279,17 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
 
     persistence_mgr.ApplyRequest(start_rep,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1297,17 +1299,17 @@ TEST(Elections,validate)
     vote.votes.clear();
     vote.Hash();
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(announce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
     ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(announce.origin, vp_info,txn));
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1316,7 +1318,7 @@ TEST(Elections,validate)
     transition_epoch();
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1331,20 +1333,20 @@ TEST(Elections,validate)
     vote.votes.emplace_back(announce.origin,8);
     vote.Hash();
     //account no longer candidate because account is delegate-elect
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     vote.votes.clear();
     vote.Hash();
 
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1352,7 +1354,7 @@ TEST(Elections,validate)
     transition_epoch();
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1364,29 +1366,29 @@ TEST(Elections,validate)
     //verify account is not added for reelection
     vote.votes.emplace_back(announce.origin,8);
     vote.Hash();
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     persistence_mgr.ApplyRequest(announce,account_info,txn);
-    update_staking_subchain();
+    update_governance_subchain();
         
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     transition_epoch();
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
 
     //add account to delegate set again
     transition_epoch({announce.origin});
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     transition_epoch();
 
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     transition_epoch();
     
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     transition_epoch();
 
     //verify account was added for reelection
-    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,account_info,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
 
 
@@ -1544,124 +1546,140 @@ TEST(Elections, apply)
     ASSERT_EQ(get_candidates().size(),40);
 
     {
-    logos::transaction txn(store->environment, nullptr, true);
+        logos::transaction txn(store->environment, nullptr, true);
 
-    logos::process_return result;
+        logos::process_return result;
+        logos::account_info account_info;
 
-    ElectionVote ev;
-    ev.origin = reps[0];
-    ev.votes.emplace_back(eb.delegates[0].account,8);
-    ev.epoch_num = epoch_num;
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ElectionVote ev;
+        ev.origin = reps[0];
+        ev.votes.emplace_back(eb.delegates[0].account,8);
+        ev.epoch_num = epoch_num;
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[0], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[1];
-    ev.votes.emplace_back(eb.delegates[1].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[1];
+        ev.votes.emplace_back(eb.delegates[1].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[1], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info,txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[2];
-    ev.votes.emplace_back(eb.delegates[2].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[2];
+        ev.votes.emplace_back(eb.delegates[2].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[2], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[3];
-    ev.votes.emplace_back(eb.delegates[3].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[3];
+        ev.votes.emplace_back(eb.delegates[3].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[3], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[4];
-    ev.votes.emplace_back(reps[0],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[4];
+        ev.votes.emplace_back(reps[0],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[4], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[5];
-    ev.votes.emplace_back(reps[1],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[5];
+        ev.votes.emplace_back(reps[1],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[5], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[6];
-    ev.votes.emplace_back(reps[2],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[6];
+        ev.votes.emplace_back(reps[2],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[6], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[7];
-    ev.votes.emplace_back(reps[3],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[7];
+        ev.votes.emplace_back(reps[3],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[7], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[8];
-    ev.votes.emplace_back(reps[4],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[8];
+        ev.votes.emplace_back(reps[4],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[8], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[9];
-    ev.votes.emplace_back(reps[4],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[9];
+        ev.votes.emplace_back(reps[4],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[9], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[10];
-    ev.votes.emplace_back(eb.delegates[4].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[10];
+        ev.votes.emplace_back(eb.delegates[4].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[10], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[11];
-    ev.votes.emplace_back(eb.delegates[4].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[11];
+        ev.votes.emplace_back(eb.delegates[4].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[11], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[12];
-    ev.votes.emplace_back(reps[0],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[12];
+        ev.votes.emplace_back(reps[0],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[12], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[13];
-    ev.votes.emplace_back(reps[0],8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[13];
+        ev.votes.emplace_back(reps[0],8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[13], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[14];
-    ev.votes.emplace_back(eb.delegates[0].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[14];
+        ev.votes.emplace_back(eb.delegates[0].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[14], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
 
-    ev.votes.clear();
-    ev.origin = reps[15];
-    ev.votes.emplace_back(eb.delegates[0].account,8);
-    ev.Hash();
-    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
-    req_persistence_mgr.ApplyRequest(ev, txn);
+        ev.votes.clear();
+        ev.origin = reps[15];
+        ev.votes.emplace_back(eb.delegates[0].account,8);
+        ev.Hash();
+        ASSERT_FALSE(store->account_get(reps[15], account_info, txn));
+        ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, account_info, txn, result));
+        req_persistence_mgr.ApplyRequest(ev, account_info, txn);
     }
-    
 
     std::unordered_map<AccountAddress,Amount> election_results;
     {
@@ -1790,13 +1808,13 @@ TEST(Elections, weighted_votes)
     vote.epoch_num = ++epoch;
     vote.origin = rep_address;
     vote.votes.emplace_back(candidate_address,8);
-    persistence_mgr.ApplyRequest(vote,txn);
+    persistence_mgr.ApplyRequest(vote,account_info,txn);
 
     vote.origin = rep2_address;
     vote.votes.clear();
     vote.votes.emplace_back(candidate_address,4);
     vote.votes.emplace_back(candidate2_address,4);
-    persistence_mgr.ApplyRequest(vote,txn);
+    persistence_mgr.ApplyRequest(vote,account_info2,txn);
 
 
     store->candidate_get(candidate_address,candidate,txn);

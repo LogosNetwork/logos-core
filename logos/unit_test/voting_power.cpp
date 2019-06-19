@@ -327,7 +327,7 @@ TEST(Voting_Power, AccountBalance)
         store->request_put(req, txn);
         for(size_t i  = 0; i < 1000; ++i)
         {
-            accounts[i].second.staking_subchain_head = proxy_hash;
+            accounts[i].second.governance_subchain_head = proxy_hash;
             accounts[i].second.rep = rep;
             accounts[i].second.SetBalance(100, epoch, txn);
             ASSERT_EQ(accounts[i].second.GetBalance(),100);

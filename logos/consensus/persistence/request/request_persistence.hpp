@@ -67,7 +67,7 @@ protected:
 
     void ApplyRequest(const StartRepresenting& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const StopRepresenting& request, logos::account_info& info, MDB_txn* txn);
-    void ApplyRequest(const ElectionVote& request, MDB_txn* txn);
+    void ApplyRequest(const ElectionVote& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const AnnounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const RenounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const Proxy& request, logos::account_info& info, MDB_txn* txn);
@@ -77,6 +77,7 @@ protected:
     bool ValidateRequest(
             const ElectionVote& request,
             uint32_t cur_epoch_num,
+            logos::account_info & info,
             MDB_txn* txn,
             logos::process_return& result); 
 

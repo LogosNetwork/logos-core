@@ -103,11 +103,11 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                     result.state_is_send = is_send;
                     ledger.store.block_put (transaction, hash, block_a);
 
-                    if (!info.staking_subchain_head.is_zero ())
+                    if (!info.governance_subchain_head.is_zero ())
                     {
                         // Move existing representation
                         //TODO Peng: will figure out how to compile if we need ledger
-                        //ledger.store.representation_add (transaction, info.staking_subchain_head, 0 - info.GetBalance().number ());
+                        //ledger.store.representation_add (transaction, info.governance_subchain_head, 0 - info.GetBalance().number ());
                     }
                     // Add in amount delta
                     ledger.store.representation_add (transaction, hash, block_a.hashables.amount.number ());
@@ -434,7 +434,7 @@ void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const
     {
         //TODO Peng: will figure out how to compile if we need ledger
         //        info.head = hash_a;
-        //        info.staking_subchain_head = staking_subchain_head_a;
+        //        info.governance_subchain_head = governance_subchain_head_a;
         //info.SetBalance(balance_a,0,nullptr);
         info.modified = logos::seconds_since_epoch ();
         info.block_count = block_count_a;

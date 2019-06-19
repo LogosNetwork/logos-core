@@ -94,9 +94,9 @@ bool ValidateStakingSubchain(
         logos::process_return& result,
         MDB_txn* txn)
 {
-    if(info.staking_subchain_head != req.staking_subchain_prev)
+    if(info.governance_subchain_head != req.governance_subchain_prev)
     {
-        result.code = logos::process_result::invalid_staking_subchain;
+        result.code = logos::process_result::invalid_governance_subchain;
         return false;
     }
     return true;
@@ -348,7 +348,8 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             logos::transaction txn(_store.environment,nullptr,false);
             auto ev = dynamic_pointer_cast<const ElectionVote>(request);
-            if(!ValidateRequest(*ev, cur_epoch_num, txn, result))
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*ev, cur_epoch_num, *account_info, txn, result))
             {
                 LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
                                 << " code is " << logos::ProcessResultToString(result.code);
@@ -1340,7 +1341,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         case RequestType::ElectionVote:
         {
             auto ev = dynamic_pointer_cast<const ElectionVote>(request);
-            ApplyRequest(*ev,transaction);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*ev,*account_info,transaction);
             break;
         }
         case RequestType::AnnounceCandidacy:
@@ -1484,8 +1486,8 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
             auto info_c = static_pointer_cast<logos::account_info>(info);
             auto origin_info_c = 
                 static_pointer_cast<logos::account_info>(origin_account_info);
-            info_c->staking_subchain_head 
-                =  origin_info_c->staking_subchain_head;
+            info_c->governance_subchain_head
+                =  origin_info_c->governance_subchain_head;
             info_c->rep = origin_info_c->rep;
 
         }
@@ -1580,7 +1582,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
@@ -1603,7 +1605,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.rep_action_tip = request.GetHash();
@@ -1625,9 +1627,11 @@ void PersistenceManager<R>::ApplyRequest(
 
 void PersistenceManager<R>::ApplyRequest(
         const ElectionVote& request,
+        logos::account_info& info,
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    info.governance_subchain_head = request.GetHash();
     assert(!_store.request_put(request,txn));
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
@@ -1643,19 +1647,18 @@ void PersistenceManager<R>::ApplyRequest(
                     txn));
     }
 
-
-
     Amount total_stake = VotingPowerManager::GetInstance()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
     RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
     EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
+
 void PersistenceManager<R>::ApplyRequest(
         const AnnounceCandidacy& request,
         logos::account_info& info,
         MDB_txn* txn)
 {
     assert(txn != nullptr);
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     RepInfo rep;
     if(_store.rep_get(request.origin,rep, txn))
     {
@@ -1727,7 +1730,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     CandidateInfo candidate;
     if(!_store.candidate_get(request.origin, candidate, txn))
     {
@@ -1768,7 +1771,7 @@ void PersistenceManager<R>::ApplyRequest(
         trace_and_halt();
     }
 
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1794,7 +1797,7 @@ void PersistenceManager<R>::ApplyRequest(
         trace_and_halt();
     }
 
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1831,7 +1834,7 @@ void PersistenceManager<R>::ApplyRequest(
         trace_and_halt();
     }
 
-    info.staking_subchain_head = request.GetHash();
+    info.governance_subchain_head = request.GetHash();
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1907,6 +1910,7 @@ bool VerifyRepActionType(RequestType& type)
 bool PersistenceManager<R>::ValidateRequest(
         const ElectionVote& vote_request,
         uint32_t cur_epoch_num,
+        logos::account_info & info,
         MDB_txn* txn,
         logos::process_return & result)
 {
@@ -1920,6 +1924,12 @@ bool PersistenceManager<R>::ValidateRequest(
             || !EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
+        return false;
+    }
+
+    // Verify governance_subchain_prev is correct
+    if(!ValidateStakingSubchain(vote_request, info, result, txn))
+    {
         return false;
     }
 
@@ -2082,7 +2092,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //verify staking_subchain_prev is correct
+    //verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2164,7 +2174,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //verify staking_subchain_prev is correct
+    //verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2271,7 +2281,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //verify staking_subchain_prev is correct
+    //verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2344,7 +2354,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //Verify staking_subchain_prev is correct
+    //Verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2435,7 +2445,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //Verify staking_subchain_prev is correct
+    //Verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2532,7 +2542,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //Verify staking_subchain_prev is correct
+    //Verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
@@ -2627,7 +2637,7 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-    //Verify staking_subchain_prev is correct
+    //Verify governance_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;

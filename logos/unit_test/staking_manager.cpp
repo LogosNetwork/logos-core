@@ -27,7 +27,7 @@ TEST(Staking_Manager, Stake)
         req.rep = rep;
         req.Hash();
         store->request_put(req,txn);
-        info.staking_subchain_head = req.Hash();
+        info.governance_subchain_head = req.Hash();
         info.rep = rep;
     };
 
@@ -283,7 +283,7 @@ TEST(Staking_Manager, StakeEpochTransition)
         req.rep = rep;
         req.Hash();
         store->request_put(req,txn);
-        info.staking_subchain_head = req.Hash();
+        info.governance_subchain_head = req.Hash();
         info.rep = rep;
     };
     AccountAddress target = 84;
@@ -423,7 +423,7 @@ TEST(Staking_Manager, Validate)
         req.rep = rep;
         req.Hash();
         store->request_put(req,txn);
-        info.staking_subchain_head = req.Hash();
+        info.governance_subchain_head = req.Hash();
         info.rep = rep;
     };
 

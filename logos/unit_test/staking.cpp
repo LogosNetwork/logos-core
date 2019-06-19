@@ -88,8 +88,8 @@ TEST(Staking, Basic)
 
     BlockHash rep_prev = 0;
     BlockHash prev = 0;
-    BlockHash rep_stake_subchain = 0;
-    BlockHash stake_subchain = 0;
+    BlockHash rep_governance_subchain = 0;
+    BlockHash governance_subchain = 0;
     uint32_t seq = 0;
     uint32_t rep_seq = 0;
 
@@ -100,49 +100,49 @@ TEST(Staking, Basic)
             case RequestType::StartRepresenting:
                 {
                 auto req1 = static_cast<StartRepresenting*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::StopRepresenting:
                 {
                 auto req1 = static_cast<StopRepresenting*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::AnnounceCandidacy:
                 {
                 auto req1 = static_cast<AnnounceCandidacy*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::RenounceCandidacy:
                 {
                 auto req1 = static_cast<RenounceCandidacy*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::Stake:
                 {
                 auto req1 = static_cast<Stake*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::Unstake:
                 {
                 auto req1 = static_cast<Unstake*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
             case RequestType::Proxy:
                 {
                 auto req1 = static_cast<Proxy*>(req);
-                req1->staking_subchain_prev = req->origin == rep ? rep_stake_subchain : stake_subchain;
+                req1->governance_subchain_prev = req->origin == rep ? rep_governance_subchain : governance_subchain;
                 req1->epoch_num = epoch_num;
                 break;
                 }
@@ -188,7 +188,7 @@ TEST(Staking, Basic)
             rep_seq++;
             if(IsStakingRequest(req))
             {
-                rep_stake_subchain = rep_prev;
+                rep_governance_subchain = rep_prev;
             }
         }
         else if(req.origin == account)
@@ -197,7 +197,7 @@ TEST(Staking, Basic)
             seq++;
             if(IsStakingRequest(req))
             {
-                stake_subchain = prev;
+                governance_subchain = prev;
             }
         }
         store->request_put(req, txn);
@@ -688,14 +688,14 @@ TEST(Staking, SwitchProxy)
                 case RequestType::StartRepresenting:
                     {
                         auto req1 = static_cast<StartRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::StopRepresenting:
                     {
                         auto req1 = static_cast<StopRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -703,35 +703,35 @@ TEST(Staking, SwitchProxy)
                     {
                         auto req1 = static_cast<AnnounceCandidacy*>(req);
 
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::RenounceCandidacy:
                     {
                         auto req1 = static_cast<RenounceCandidacy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Stake:
                     {
                         auto req1 = static_cast<Stake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Unstake:
                     {
                         auto req1 = static_cast<Unstake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Proxy:
                     {
                         auto req1 = static_cast<Proxy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1193,14 +1193,14 @@ TEST(Staking, MultipleProxy)
                 case RequestType::StartRepresenting:
                     {
                         auto req1 = static_cast<StartRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::StopRepresenting:
                     {
                         auto req1 = static_cast<StopRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1208,35 +1208,35 @@ TEST(Staking, MultipleProxy)
                     {
                         auto req1 = static_cast<AnnounceCandidacy*>(req);
 
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::RenounceCandidacy:
                     {
                         auto req1 = static_cast<RenounceCandidacy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Stake:
                     {
                         auto req1 = static_cast<Stake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Unstake:
                     {
                         auto req1 = static_cast<Unstake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Proxy:
                     {
                         auto req1 = static_cast<Proxy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1521,14 +1521,14 @@ TEST(Staking, StakeUnstake)
                 case RequestType::StartRepresenting:
                     {
                         auto req1 = static_cast<StartRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::StopRepresenting:
                     {
                         auto req1 = static_cast<StopRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1536,35 +1536,35 @@ TEST(Staking, StakeUnstake)
                     {
                         auto req1 = static_cast<AnnounceCandidacy*>(req);
 
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::RenounceCandidacy:
                     {
                         auto req1 = static_cast<RenounceCandidacy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Stake:
                     {
                         auto req1 = static_cast<Stake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Unstake:
                     {
                         auto req1 = static_cast<Unstake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Proxy:
                     {
                         auto req1 = static_cast<Proxy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = staking_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1922,7 +1922,7 @@ TEST(Staking, Votes)
 
     struct RequestMeta
     {
-        BlockHash staking_subchain;
+        BlockHash governance_subchain;
         BlockHash prev;
         uint32_t seq;
         uint32_t epoch_num;
@@ -1945,7 +1945,7 @@ TEST(Staking, Votes)
             prev = req.GetHash();
             if(IsStakingRequest(req))
             {
-                staking_subchain = req.GetHash();
+                governance_subchain = req.GetHash();
             }
             ++seq;
         }
@@ -1957,14 +1957,14 @@ TEST(Staking, Votes)
                 case RequestType::StartRepresenting:
                     {
                         auto req1 = static_cast<StartRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::StopRepresenting:
                     {
                         auto req1 = static_cast<StopRepresenting*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
@@ -1972,41 +1972,42 @@ TEST(Staking, Votes)
                     {
                         auto req1 = static_cast<AnnounceCandidacy*>(req);
 
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::RenounceCandidacy:
                     {
                         auto req1 = static_cast<RenounceCandidacy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Stake:
                     {
                         auto req1 = static_cast<Stake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Unstake:
                     {
                         auto req1 = static_cast<Unstake*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                 case RequestType::Proxy:
                     {
                         auto req1 = static_cast<Proxy*>(req);
-                        req1->staking_subchain_prev = staking_subchain;
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }
                case RequestType::ElectionVote:
                     {
                         auto req1 = static_cast<ElectionVote*>(req);
+                        req1->governance_subchain_prev = governance_subchain;
                         req1->epoch_num = epoch_num;
                         break;
                     }

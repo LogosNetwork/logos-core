@@ -121,10 +121,6 @@ Request::Request(bool & error,
         }
 
         sequence = std::stoul(tree.get<std::string>(SEQUENCE));
-        if(error)
-        {
-            return;
-        }
 
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
         if(error)
