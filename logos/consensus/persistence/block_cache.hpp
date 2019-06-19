@@ -123,8 +123,8 @@ private:
     void Validate(uint8_t bsb_idx = 0);
 
     block_store &                   store_;
-    PendingBlockContainer           block_container;
     BlockWriteQueue                 write_q;
+    PendingBlockContainer           block_container;
 
     std::mutex                      mtx;
     Log                             log;

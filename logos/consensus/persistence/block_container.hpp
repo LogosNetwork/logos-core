@@ -13,6 +13,8 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 
+#include "block_write_queue.hpp"
+
 namespace logos
 {
 
@@ -141,6 +143,15 @@ public:
         }
     };
 
+    PendingBlockContainer(BlockWriteQueue &write_q_)
+        : write_q(write_q_)
+    {
+    }
+
+    bool BlockExists(EBPtr block);
+    bool BlockExists(MBPtr block);
+    bool BlockExists(RBPtr block);
+
     void AddDependency(const BlockHash &hash, EPtr block);
     void AddDependency(const BlockHash &hash, MPtr block);
     void AddDependency(const BlockHash &hash, RPtr block);
@@ -154,8 +165,9 @@ private:
     EpochPeriod *GetEpoch(uint32_t epoch_num);
     bool MarkForRevalidation(const ChainPtr &ptr);
 
+    BlockWriteQueue &                               write_q;
     std::list<EpochPeriod>                          epochs;
-    std::set<BlockHash>                             cached_blocks;
+    std::unordered_set<BlockHash>                   cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
     std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
     std::mutex                                      hash_dependency_table_mutex;

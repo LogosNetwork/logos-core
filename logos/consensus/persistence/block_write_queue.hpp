@@ -48,6 +48,10 @@ private:
     std::queue<MBPtr>               mbs;
     std::queue<RBPtr>               rbs;
 
+    std::unordered_set<BlockHash>   e_queued;
+    std::unordered_set<BlockHash>   m_queued;
+    std::unordered_set<BlockHash>   r_queued;
+
     NonDelPersistenceManager<ECT>   eb_handler;
     NonDelPersistenceManager<MBCT>  mb_handler;
     NonDelPersistenceManager<R>     rb_handler;
