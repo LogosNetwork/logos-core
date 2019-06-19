@@ -409,7 +409,7 @@ void logos::account_info::SetAvailableBalance(
 
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
-    , staking_subchain_head (0)
+    , governance_subchain_head (0)
     , rep(0)
     , open_block (0)
     , available_balance (balance)
@@ -446,7 +446,7 @@ logos::account_info::account_info (
               block_count,
               receive_head,
               receive_count)
-    , staking_subchain_head (staking_subchain_head)
+    , governance_subchain_head (staking_subchain_head)
     , rep(0)
     , open_block (open_block)
     , available_balance (balance)
@@ -459,7 +459,7 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
 
-    s += write (stream_a, staking_subchain_head.bytes);
+    s += write (stream_a, governance_subchain_head.bytes);
     s += write (stream_a, rep);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
@@ -482,7 +482,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
     uint16_t count;
 
     auto error = Account::Deserialize(stream_a)
-        || read (stream_a, staking_subchain_head.bytes)
+        || read (stream_a, governance_subchain_head.bytes)
         || read (stream_a, rep)
         || read (stream_a, open_block.bytes)
         || read (stream_a, count);
@@ -507,7 +507,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return staking_subchain_head == other_a.staking_subchain_head &&
+    return governance_subchain_head == other_a.governance_subchain_head &&
            rep == other_a.rep &&
            open_block == other_a.open_block &&
            available_balance == other_a.available_balance &&
@@ -1281,8 +1281,8 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::insufficient_funds_for_stake:
             ret = "Insufficient funds to satisfy stake portion of request";
             break;
-        case process_result::invalid_staking_subchain:
-            ret = "Staking_subchain_prev does not match info.staking_subchain_head";
+        case process_result::invalid_governance_subchain:
+            ret = "Governance_subchain_prev does not match info.governance_subchain_head";
             break;
         case process_result::invalid_account_type:
             ret = "Invalid account type for request";

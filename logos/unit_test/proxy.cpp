@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <logos/staking/requests.hpp>
+#include <logos/governance/requests.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>
 
 #define Unit_Test_Proxy
@@ -17,7 +17,7 @@ TEST(Proxy, Serialization)
     req.lock_proxy = 4267;
     req.rep = 1234;
     req.epoch_num = 720;
-    req.staking_subchain_prev = 89674;
+    req.governance_subchain_prev = 89674;
 
     req.Hash();
     store->request_put(req, txn);

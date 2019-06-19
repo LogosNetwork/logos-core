@@ -191,7 +191,7 @@ MicroBlockTester::read_accounts(
         boost::property_tree::ptree response;
         response.put ("frontier", info.head.to_string ());
         response.put ("open_block", info.open_block.to_string ());
-        response.put ("representative_block", info.staking_subchain_head.to_string ());
+        response.put ("representative_block", info.governance_subchain_head.to_string ());
         std::string balance;
         logos::uint128_union (info.GetBalance()).encode_dec (balance);
         response.put ("balance", balance);
@@ -327,7 +327,7 @@ MicroBlockTester::informational(
         uint64_t block_count = (uint64_t)&info.block_count;
         uint64_t receive_head = (uint64_t)&info.receive_head;
         uint64_t receive_count = (uint64_t)&info.receive_count;
-        uint64_t rep_block = (uint64_t)&info.staking_subchain_head;
+        uint64_t rep_block = (uint64_t)&info.governance_subchain_head;
         uint64_t open_block = (uint64_t)&info.open_block;
         uint64_t entries = (uint64_t)&info.entries;
         std::vector<uint8_t> buf;

@@ -519,6 +519,293 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6");
     ASSERT_EQ(logos_send.transactions[2].amount, 3);
 
+    // Proxy
+    //
+    //
+    char const * proxy_json = R"%%%({
+        "type": "proxy",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "10",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "5",
+        "governance_subchain_previous": "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4",
+        "lock_proxy": "454545",
+        "representative": "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8",
+        "work": "6"
+     })%%%";
+
+    tree = get_tree(proxy_json);
+    Proxy proxy(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(proxy.type, RequestType::Proxy);
+    ASSERT_EQ(proxy.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(proxy.fee.number(), 10000);
+    ASSERT_EQ(proxy.sequence, 10);
+    ASSERT_EQ(proxy.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(proxy.epoch_num, 5);
+    ASSERT_EQ(proxy.governance_subchain_prev.to_string(),
+              "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4");
+    ASSERT_EQ(proxy.lock_proxy.number(), 454545);
+    ASSERT_EQ(proxy.rep.to_account(), "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8");
+    ASSERT_EQ(proxy.work, 6);
+
+    // Stake
+    //
+    //
+    char const * stake_json = R"%%%({
+        "type": "stake",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "99",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "222",
+        "governance_subchain_previous": "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4",
+        "stake": "111111",
+        "work": "6"
+     })%%%";
+
+    tree = get_tree(stake_json);
+    Stake stake(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stake.type, RequestType::Stake);
+    ASSERT_EQ(stake.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(stake.fee.number(), 10000);
+    ASSERT_EQ(stake.sequence, 99);
+    ASSERT_EQ(stake.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(stake.epoch_num, 222);
+    ASSERT_EQ(stake.governance_subchain_prev.to_string(),
+              "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4");
+    ASSERT_EQ(stake.stake.number(), 111111);
+    ASSERT_EQ(stake.work, 6);
+
+    // Unstake
+    //
+    //
+    char const * unstake_json = R"%%%({
+        "type": "unstake",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "100",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "222",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "work": "100"
+     })%%%";
+
+    tree = get_tree(unstake_json);
+    Unstake unstake(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(unstake.type, RequestType::Unstake);
+    ASSERT_EQ(unstake.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(unstake.fee.number(), 10000);
+    ASSERT_EQ(unstake.sequence, 100);
+    ASSERT_EQ(unstake.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(unstake.epoch_num, 222);
+    ASSERT_EQ(unstake.governance_subchain_prev.to_string(),
+              "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9");
+    ASSERT_EQ(unstake.work, 0x100);
+
+    // ElectionVote
+    //
+    //
+    char const * vote_json = R"%%%({
+        "type": "election_vote",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "100",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "222",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "votes": [
+            {
+                 "account" : "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8",
+                 "num_votes" : "5"
+            },
+            {
+                 "account" : "lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h",
+                 "num_votes" : "2"
+            },
+            {
+                 "account" : "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
+                 "num_votes" : "1"
+            }
+        ],
+        "work": "100"
+     })%%%";
+
+    tree = get_tree(vote_json);
+    ElectionVote vote(error, tree);
+
+    using CandidateVotePair = ElectionVote::CandidateVotePair;
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(vote.type, RequestType::ElectionVote);
+    ASSERT_EQ(vote.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(vote.fee.number(), 10000);
+    ASSERT_EQ(vote.sequence, 100);
+    ASSERT_EQ(vote.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(vote.epoch_num, 222);
+    ASSERT_EQ(vote.governance_subchain_prev.to_string(),
+              "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9");
+    ASSERT_EQ(vote.votes[0],
+              CandidateVotePair("lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8", 5));
+    ASSERT_EQ(vote.votes[1],
+              CandidateVotePair("lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h", 2));
+    ASSERT_EQ(vote.votes[2],
+              CandidateVotePair("lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6", 1));
+    ASSERT_EQ(vote.work, 0x100);
+
+    // AnnounceCandidacy
+    //
+    //
+    char const * announce_json = R"%%%({
+        "type": "announce_candidacy",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "100",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "222",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "set_stake": "true",
+        "stake": "100009",
+        "bls_key": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "ecies_key": "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3",
+        "levy_percentage": "4",
+        "work": "100"
+     })%%%";
+
+    tree = get_tree(announce_json);
+    AnnounceCandidacy announce(error, tree);
+
+    std::string ecies = "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c"
+                        "1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f"
+                        "168f5aff24bcaab7513d447fd677d3";
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(announce.type, RequestType::AnnounceCandidacy);
+    ASSERT_EQ(announce.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(announce.fee.number(), 10000);
+    ASSERT_EQ(announce.sequence, 100);
+    ASSERT_EQ(announce.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(announce.epoch_num, 222);
+    ASSERT_EQ(announce.set_stake, true);
+    ASSERT_EQ(announce.stake.number(), 100009);
+    ASSERT_EQ(announce.bls_key, DelegatePubKey(std::string(128, '0')));
+    ASSERT_EQ(announce.ecies_key, ECIESPublicKey(ecies, true));
+    ASSERT_EQ(announce.levy_percentage, 4);
+    ASSERT_EQ(announce.work, 0x100);
+
+    // RenounceCandidacy
+    //
+    //
+    char const * renounce_json = R"%%%({
+        "type": "renounce_candidacy",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "50000",
+        "sequence": "10000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "222",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "set_stake": "false",
+        "stake": "100009",
+        "work": "100"
+     })%%%";
+
+    tree = get_tree(renounce_json);
+    RenounceCandidacy renounce(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(renounce.type, RequestType::RenounceCandidacy);
+    ASSERT_EQ(renounce.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(renounce.fee.number(), 50000);
+    ASSERT_EQ(renounce.sequence, 10000);
+    ASSERT_EQ(renounce.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(renounce.epoch_num, 222);
+    ASSERT_EQ(renounce.set_stake, false);
+    ASSERT_EQ(renounce.stake.number(), 100009);
+    ASSERT_EQ(renounce.work, 0x100);
+
+    // StartRepresenting
+    //
+    //
+    char const * start_json = R"%%%({
+        "type": "start_representing",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "50000",
+        "sequence": "10000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "9001",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "set_stake": "true",
+        "stake": "20",
+        "levy_percentage": "90",
+        "work": "50"
+     })%%%";
+
+    tree = get_tree(start_json);
+    StartRepresenting start(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(start.type, RequestType::StartRepresenting);
+    ASSERT_EQ(start.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(start.fee.number(), 50000);
+    ASSERT_EQ(start.sequence, 10000);
+    ASSERT_EQ(start.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(start.epoch_num, 9001);
+    ASSERT_EQ(start.set_stake, true);
+    ASSERT_EQ(start.stake.number(), 20);
+    ASSERT_EQ(start.levy_percentage, 90);
+    ASSERT_EQ(start.work, 0x50);
+
+    // StopRepresenting
+    //
+    //
+    char const * stop_json = R"%%%({
+        "type": "stop_representing",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "50000",
+        "sequence": "10000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_num": "9001",
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
+        "stake": "20000",
+        "work": "22222"
+     })%%%";
+
+    tree = get_tree(stop_json);
+    StopRepresenting stop(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stop.type, RequestType::StopRepresenting);
+    ASSERT_EQ(stop.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(stop.fee.number(), 50000);
+    ASSERT_EQ(stop.sequence, 10000);
+    ASSERT_EQ(stop.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(stop.epoch_num, 9001);
+    ASSERT_EQ(stop.set_stake, true);
+    ASSERT_EQ(stop.stake.number(), 20000);
+    ASSERT_EQ(stop.work, 0x22222);
+
     // Claim
     //
     //

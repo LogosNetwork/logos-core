@@ -2,8 +2,7 @@
 
 #include <logos/request/requests.hpp>
 #include <logos/token/requests.hpp>
-#include <logos/staking/requests.hpp>
-#include <logos/elections/requests.hpp>
+#include <logos/governance/requests.hpp>
 
 RequestType GetRequestType(bool &error, std::string data);
 std::string GetRequestTypeField(RequestType type);

@@ -1752,7 +1752,7 @@ logos::account logos::node::representative (logos::account const & account_a)
     logos::account result (0);
     if (!store.account_get (transaction, account_a, info))
     {
-        result = info.staking_subchain_head;
+        result = info.governance_subchain_head;
     }
     return result;
 }

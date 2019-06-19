@@ -2,7 +2,7 @@
 
 #include <logos/lib/numbers.hpp>
 #include <logos/node/utility.hpp>
-#include <logos/elections/requests.hpp>
+#include <logos/governance/requests.hpp>
 
 struct CandidateInfo
 {
