@@ -5,6 +5,7 @@ namespace logos {
 BlockCache::BlockCache(Store &store)
     : store_(store)
     , write_q(store)
+    , block_container(write_q)
 {
 }
 
@@ -13,21 +14,21 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddEB: VerifyAggSignature failed";
+        LOG_TRACE(log) << "BlockCache::AddEpochBlock: VerifyAggSignature failed";
         return false;
     }
 
-    std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if (write_q.BlockExists(block))
+    if (block_container.BlockExists(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddEB: BlockExists";
+        LOG_TRACE(log) << "BlockCache::AAddEpochBlock: BlockExists";
         return true;
     }
 
     PendingBlockContainer::EPtr ptr = std::make_shared<PendingBlockContainer::PendingEB>(block);
 
     bool found = false;
+    std::lock_guard<std::mutex> lck (mtx);
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
     {
         if(bi->epoch_num == block->epoch_number)
@@ -36,7 +37,6 @@ bool BlockCache::AddEpochBlock(EBPtr block)
             if(bi->eb == nullptr)
             {
                 bi->eb = ptr;
-                block_container.cached_blocks.insert(block->Hash());
             }
             found = true;
             break;
@@ -44,7 +44,6 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         else if(bi->epoch_num < block->epoch_number)
         {
             block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-            block_container.cached_blocks.insert(block->Hash());
             found = true;
             break;
         }
@@ -52,7 +51,6 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     if(!found)
     {
         block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        block_container.cached_blocks.insert(block->Hash());
         Validate();//TODO optimize: Validate eb first
     }
 
@@ -69,15 +67,14 @@ bool BlockCache::AddMicroBlock(MBPtr block)
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddMB: VerifyAggSignature failed";
+        LOG_TRACE(log) << "BlockCache::AddMicroBlock: VerifyAggSignature failed";
         return false;
     }
 
-    std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if (write_q.BlockExists(block))
+    if (block_container.BlockExists(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
+        LOG_TRACE(log) << "BlockCache::AddMicroBlock: BlockExists";
         return true;
     }
 
@@ -85,6 +82,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
 
     bool found = false;
     bool add2begin = false;
+    std::lock_guard<std::mutex> lck (mtx);
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
     {
         if(bi->epoch_num == block->epoch_number)
@@ -100,7 +98,6 @@ bool BlockCache::AddMicroBlock(MBPtr block)
                 else if ((*mbi)->block->sequence < block->sequence)
                 {
                     bi->mbs.emplace(mbi.base(), ptr);
-                    block_container.cached_blocks.insert(block->Hash());
 
                     found = true;
                     break;
@@ -109,7 +106,6 @@ bool BlockCache::AddMicroBlock(MBPtr block)
             if(!found)
             {
                 bi->mbs.emplace_front(ptr);
-                block_container.cached_blocks.insert(block->Hash());
 
                 found = true;
                 auto temp_i = bi;
@@ -120,8 +116,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         else if(bi->epoch_num < block->epoch_number)
         {
             block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-            add2begin = block_container.cached_blocks.empty();
-            block_container.cached_blocks.insert(block->Hash());
+            add2begin = false;
             found = true;
             break;
         }
@@ -129,7 +124,6 @@ bool BlockCache::AddMicroBlock(MBPtr block)
     if(!found)
     {
         block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
     }
@@ -152,15 +146,14 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddBSB: VerifyAggSignature failed";
+        LOG_TRACE(log) << "BlockCache::AddRequestBlock: VerifyAggSignature failed";
         return false;
     }
 
-    std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if (write_q.BlockExists(block))
+    if (block_container.BlockExists(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
+        LOG_TRACE(log) << "BlockCache::AddRequestBlock: BlockExists";
         return true;
     }
 
@@ -168,6 +161,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
     bool found = false;
     bool add2begin = false;
+    std::lock_guard<std::mutex> lck (mtx);
     for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
     {
         if(bi->epoch_num == block->epoch_number)
@@ -184,7 +178,6 @@ bool BlockCache::AddRequestBlock(RBPtr block)
                 else if ((*rbi)->block->sequence < block->sequence)
                 {
                     bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
-                    block_container.cached_blocks.insert(block->Hash());
 
                     found = true;
                     break;
@@ -193,7 +186,6 @@ bool BlockCache::AddRequestBlock(RBPtr block)
             if(!found)
             {
                 bi->rbs[block->primary_delegate].emplace_front(ptr);
-                block_container.cached_blocks.insert(block->Hash());
 
                 found = true;
                 add2begin = true;
@@ -203,7 +195,6 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         else if(bi->epoch_num < block->epoch_number)
         {
             block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-            block_container.cached_blocks.insert(block->Hash());
             found = true;
             add2begin = true;
             break;
@@ -212,7 +203,6 @@ bool BlockCache::AddRequestBlock(RBPtr block)
     if(!found)
     {
         block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        block_container.cached_blocks.insert(block->Hash());
         found = true;
         add2begin = true;
     }
@@ -231,6 +221,11 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
 void BlockCache::StoreEpochBlock(EBPtr block)
 {
+    if (block_container.BlockExists(block))
+    {
+        LOG_TRACE(log) << "BlockCache::StoreEpochBlock: BlockExists";
+        return;
+    }
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
@@ -239,6 +234,11 @@ void BlockCache::StoreEpochBlock(EBPtr block)
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
+    if (block_container.BlockExists(block))
+    {
+        LOG_TRACE(log) << "BlockCache::StoreMicroBlock: BlockExists";
+        return;
+    }
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
@@ -247,6 +247,11 @@ void BlockCache::StoreMicroBlock(MBPtr block)
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
+    if (block_container.BlockExists(block))
+    {
+        LOG_TRACE(log) << "BlockCache::StoreRequestBlock: BlockExists";
+        return;
+    }
     std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
