@@ -170,6 +170,7 @@ private:
     std::unordered_set<BlockHash>                   cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
     std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
+    std::mutex                                      cache_blocks_mutex;
     std::mutex                                      hash_dependency_table_mutex;
 
     friend class BlockCache;

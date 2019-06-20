@@ -4,7 +4,7 @@ namespace logos {
 
 bool PendingBlockContainer::BlockExists(EBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
@@ -14,7 +14,7 @@ bool PendingBlockContainer::BlockExists(EBPtr block)
 
 bool PendingBlockContainer::BlockExists(MBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
@@ -24,7 +24,7 @@ bool PendingBlockContainer::BlockExists(MBPtr block)
 
 bool PendingBlockContainer::BlockExists(RBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
@@ -83,6 +83,7 @@ bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
 bool PendingBlockContainer::DelDependencies(const BlockHash &hash)
 {
     bool res = false;
+    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
 
     if (!hash_dependency_table.count(hash))
     {
@@ -103,7 +104,7 @@ bool PendingBlockContainer::DelDependencies(const BlockHash &hash)
 
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     cached_blocks.erase(hash);
     return DelDependencies(hash);
@@ -111,7 +112,7 @@ bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     cached_blocks.erase(hash);
     return DelDependencies(hash);
@@ -119,7 +120,7 @@ bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
     cached_blocks.erase(hash);
     bool res = DelDependencies(hash);
