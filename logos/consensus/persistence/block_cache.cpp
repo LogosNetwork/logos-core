@@ -12,6 +12,7 @@ BlockCache::BlockCache(Store &store)
 bool BlockCache::AddEpochBlock(EBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
+
     if (!write_q.VerifyAggSignature(block))
     {
         LOG_TRACE(log) << "BlockCache::AddEpochBlock: VerifyAggSignature failed";
@@ -25,32 +26,39 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         return true;
     }
 
-    PendingBlockContainer::EPtr ptr = std::make_shared<PendingBlockContainer::PendingEB>(block);
-
     bool found = false;
-    std::lock_guard<std::mutex> lck (mtx);
-    for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
+
     {
-        if(bi->epoch_num == block->epoch_number)
+        PendingBlockContainer::EPtr ptr = std::make_shared<PendingBlockContainer::PendingEB>(block);
+        std::lock_guard<std::mutex> lck (mtx);
+
+        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
         {
-            //duplicate
-            if(bi->eb == nullptr)
+            if(bi->epoch_num == block->epoch_number)
             {
-                bi->eb = ptr;
+                //duplicate
+                if(bi->eb == nullptr)
+                {
+                    bi->eb = ptr;
+                }
+                found = true;
+                break;
             }
-            found = true;
-            break;
+            else if(bi->epoch_num < block->epoch_number)
+            {
+                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
+                found = true;
+                break;
+            }
         }
-        else if(bi->epoch_num < block->epoch_number)
+        if(!found)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-            found = true;
-            break;
+            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
         }
     }
+
     if(!found)
     {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
         Validate();//TODO optimize: Validate eb first
     }
 
@@ -78,55 +86,59 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         return true;
     }
 
-    PendingBlockContainer::MPtr ptr = std::make_shared<PendingBlockContainer::PendingMB>(block);
-
-    bool found = false;
     bool add2begin = false;
-    std::lock_guard<std::mutex> lck (mtx);
-    for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
+
     {
-        if(bi->epoch_num == block->epoch_number)
+        PendingBlockContainer::MPtr ptr = std::make_shared<PendingBlockContainer::PendingMB>(block);
+        bool found = false;
+        std::lock_guard<std::mutex> lck (mtx);
+
+        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
         {
-            for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
+            if(bi->epoch_num == block->epoch_number)
             {
-                if((*mbi)->block->sequence == block->sequence)
+                for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
                 {
-                    //duplicate
-                    found = true;
-                    break;
+                    if((*mbi)->block->sequence == block->sequence)
+                    {
+                        //duplicate
+                        found = true;
+                        break;
+                    }
+                    else if ((*mbi)->block->sequence < block->sequence)
+                    {
+                        bi->mbs.emplace(mbi.base(), ptr);
+
+                        found = true;
+                        break;
+                    }
                 }
-                else if ((*mbi)->block->sequence < block->sequence)
+                if(!found)
                 {
-                    bi->mbs.emplace(mbi.base(), ptr);
+                    bi->mbs.emplace_front(ptr);
 
                     found = true;
-                    break;
+                    auto temp_i = bi;
+                    add2begin = ++temp_i == block_container.epochs.rend();
                 }
+                break;
             }
-            if(!found)
+            else if(bi->epoch_num < block->epoch_number)
             {
-                bi->mbs.emplace_front(ptr);
-
+                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
+                add2begin = false;
                 found = true;
-                auto temp_i = bi;
-                add2begin = ++temp_i == block_container.epochs.rend();
+                break;
             }
-            break;
         }
-        else if(bi->epoch_num < block->epoch_number)
+        if(!found)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-            add2begin = false;
+            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
             found = true;
-            break;
+            add2begin = true;
         }
     }
-    if(!found)
-    {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        found = true;
-        add2begin = true;
-    }
+
     if(add2begin)
     {
         Validate();//TODO optimize: Validate mb first
@@ -157,55 +169,59 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         return true;
     }
 
-    PendingBlockContainer::RPtr ptr = std::make_shared<PendingBlockContainer::PendingRB>(block);
-
-    bool found = false;
     bool add2begin = false;
-    std::lock_guard<std::mutex> lck (mtx);
-    for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
+
     {
-        if(bi->epoch_num == block->epoch_number)
+        PendingBlockContainer::RPtr ptr = std::make_shared<PendingBlockContainer::PendingRB>(block);
+        bool found = false;
+        std::lock_guard<std::mutex> lck (mtx);
+
+        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
         {
-            for(auto rbi = bi->rbs[block->primary_delegate].rbegin();
-                    rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
+            if(bi->epoch_num == block->epoch_number)
             {
-                if((*rbi)->block->sequence == block->sequence)
+                for(auto rbi = bi->rbs[block->primary_delegate].rbegin();
+                        rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
                 {
-                    //duplicate
-                    found = true;
-                    break;
+                    if((*rbi)->block->sequence == block->sequence)
+                    {
+                        //duplicate
+                        found = true;
+                        break;
+                    }
+                    else if ((*rbi)->block->sequence < block->sequence)
+                    {
+                        bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
+
+                        found = true;
+                        break;
+                    }
                 }
-                else if ((*rbi)->block->sequence < block->sequence)
+                if(!found)
                 {
-                    bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
+                    bi->rbs[block->primary_delegate].emplace_front(ptr);
 
                     found = true;
-                    break;
+                    add2begin = true;
                 }
+                break;
             }
-            if(!found)
+            else if(bi->epoch_num < block->epoch_number)
             {
-                bi->rbs[block->primary_delegate].emplace_front(ptr);
-
+                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
                 found = true;
                 add2begin = true;
+                break;
             }
-            break;
         }
-        else if(bi->epoch_num < block->epoch_number)
+        if(!found)
         {
-            block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
+            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
             found = true;
             add2begin = true;
-            break;
         }
     }
-    if(!found)
-    {
-        block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        found = true;
-        add2begin = true;
-    }
+
     if(add2begin)
     {
         Validate(block->primary_delegate);
@@ -226,7 +242,6 @@ void BlockCache::StoreEpochBlock(EBPtr block)
         LOG_TRACE(log) << "BlockCache::StoreEpochBlock: BlockExists";
         return;
     }
-    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
         Validate();
@@ -239,7 +254,6 @@ void BlockCache::StoreMicroBlock(MBPtr block)
         LOG_TRACE(log) << "BlockCache::StoreMicroBlock: BlockExists";
         return;
     }
-    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
         Validate();
@@ -252,7 +266,6 @@ void BlockCache::StoreRequestBlock(RBPtr block)
         LOG_TRACE(log) << "BlockCache::StoreRequestBlock: BlockExists";
         return;
     }
-    std::lock_guard<std::mutex> lck (mtx);
     write_q.StoreBlock(block);
     if (block_container.MarkAsValidated(block))
         Validate();
@@ -269,6 +282,9 @@ void BlockCache::Validate(uint8_t rb_idx)
 {
     LOG_TRACE(log) << "BlockCache::"<<__func__<<"{";
     assert(rb_idx<=NUM_DELEGATES);
+
+    std::lock_guard<std::mutex> lck (mtx);
+
     auto e = block_container.epochs.begin();
     while( e != block_container.epochs.end())
     {
