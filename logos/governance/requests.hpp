@@ -192,7 +192,7 @@ struct ElectionVote : Governance
 
     bool operator!=(const ElectionVote & other) const;
 
-    //the accounts im voting for
+    // The accounts im voting for
     std::vector<CandidateVotePair> votes;
 };
 

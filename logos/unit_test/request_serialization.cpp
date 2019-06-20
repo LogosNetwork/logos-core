@@ -1035,6 +1035,126 @@ auto GenerateTokenSend = []()
     return send;
 };
 
+auto GenerateProxy = []()
+{
+    Proxy proxy;
+
+    proxy.type = RequestType::Proxy;
+
+    proxy.epoch_num = 100;
+    proxy.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    proxy.lock_proxy = {9001};
+    proxy.rep.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+
+    return proxy;
+};
+
+auto GenerateStake = []()
+{
+    Stake stake;
+
+    stake.type = RequestType::Stake;
+
+    stake.epoch_num = 100;
+    stake.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    stake.stake = {5000};
+
+    return stake;
+};
+
+auto GenerateUnstake = []()
+{
+    Unstake unstake;
+
+    unstake.type = RequestType::Unstake;
+
+    unstake.epoch_num = 100;
+    unstake.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+
+    return unstake;
+};
+
+auto GenerateElectionVote = []()
+{
+    ElectionVote vote;
+
+    vote.type = RequestType::ElectionVote;
+
+    vote.epoch_num = 100;
+    vote.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    vote.votes = {
+        {"lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8", 5},
+        {"lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8", 2},
+        {"lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8", 1}
+    };
+
+    return vote;
+};
+
+auto GenerateAnnounce = []()
+{
+    AnnounceCandidacy announce;
+
+    std::string ecies = "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c"
+                        "1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f"
+                        "168f5aff24bcaab7513d447fd677d3";
+
+    announce.type = RequestType::AnnounceCandidacy;
+
+    announce.epoch_num = 100;
+    announce.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    announce.set_stake = true;
+    announce.stake = {9001};
+    announce.levy_percentage = 55;
+    announce.bls_key = DelegatePubKey(std::string(128, '0'));
+    announce.ecies_key = ECIESPublicKey(ecies, true);
+
+    return announce;
+};
+
+auto GenerateRenounce = []()
+{
+    RenounceCandidacy renounce;
+
+    renounce.type = RequestType::RenounceCandidacy;
+
+    renounce.epoch_num = 100;
+    renounce.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    renounce.set_stake = true;
+    renounce.stake = {9001};
+
+    return renounce;
+};
+
+auto GenerateStart = []()
+{
+    StartRepresenting start;
+
+    start.type = RequestType::StartRepresenting;
+
+    start.epoch_num = 100;
+    start.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    start.set_stake = true;
+    start.stake = {9001};
+    start.levy_percentage = 55;
+
+    return start;
+};
+
+auto GenerateStop = []()
+{
+    StopRepresenting stop;
+
+    stop.type = RequestType::StopRepresenting;
+
+    stop.epoch_num = 100;
+    stop.governance_subchain_prev = {"CF10488A1FC2ACF845ED3D98F71DF6A4F61AD7543D4F77954C160A28952560F4"};
+    stop.set_stake = true;
+    stop.stake = {9001};
+
+    return stop;
+};
+
 auto GenerateClaim = []()
 {
     Claim claim;
@@ -1263,6 +1383,126 @@ TEST (Request_Serialization, stream_methods)
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
 
+    // Proxy
+    //
+    //
+    auto proxy_a(GenerateProxy());
+    DoGetStreamedData(proxy_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    Proxy proxy_b(GetRequest<Proxy>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(proxy_a, proxy_b);
+
+    // Stake
+    //
+    //
+    auto stake_a(GenerateStake());
+    DoGetStreamedData(stake_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    Stake stake_b(GetRequest<Stake>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stake_a, stake_b);
+
+    // Unstake
+    //
+    //
+    auto unstake_a(GenerateUnstake());
+    DoGetStreamedData(unstake_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    Unstake unstake_b(GetRequest<Unstake>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(unstake_a, unstake_b);
+
+    // ElectionVote
+    //
+    //
+    auto vote_a(GenerateElectionVote());
+    DoGetStreamedData(vote_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    ElectionVote vote_b(GetRequest<ElectionVote>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(vote_a, vote_b);
+
+    // AnnounceCandidacy
+    //
+    //
+    auto announce_a(GenerateAnnounce());
+    DoGetStreamedData(announce_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    AnnounceCandidacy announce_b(GetRequest<AnnounceCandidacy>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(announce_a, announce_b);
+
+    // RenounceCandidacy
+    //
+    //
+    auto renounce_a(GenerateRenounce());
+    DoGetStreamedData(renounce_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    RenounceCandidacy renounce_b(GetRequest<RenounceCandidacy>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(renounce_a, renounce_b);
+
+    // StartRepresenting
+    //
+    //
+    auto start_a(GenerateStart());
+    DoGetStreamedData(start_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    StartRepresenting start_b(GetRequest<StartRepresenting>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(start_a, start_b);
+
+    // StopRepresenting
+    //
+    //
+    auto stop_a(GenerateStop());
+    DoGetStreamedData(stop_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    StopRepresenting stop_b(GetRequest<StopRepresenting>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stop_a, stop_b);
+
     // Claim
     //
     //
@@ -1477,6 +1717,118 @@ TEST (Request_Serialization, database_methods)
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
 
+    // Proxy
+    //
+    //
+    auto proxy_a(GenerateProxy());
+
+    buf.clear();
+
+    error = false;
+    Proxy proxy_b(error,
+                  proxy_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(proxy_a, proxy_b);
+
+    // Stake
+    //
+    //
+    auto stake_a(GenerateStake());
+
+    buf.clear();
+
+    error = false;
+    Stake stake_b(error,
+                  stake_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stake_a, stake_b);
+
+    // Unstake
+    //
+    //
+    auto unstake_a(GenerateUnstake());
+
+    buf.clear();
+
+    error = false;
+    Unstake unstake_b(error,
+                      unstake_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(unstake_a, unstake_b);
+
+    // ElectionVote
+    //
+    //
+    auto vote_a(GenerateElectionVote());
+
+    buf.clear();
+
+    error = false;
+    ElectionVote vote_b(error,
+                        vote_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(vote_a, vote_b);
+
+    // AnnounceCandidacy
+    //
+    //
+    auto announce_a(GenerateAnnounce());
+
+    buf.clear();
+
+    error = false;
+    AnnounceCandidacy announce_b(error,
+                                 announce_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(announce_a, announce_b);
+
+    // RenounceCandidacy
+    //
+    //
+    auto renounce_a(GenerateRenounce());
+
+    buf.clear();
+
+    error = false;
+    RenounceCandidacy renounce_b(error,
+                                 renounce_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(renounce_a, renounce_b);
+
+    // StartRepresenting
+    //
+    //
+    auto start_a(GenerateStart());
+
+    buf.clear();
+
+    error = false;
+    StartRepresenting start_b(error,
+                              start_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(start_a, start_b);
+
+    // StopRepresenting
+    //
+    //
+    auto stop_a(GenerateStop());
+
+    buf.clear();
+
+    error = false;
+    StopRepresenting stop_b(error,
+                            stop_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stop_a, stop_b);
+
     // Claim
     //
     //
@@ -1661,6 +2013,102 @@ TEST (Request_Serialization, json_serialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
+
+    // Proxy
+    //
+    //
+    auto proxy_a(GenerateProxy());
+
+    error = false;
+    Proxy proxy_b(error,
+                  proxy_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(proxy_a, proxy_b);
+
+    // Stake
+    //
+    //
+    auto stake_a(GenerateStake());
+
+    error = false;
+    Stake stake_b(error,
+                  stake_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stake_a, stake_b);
+
+    // Unstake
+    //
+    //
+    auto unstake_a(GenerateUnstake());
+
+    error = false;
+    Unstake unstake_b(error,
+                      unstake_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(unstake_a, unstake_b);
+
+    // ElectionVote
+    //
+    //
+    auto vote_a(GenerateElectionVote());
+
+    error = false;
+    ElectionVote vote_b(error,
+                        vote_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(vote_a, vote_b);
+
+    // AnnounceCandidacy
+    //
+    //
+    auto announce_a(GenerateAnnounce());
+
+    error = false;
+    AnnounceCandidacy announce_b(error,
+                                 announce_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(announce_a, announce_b);
+
+    // RenounceCandidacy
+    //
+    //
+    auto renounce_a(GenerateRenounce());
+
+    error = false;
+    RenounceCandidacy renounce_b(error,
+                                 renounce_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(renounce_a, renounce_b);
+
+    // StartRepresenting
+    //
+    //
+    auto start_a(GenerateStart());
+
+    error = false;
+    StartRepresenting start_b(error,
+                              start_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(start_a, start_b);
+
+    // StopRepresenting
+    //
+    //
+    auto stop_a(GenerateStop());
+
+    error = false;
+    StopRepresenting stop_b(error,
+                            stop_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(stop_a, stop_b);
 
     // Claim
     //
