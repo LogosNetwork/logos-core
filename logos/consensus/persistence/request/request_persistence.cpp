@@ -1856,41 +1856,20 @@ void PersistenceManager<R>::ApplyRequest(
         _store.candidate_put(request.origin,candidate,txn);
     }
 }
-//TODO: dynamic can be changed to static if we do type validation
-//in the constructors of ALL the request types
+
+// TODO: Dynamic can be changed to static if we do type validation
+//       in the constructors of ALL the request types.
+//
 uint32_t GetEpochNum(std::shared_ptr<Request> req)
 {
-    switch(req->type)
+    auto governance_request = dynamic_pointer_cast<Governance>(req);
+
+    if(!governance_request)
     {
-        case RequestType::AnnounceCandidacy:
-        {
-            auto derived = dynamic_pointer_cast<AnnounceCandidacy>(req);
-            return derived->epoch_num;
-        }
-        case RequestType::RenounceCandidacy:
-        {
-            auto derived = dynamic_pointer_cast<RenounceCandidacy>(req);
-            return derived->epoch_num;
-        }
-        case RequestType::StartRepresenting:
-        {
-            auto derived = dynamic_pointer_cast<StartRepresenting>(req);
-            return derived->epoch_num;
-        }
-        case RequestType::StopRepresenting:
-        {
-            auto derived = dynamic_pointer_cast<StopRepresenting>(req);
-            return derived->epoch_num;
-        }
-        case RequestType::ElectionVote:
-        {
-            auto derived = dynamic_pointer_cast<ElectionVote>(req);
-            return derived->epoch_num;
-        }
-        default:
-            trace_and_halt();
-            return 0;
+        trace_and_halt();
     }
+
+    return governance_request->epoch_num;
 }
 
 bool VerifyCandidacyActionType(RequestType& type)
