@@ -177,15 +177,19 @@ bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
     switch(status.reason)
     {
         case logos::process_result::progress:
+        {
             _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
+            auto hash = block.Hash();
+            LOG_INFO(_log) << "ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates-"
+                << "Hash="<< hash.to_string();
+            _RetryValidate(hash);
 
             for(uint32_t i = 0; i < block.requests.size(); ++i)
             {
                 _RetryValidate(block.requests[i]->Hash());
             }
             return true;
-
+        }
         case logos::process_result::gap_previous:
             CacheInsert(block.previous, delegate_id, block, pblock);
             return false;
@@ -215,10 +219,14 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
     switch(status.reason)
     {
         case logos::process_result::progress:
+        {
             _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
+            auto hash = block.Hash();
+            LOG_INFO(_log) << "ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates-"
+                << "Hash="<< hash.to_string();
+            _RetryValidate(hash);
             return true;
-
+        }
         case logos::process_result::gap_previous:
             CacheInsert(block.previous, delegate_id, block, pblock);
             return false;
@@ -248,10 +256,14 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
     switch(status.reason)
     {
         case logos::process_result::progress:
+        {
             _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
+            auto hash = block.Hash();
+            LOG_INFO(_log) << "ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates-"
+                << "Hash="<< hash.to_string();
+            _RetryValidate(hash);
             return true;
-
+        }
         case logos::process_result::gap_previous:
             CacheInsert(block.previous, delegate_id, block, pblock);
             return false;
@@ -309,7 +321,8 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t
     if (_BlockExists(block))
     {
         LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                       << "> - stop validate block, it already exists in the storage";
+                       << "> - stop validate block, it already exists in the storage"
+                       << "-Hash="<< block.Hash().to_string();
         return true;
     }
 

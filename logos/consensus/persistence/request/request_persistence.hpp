@@ -164,7 +164,7 @@ protected:
             MDB_txn * transaction);
 
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
-    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
+    static constexpr uint128_t MIN_TRANSACTION_FEE = 0; // 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 private:
 

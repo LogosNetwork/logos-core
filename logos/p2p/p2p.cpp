@@ -481,6 +481,8 @@ public:
             connOptions.vWhitelistedRange.push_back(subnet);
         }
 
+
+
         connOptions.vSeedNodes = Args.GetArgs("-seednode");
 
         // Initiate outbound connections unless connect=0
@@ -493,6 +495,11 @@ public:
         }
         if (!connman.Start(connOptions))
             return false;
+
+        for (const auto& black : Args.GetArgs("-blacklist"))
+        {
+            add_to_blacklist(black.c_str());
+        }
 
         // ********************************************************* Step 13: finished
 
@@ -544,11 +551,15 @@ public:
     void add_to_blacklist(const char *addr)
     {
         if (!g_connman)
+        {
             return;
+        }
 
         CService host;
         if (!Lookup(addr, host, 0, false))
+        {
             return;
+        }
 
         g_connman->Ban(host, BanReasonManuallyAdded, 0, false);
     }
@@ -673,7 +684,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
         LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
         return false;
     }
-
+    BCLog::Logger &logger_ = p2p->logger_;
     struct PropagateMessage mess(message, size);
     bool bfind=false;
     bool brecv=false;
@@ -682,14 +693,16 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
             || (brecv=!(output || ReceiveMessageCallback(message, size)))
             || (bprop=!p2p->Propagate(mess)))
     {
+
+        LogPrintf("p2p_interface::PropagateMessage-Hash=%s-bfind=%d-brecv=%d-output=%d-bprop=%d", mess.hash.ToString(),bfind, brecv, output, bprop);
         if (!bfind)
         {
-            BCLog::Logger &logger_ = p2p->logger_;
             LogPrintf("p2p_interface::PropagateMessage, failed to propagate, %d,%d\n", brecv, bprop);
         }
         return false;
     }
 
+    LogPrintf("p2p_interface::PropagateMessage-Hash=%s-bfind=%d-brecv=%d-output=%d-bprop=%d", mess.hash.ToString(),bfind, brecv, output, bprop);
     return true;
 }
 

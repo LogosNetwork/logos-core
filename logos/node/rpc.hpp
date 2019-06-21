@@ -115,6 +115,7 @@ class rpc_handler : public std::enable_shared_from_this<logos::rpc_handler>
 public:
     rpc_handler (logos::node &, logos::rpc &, std::string const &, std::function<void(boost::property_tree::ptree const &)> const &);
     void process_request ();
+    void add_to_blacklist ();
     void account_balance ();
     void account_block_count ();
     void account_count ();
@@ -129,6 +130,7 @@ public:
     void account_representative ();
     void account_representative_set ();
     void account_weight ();
+    void accounts_info ();
     void accounts_balances ();
     void accounts_create ();
     void accounts_exist ();
@@ -250,6 +252,7 @@ public:
 
     RpcResponse<BoostJson> tokens_info(const BoostJson& request, BlockStore& store);
     RpcResponse<BoostJson> account_info(const BoostJson& request, BlockStore& store);
+    RpcResponse<BoostJson> accounts_info(const BoostJson& request, BlockStore& store);
     RpcResponse<BoostJson> account_balance(const BoostJson& request, BlockStore& store);
     RpcResponse<BoostJson> accounts_exist(const BoostJson& request, BlockStore& store);
     RpcResponse<BoostJson> block(const BoostJson& request, BlockStore& store);

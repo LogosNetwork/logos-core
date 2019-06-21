@@ -6,6 +6,8 @@ Arg("bantime", strprintf("Number of seconds to keep misbehaving peers from recon
     false, OptionsCategory::CONNECTION, P2P_OPTION_ARGUMENT);
 Arg("bind", "Bind to given address and always listen on it. Use [host]:port notation for IPv6",
     false, OptionsCategory::CONNECTION, P2P_OPTION_ARGUMENT);
+Arg("blacklist", "Add specified ips to blacklist",
+    false, OptionsCategory::CONNECTION, P2P_OPTION_MULTI);
 Arg("connect", "Connect only to the specified node; --noconnect disables automatic connections (the rules for this peer are the same as for --addnode). "
                "This option can be specified multiple times to connect to multiple nodes.",
     false, OptionsCategory::CONNECTION, P2P_OPTION_MULTI);

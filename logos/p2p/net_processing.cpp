@@ -496,6 +496,7 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom,
         int64_t nSince = nNow - 10 * 60;
         for (CAddress& addr : vAddr)
         {
+
             if (interruptMsgProc)
                 return true;
 
@@ -999,6 +1000,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
         if (promess)
         {
+            LogPrintf("PeerLogicValidation_internal::SendMessage-promess->hash=%s",promess->hash.ToString());
             connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
         }
     }

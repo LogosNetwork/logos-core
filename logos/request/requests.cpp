@@ -17,7 +17,7 @@
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
-constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
+constexpr uint128_t MIN_TRANSACTION_FEE = 0; // 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 Request::Locator::Locator(bool & error,
                           logos::stream & stream)
@@ -545,9 +545,9 @@ Amount Send::GetLogosTotal() const
 {
     auto total = std::accumulate(transactions.begin(), transactions.end(),
                                  Amount(0),
-                                 [](const Amount & a, const Transaction & t)
+                                 [this](const Amount & a, const Transaction & t)
                                  {
-                                     return a + t.amount;
+                                     return a + (t.destination != origin ? t.amount : 0);
                                  });
 
     return total + Request::GetLogosTotal();

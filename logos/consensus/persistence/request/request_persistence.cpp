@@ -1405,14 +1405,17 @@ void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
     uint16_t transaction_index = 0;
     for(auto & t : request->transactions)
     {
-        ApplySend(t,
-                  timestamp,
-                  transaction,
-                  request->GetHash(),
-                  token_id,
-                  request->origin,
-                  epoch_num,
-                  transaction_index++);
+        if(t.destination != request->origin)
+        {
+            ApplySend(t,
+                    timestamp,
+                    transaction,
+                    request->GetHash(),
+                    token_id,
+                    request->origin,
+                    epoch_num,
+                    transaction_index++);
+        }
     }
 }
 

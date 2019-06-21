@@ -72,9 +72,12 @@ TEST(Staking, Basic)
     }
 
 
+    auto tx_fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+    if(tx_fee == 0)
+        tx_fee = 1000;
     //init empty accounts
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_balance = tx_fee * 100;
+    Amount initial_rep_balance = tx_fee * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info info;
     logos::account_info rep_info;
@@ -631,10 +634,13 @@ TEST(Staking, SwitchProxy)
     AccountAddress rep2 = 12139976541273;
     AccountAddress rep3 = 435899798764645;
     AccountAddress rep4 = 43546435445;
+    auto tx_fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+    if(tx_fee == 0)
+        tx_fee = 1000;
 
     //init empty accounts
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_balance = tx_fee * 100;
+    Amount initial_rep_balance = tx_fee * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info info;
     logos::account_info rep_info;
@@ -1128,9 +1134,11 @@ TEST(Staking, MultipleProxy)
         store->epoch_tip_put(eb.CreateTip(), txn);
     }
 
+    auto tx_fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+    if(tx_fee == 0)
+        tx_fee = 1000;
 
-
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
+    Amount initial_balance = tx_fee * 100;
     AccountAddress rep = 42;
     
     std::vector<std::pair<AccountAddress,logos::account_info>> accounts;
@@ -1146,7 +1154,7 @@ TEST(Staking, MultipleProxy)
 
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = tx_fee * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info rep_info;
     {
@@ -1471,9 +1479,12 @@ TEST(Staking, StakeUnstake)
     }
 
     AccountAddress rep = 12132819283791273;
+    auto tx_fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+    if(tx_fee == 0)
+        tx_fee = 1000;
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = tx_fee * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     {
@@ -1893,9 +1904,12 @@ TEST(Staking, Votes)
     AccountAddress rep = 12132819283791273;
     AccountAddress account = 32746238774683;
     AccountAddress candidate = 347823468274382;
+    auto tx_fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+    if(tx_fee == 0)
+        tx_fee = 1000;
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = tx_fee * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     logos::account_info info;

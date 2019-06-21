@@ -139,8 +139,19 @@ void logos::rpc::start ()
     acceptor.bind (endpoint, ec);
     if (ec)
     {
+        //TODO this is a hack, don't let this get into development stream
         LOG_ERROR (node.log) << boost::str (boost::format ("Error while binding for RPC on port %1%: %2%") % endpoint.port () % ec.message ());
-        throw std::runtime_error (ec.message ());
+        uint16_t backup_port = 55001;
+        endpoint = (logos::tcp_endpoint (config.address, config.port));
+        acceptor.open (endpoint.protocol ());
+        acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
+
+        acceptor.bind (endpoint, ec);
+        if(ec)
+        {
+            LOG_ERROR (node.log) << boost::str (boost::format ("Error while binding for RPC on port %1%: %2%") % endpoint.port () % ec.message ());
+            throw std::runtime_error (ec.message ());
+        }
     }
 
     acceptor.listen ();
@@ -228,6 +239,27 @@ bool decode_unsigned (std::string const & text, uint64_t & number)
     result = result || end != text.size ();
     return result;
 }
+}
+
+
+void logos::rpc_handler::add_to_blacklist ()
+{
+
+    try
+    {
+        PeerInfoProvider& peer = node._consensus_container->GetPeerInfoProvider();
+        auto address = boost::asio::ip::make_address(request.get<std::string>("ip"));
+        logos::endpoint endpoint(address, 0);
+        peer.add_to_blacklist(endpoint);
+
+        boost::property_tree::ptree tree;
+        tree.put("result","success");
+        response(tree);
+    }
+    catch(...)
+    {
+        error_response(response, "There was an error");
+    }
 }
 
 void logos::rpc_handler::account_balance ()
@@ -638,6 +670,20 @@ void logos::rpc_handler::account_weight ()
     else
     {
         error_response (response, "Bad account number");
+    }
+}
+
+void logos::rpc_handler::accounts_info ()
+{
+    auto res = accounts_info(
+            request,node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
     }
 }
 
@@ -4546,6 +4592,10 @@ void logos::rpc_handler::process_request ()
         {
             account_weight ();
         }
+        else if (action == "accounts_info")
+        {
+            accounts_info ();
+        }
         else if (action == "accounts_balances")
         {
             accounts_balances ();
@@ -4577,6 +4627,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "request_blocks_latest")
         {
             request_blocks_latest ();
+        }
+        else if (action == "add_to_blacklist")
+        {
+            add_to_blacklist ();
         }
         else if (action == "block")
         {
@@ -5176,6 +5230,28 @@ logos::rpc_handler::account_info(
         res.error_msg = e.what();
     }
     return res;
+}
+
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
+logos::rpc_handler::accounts_info(
+        const boost::property_tree::ptree& request,
+        logos::block_store& store)
+{
+
+    RpcResponse<boost::property_tree::ptree> super_res;
+    for(auto & c : request.get_child("accounts"))
+    {
+        boost::property_tree::ptree sub_tree;
+        sub_tree.put("account", c.second.get_value<std::string>());
+        auto res = account_info(sub_tree, store);
+        if(res.error)
+        {
+            super_res.error = true;
+            return super_res;
+        }
+        super_res.contents.add_child(c.second.get_value<std::string>(), res.contents);
+    }
+    return super_res;
 }
 
 logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
