@@ -26,46 +26,13 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         return true;
     }
 
-    bool found = false;
-
-    {
-        PendingBlockContainer::EPtr ptr = std::make_shared<PendingBlockContainer::PendingEB>(block);
-        std::lock_guard<std::mutex> lck (mtx);
-
-        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
-        {
-            if(bi->epoch_num == block->epoch_number)
-            {
-                //duplicate
-                if(bi->eb == nullptr)
-                {
-                    bi->eb = ptr;
-                }
-                found = true;
-                break;
-            }
-            else if(bi->epoch_num < block->epoch_number)
-            {
-                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-                found = true;
-                break;
-            }
-        }
-        if(!found)
-        {
-            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-        }
-    }
-
-    if(!found)
+    if (block_container.AddEpochBlock(block))
     {
         Validate();//TODO optimize: Validate eb first
     }
 
     //TODO remove after integration tests
-    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << block_container.cached_blocks.size();
-    for(auto & h : block_container.cached_blocks)
-        LOG_TRACE(log) << h.to_string();
+    block_container.DumpCachedBlocks();
 
     return true;
 }
@@ -86,68 +53,13 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         return true;
     }
 
-    bool add2begin = false;
-
+    if (block_container.AddMicroBlock(block))
     {
-        PendingBlockContainer::MPtr ptr = std::make_shared<PendingBlockContainer::PendingMB>(block);
-        bool found = false;
-        std::lock_guard<std::mutex> lck (mtx);
-
-        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
-        {
-            if(bi->epoch_num == block->epoch_number)
-            {
-                for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
-                {
-                    if((*mbi)->block->sequence == block->sequence)
-                    {
-                        //duplicate
-                        found = true;
-                        break;
-                    }
-                    else if ((*mbi)->block->sequence < block->sequence)
-                    {
-                        bi->mbs.emplace(mbi.base(), ptr);
-
-                        found = true;
-                        break;
-                    }
-                }
-                if(!found)
-                {
-                    bi->mbs.emplace_front(ptr);
-
-                    found = true;
-                    auto temp_i = bi;
-                    add2begin = ++temp_i == block_container.epochs.rend();
-                }
-                break;
-            }
-            else if(bi->epoch_num < block->epoch_number)
-            {
-                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-                add2begin = false;
-                found = true;
-                break;
-            }
-        }
-        if(!found)
-        {
-            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-            found = true;
-            add2begin = true;
-        }
-    }
-
-    if(add2begin)
-    {
-        Validate();//TODO optimize: Validate mb first
+	Validate();//TODO optimize: Validate mb first
     }
 
     //TODO remove after integration tests
-    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << block_container.cached_blocks.size();
-    for(auto & h : block_container.cached_blocks)
-        LOG_TRACE(log) << h.to_string();
+    block_container.DumpCachedBlocks();
 
     return true;
 }
@@ -169,68 +81,13 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         return true;
     }
 
-    bool add2begin = false;
-
-    {
-        PendingBlockContainer::RPtr ptr = std::make_shared<PendingBlockContainer::PendingRB>(block);
-        bool found = false;
-        std::lock_guard<std::mutex> lck (mtx);
-
-        for(auto bi = block_container.epochs.rbegin(); bi != block_container.epochs.rend(); ++ bi)
-        {
-            if(bi->epoch_num == block->epoch_number)
-            {
-                for(auto rbi = bi->rbs[block->primary_delegate].rbegin();
-                        rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
-                {
-                    if((*rbi)->block->sequence == block->sequence)
-                    {
-                        //duplicate
-                        found = true;
-                        break;
-                    }
-                    else if ((*rbi)->block->sequence < block->sequence)
-                    {
-                        bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
-
-                        found = true;
-                        break;
-                    }
-                }
-                if(!found)
-                {
-                    bi->rbs[block->primary_delegate].emplace_front(ptr);
-
-                    found = true;
-                    add2begin = true;
-                }
-                break;
-            }
-            else if(bi->epoch_num < block->epoch_number)
-            {
-                block_container.epochs.emplace(bi.base(), PendingBlockContainer::EpochPeriod(ptr));
-                found = true;
-                add2begin = true;
-                break;
-            }
-        }
-        if(!found)
-        {
-            block_container.epochs.emplace_front(PendingBlockContainer::EpochPeriod(ptr));
-            found = true;
-            add2begin = true;
-        }
-    }
-
-    if(add2begin)
+    if (block_container.AddRequestBlock(block))
     {
         Validate(block->primary_delegate);
     }
 
     //TODO remove after integration tests
-    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << block_container.cached_blocks.size();
-    for(auto & h : block_container.cached_blocks)
-        LOG_TRACE(log) << h.to_string();
+    block_container.DumpCachedBlocks();
 
     return true;
 }
