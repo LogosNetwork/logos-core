@@ -152,6 +152,10 @@ public:
     bool BlockExists(MBPtr block);
     bool BlockExists(RBPtr block);
 
+    bool AddEpochBlock(EBPtr block);
+    bool AddMicroBlock(MBPtr block);
+    bool AddRequestBlock(RBPtr block);
+
     void AddDependency(const BlockHash &hash, EPtr block);
     void AddDependency(const BlockHash &hash, MPtr block);
     void AddDependency(const BlockHash &hash, RPtr block);
@@ -159,6 +163,8 @@ public:
     bool MarkAsValidated(EBPtr block);
     bool MarkAsValidated(MBPtr block);
     bool MarkAsValidated(RBPtr block);
+
+    bool DumpCachedBlocks();
 
 private:
     bool DelDependencies(const BlockHash &hash);
@@ -170,8 +176,10 @@ private:
     std::unordered_set<BlockHash>                   cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
     std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
+    std::mutex                                      chains_mutex;
     std::mutex                                      cache_blocks_mutex;
     std::mutex                                      hash_dependency_table_mutex;
+    Log						    log;
 
     friend class BlockCache;
 };
