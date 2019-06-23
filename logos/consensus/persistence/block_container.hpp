@@ -29,54 +29,63 @@ public:
         PendingRB()
             : block()
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         PendingRB(const RBPtr &block_)
             : block(block_)
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         RBPtr               block;
         ValidationStatus    status;
         bool                continue_validate;
+        bool                lock;
     };
 
     struct PendingMB {
         PendingMB()
             : block()
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         PendingMB(const MBPtr &block_)
             : block(block_)
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         MBPtr               block;
         ValidationStatus    status;
         bool                continue_validate;
+        bool                lock;
     };
 
     struct PendingEB {
         PendingEB()
             : block()
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         PendingEB(const EBPtr &block_)
             : block(block_)
             , continue_validate(true)
+            , lock(false)
         {
         }
 
         EBPtr               block;
         ValidationStatus    status;
         bool                continue_validate;
+        bool                lock;
     };
 
     using RPtr = std::shared_ptr<PendingRB>;
@@ -129,6 +138,9 @@ public:
         MPtr mptr;
         EPtr eptr;
 
+        ChainPtr()
+        {
+        }
         ChainPtr(RPtr r)
             : rptr(r)
         {
@@ -164,7 +176,8 @@ public:
     bool MarkAsValidated(MBPtr block);
     bool MarkAsValidated(RBPtr block);
 
-    bool DumpCachedBlocks();
+    bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
+    void DumpCachedBlocks();
 
 private:
     bool DelDependencies(const BlockHash &hash);
@@ -179,7 +192,7 @@ private:
     std::mutex                                      chains_mutex;
     std::mutex                                      cache_blocks_mutex;
     std::mutex                                      hash_dependency_table_mutex;
-    Log						    log;
+    Log                                             log;
 
     friend class BlockCache;
 };

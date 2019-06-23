@@ -140,203 +140,140 @@ void BlockCache::Validate(uint8_t rb_idx)
     LOG_TRACE(log) << "BlockCache::"<<__func__<<"{";
     assert(rb_idx<=NUM_DELEGATES);
 
-    std::lock_guard<std::mutex> lck (mtx);
+    PendingBlockContainer::ChainPtr ptr;
+    bool success = false;
 
-    auto e = block_container.epochs.begin();
-    while( e != block_container.epochs.end())
+    while (block_container.GetNextBlock(ptr, rb_idx, success))
     {
-        uint num_rb_chain_no_progress = 0;
-        // try rb chains till num_rb_chain_no_progress reaches NUM_DELEGATES
-        while(num_rb_chain_no_progress < NUM_DELEGATES)
+        if (ptr.rptr)
         {
-            for(;;)
-            {
-                std::list<PendingBlockContainer::RPtr>::iterator to_validate = e->rbs[rb_idx].begin();
-                if(to_validate == e->rbs[rb_idx].end() || !(*to_validate)->continue_validate)
-                {
-                    //cannot make progress with empty list
-                    num_rb_chain_no_progress++;
-                    rb_idx = (rb_idx+1)%NUM_DELEGATES;
-                    break;//for(;;)
-                }
-                else
-                {
-                    PendingBlockContainer::RPtr ptr = *to_validate;
-                    RBPtr &block = ptr->block;
-                    ValidationStatus &status = ptr->status;
-                    LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
+            RBPtr &block = ptr.rptr->block;
+            ValidationStatus &status = ptr.rptr->status;
+            LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
                             << block->CreateTip().to_string();
 
-                    ptr->continue_validate = false;
-                    if (write_q.VerifyContent(block, &status))
-                    {
-                        write_q.StoreBlock(block);
-                        e->rbs[rb_idx].pop_front();
-                        block_container.MarkAsValidated(block);
-                        num_rb_chain_no_progress = 0;
-                    }
-                    else
-                    {
-                        LOG_TRACE(log) << "BlockCache::Validate RB status: "
+            if ((success = write_q.VerifyContent(block, &status)))
+            {
+                write_q.StoreBlock(block);
+                block_container.MarkAsValidated(block);
+            }
+            else
+            {
+                LOG_TRACE(log) << "BlockCache::Validate RB status: "
                                 << ProcessResultToString(status.reason);
-                        switch (status.reason) {
-                            case logos::process_result::gap_previous:
-                            case logos::process_result::gap_source:
-                                //TODO any other cases that can be considered as gap?
-                                block_container.AddDependency(block->previous, ptr);
-                                num_rb_chain_no_progress++;
-                                rb_idx = (rb_idx+1)%NUM_DELEGATES;
-                                break;
-                            case logos::process_result::invalid_request:
-                                for(uint32_t i = 0; i < block->requests.size(); ++i)
-                                {
-                                    if (status.requests[i] == logos::process_result::gap_previous)
-                                    {
-                                        block_container.AddDependency(block->requests[i]->previous, ptr);
-                                    }
-                                }
-                                num_rb_chain_no_progress++;
-                                rb_idx = (rb_idx+1)%NUM_DELEGATES;
-                                break;
-                            default:
-                                //Since the agg-sigs are already verified,
-                                //we expect gap-like reasons.
-                                //For any other reason, we log them, and investigate.
-                                LOG_ERROR(log) << "BlockCache::Validate RB status: "
-                                        << ProcessResultToString(status.reason)
-                                        << " block " << block->CreateTip().to_string();
-                                //Throw the block out, otherwise it blocks the rest.
-                                block_container.cached_blocks.erase(block->Hash());
-                                e->rbs[rb_idx].pop_front();
-                                //TODO recall?
-                                //TODO detect double spend?
-                                break;
+                switch (status.reason) {
+                case logos::process_result::gap_previous:
+                case logos::process_result::gap_source:
+                    //TODO any other cases that can be considered as gap?
+                    block_container.AddDependency(block->previous, ptr.rptr);
+                    break;
+                case logos::process_result::invalid_request:
+                    for (uint32_t i = 0; i < block->requests.size(); ++i)
+                    {
+                        if (status.requests[i] == logos::process_result::gap_previous)
+                        {
+                            block_container.AddDependency(block->requests[i]->previous, ptr.rptr);
                         }
-                        break;//for(;;)
                     }
+                    break;
+                default:
+                    //Since the agg-sigs are already verified,
+                    //we expect gap-like reasons.
+                    //For any other reason, we log them, and investigate.
+                    LOG_ERROR(log) << "BlockCache::Validate RB status: "
+                            << ProcessResultToString(status.reason)
+                            << " block " << block->CreateTip().to_string();
+                    //Throw the block out, otherwise it blocks the rest.
+                    block_container.cached_blocks.erase(block->Hash());
+                    success = true;
+                    //TODO recall?
+                    //TODO detect double spend?
+                    break;
                 }
             }
         }
-
-        bool mbs_empty = e->mbs.empty();
-        bool last_mb = false;
-        while(!e->mbs.empty() && e->mbs.front()->continue_validate)
+        else if (ptr.mptr)
         {
-            PendingBlockContainer::MPtr ptr = e->mbs.front();
-            MBPtr &block = ptr->block;
-            ValidationStatus &status = ptr->status;
-            ptr->continue_validate = false;
-            if (write_q.VerifyContent(block, &status))
+            MBPtr &block = ptr.mptr->block;
+            ValidationStatus &status = ptr.mptr->status;
+            if ((success = write_q.VerifyContent(block, &status)))
             {
                 write_q.StoreBlock(block);
-                e->mbs.pop_front();
                 block_container.MarkAsValidated(block);
-                last_mb = block->last_micro_block;
-                if(last_mb)
-                    assert(e->mbs.empty());
             }
             else
             {
                 LOG_TRACE(log) << "BlockCache::Validate MB status: "
                         << ProcessResultToString(status.reason);
                 switch (status.reason) {
-                    case logos::process_result::gap_previous:
-                    case logos::process_result::gap_source:
-                        //TODO any other cases that can be considered as gap?
-                        block_container.AddDependency(block->previous, ptr);
-                        break;
-                    case logos::process_result::invalid_request:
-                        for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
+                case logos::process_result::gap_previous:
+                case logos::process_result::gap_source:
+                    //TODO any other cases that can be considered as gap?
+                    block_container.AddDependency(block->previous, ptr.mptr);
+                    break;
+                case logos::process_result::invalid_request:
+                    for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
+                    {
+                        if (status.requests[i] == logos::process_result::gap_previous)
                         {
-                            if (status.requests[i] == logos::process_result::gap_previous)
-                            {
-                                block_container.AddDependency(block->tips[i].digest, ptr);
-                            }
+                            block_container.AddDependency(block->tips[i].digest, ptr.mptr);
                         }
-                        break;
-                    default:
-                        LOG_ERROR(log) << "BlockCache::Validate MB status: "
+                    }
+                    break;
+                default:
+                    LOG_ERROR(log) << "BlockCache::Validate MB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
-                        block_container.cached_blocks.erase(block->Hash());
-                        e->mbs.pop_front();
-                        //TODO recall?
-                        break;
+                    block_container.cached_blocks.erase(block->Hash());
+                    success = true;
+                    //TODO recall?
+                    break;
                 }
-                break;
             }
         }
-
-        bool e_finished = false;
-        if(last_mb || mbs_empty)
+        else if (ptr.eptr)
         {
-            if( e->eb != nullptr && e->eb->continue_validate)
+            EBPtr &block = ptr.eptr->block;
+            ValidationStatus &status = ptr.eptr->status;
+            if ((success = write_q.VerifyContent(block, &status)))
             {
-                PendingBlockContainer::EPtr ptr = e->eb;
-                EBPtr &block = ptr->block;
-                ValidationStatus &status = ptr->status;
-                ptr->continue_validate = false;
-                if (write_q.VerifyContent(block, &status))
-                {
-                    write_q.StoreBlock(block);
-                    block_container.epochs.erase(e);
-                    block_container.MarkAsValidated(block);
-                    LOG_INFO(log) << "BlockCache::Validated EB, block: "
-                                  << block->CreateTip().to_string();
-                    e_finished = true;
-                }
-                else
-                {
-                    LOG_TRACE(log) << "BlockCache::Validate EB status: "
-                            << ProcessResultToString(status.reason);
-                    switch (status.reason) {
-                        case logos::process_result::gap_previous:
-                        case logos::process_result::gap_source:
-                            //TODO any other cases that can be considered as gap?
-                            block_container.AddDependency(block->previous, ptr);
-                            break;
-                        case logos::process_result::invalid_tip:
-                            block_container.AddDependency(block->micro_block_tip.digest, ptr);
-                            break;
-                        default:
-                            LOG_ERROR(log) << "BlockCache::Validate EB status: "
-                                << ProcessResultToString(status.reason)
-                                << " block " << block->CreateTip().to_string();
-                            block_container.cached_blocks.erase(block->Hash());
-                            block_container.epochs.pop_front();
-                            //TODO recall?
-                            break;
-                    }
-                }
+                write_q.StoreBlock(block);
+                block_container.MarkAsValidated(block);
+                LOG_INFO(log) << "BlockCache::Validated EB, block: "
+                              << block->CreateTip().to_string();
             }
             else
             {
-                LOG_INFO(log) << "BlockCache::Validated, no MB, no EB, e#=" << e->epoch_num;
+                LOG_TRACE(log) << "BlockCache::Validate EB status: "
+                        << ProcessResultToString(status.reason);
+                switch (status.reason) {
+                case logos::process_result::gap_previous:
+                case logos::process_result::gap_source:
+                    //TODO any other cases that can be considered as gap?
+                    block_container.AddDependency(block->previous, ptr.eptr);
+                    break;
+                case logos::process_result::invalid_tip:
+                    block_container.AddDependency(block->micro_block_tip.digest, ptr.eptr);
+                    break;
+                default:
+                    LOG_ERROR(log) << "BlockCache::Validate EB status: "
+                            << ProcessResultToString(status.reason)
+                            << " block " << block->CreateTip().to_string();
+                    block_container.cached_blocks.erase(block->Hash());
+                    success = true;
+                    //TODO recall?
+                    break;
+                }
             }
-        }
-
-        if(e_finished)
-        {
-            e = block_container.epochs.begin();
         }
         else
         {
-            //two-tip case, i.e. first 10 minutes of the latest epoch
-            bool last_epoch_begin = block_container.epochs.size()==2 &&
-                    e->eb == nullptr &&
-                    e->mbs.empty() &&
-                    (++e)->mbs.empty();
-            if(!last_epoch_begin)
-            {
-                e = block_container.epochs.end();
-            }
-            else
-            {
-                //already did ++e
-            }
+            assert("internal error");
+            break;
         }
     }
-    LOG_ERROR(log) << "BlockCache::"<<__func__<<"}";
+
+    LOG_TRACE(log) << "BlockCache::"<<__func__<<"}";
 }
 
 }
