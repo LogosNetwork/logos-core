@@ -126,7 +126,6 @@ private:
     BlockWriteQueue                 write_q;
     PendingBlockContainer           block_container;
 
-    std::mutex                      mtx;
     Log                             log;
 };
 
