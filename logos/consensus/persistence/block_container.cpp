@@ -2,34 +2,60 @@
 
 namespace logos {
 
-bool PendingBlockContainer::BlockExists(EBPtr block)
+bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
 {
     std::lock_guard<std::mutex> lck (cache_blocks_mutex);
+    return cached_blocks.find(hash) != cached_blocks.end() || write_q.IsBlockCached(hash);
+}
+
+bool PendingBlockContainer::BlockExistsAdd(EBPtr block)
+{
     BlockHash hash = block->Hash();
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
+    {
         cached_blocks.insert(hash);
+    }
     return res;
 }
 
-bool PendingBlockContainer::BlockExists(MBPtr block)
+bool PendingBlockContainer::BlockExistsAdd(MBPtr block)
 {
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
+    {
         cached_blocks.insert(hash);
+    }
     return res;
 }
 
-bool PendingBlockContainer::BlockExists(RBPtr block)
+bool PendingBlockContainer::BlockExistsAdd(RBPtr block)
 {
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     bool res = cached_blocks.find(hash) != cached_blocks.end() || write_q.BlockExists(block);
     if (!res)
+    {
         cached_blocks.insert(hash);
+    }
     return res;
+}
+
+void PendingBlockContainer::BlockDelete(const BlockHash &hash)
+{
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
+    cached_blocks.erase(hash);
+}
+
+void PendingBlockContainer::DumpCachedBlocks()
+{
+    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
+    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
+    for (auto & h : cached_blocks)
+    LOG_TRACE(log) << h.to_string();
 }
 
 bool PendingBlockContainer::AddEpochBlock(EBPtr block)
@@ -40,27 +66,27 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
 
     for (auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
     {
-	if (bi->epoch_num == block->epoch_number)
-	{
-	    //duplicate
-	    if (bi->eb == nullptr)
-	    {
-		bi->eb = ptr;
-	    }
-	    found = true;
-	    break;
-	}
-	else if (bi->epoch_num < block->epoch_number)
-	{
-	    epochs.emplace(bi.base(), EpochPeriod(ptr));
-	    found = true;
-	    break;
-	}
+        if (bi->epoch_num == block->epoch_number)
+        {
+            //duplicate
+            if (bi->eb == nullptr)
+            {
+                bi->eb = ptr;
+            }
+            found = true;
+            break;
+        }
+        else if (bi->epoch_num < block->epoch_number)
+        {
+            epochs.emplace(bi.base(), EpochPeriod(ptr));
+            found = true;
+            break;
+        }
     }
 
     if (!found)
     {
-	epochs.emplace_front(EpochPeriod(ptr));
+        epochs.emplace_front(EpochPeriod(ptr));
     }
 
     return !found;
@@ -75,48 +101,48 @@ bool PendingBlockContainer::AddMicroBlock(MBPtr block)
 
     for (auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
     {
-	if (bi->epoch_num == block->epoch_number)
-	{
-	    for (auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
-	    {
-		if ((*mbi)->block->sequence == block->sequence)
-		{
-		    //duplicate
-		    found = true;
-		    break;
-		}
-		else if ((*mbi)->block->sequence < block->sequence)
-		{
-		    bi->mbs.emplace(mbi.base(), ptr);
+        if (bi->epoch_num == block->epoch_number)
+        {
+            for (auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
+            {
+                if ((*mbi)->block->sequence == block->sequence)
+                {
+                    //duplicate
+                    found = true;
+                    break;
+                }
+                else if ((*mbi)->block->sequence < block->sequence)
+                {
+                    bi->mbs.emplace(mbi.base(), ptr);
 
-		    found = true;
-		    break;
-		}
-	    }
-	    if (!found)
-	    {
-		bi->mbs.emplace_front(ptr);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                bi->mbs.emplace_front(ptr);
 
-		found = true;
-		auto temp_i = bi;
-		add2begin = ++temp_i == epochs.rend();
-	    }
-	    break;
-	}
-	else if (bi->epoch_num < block->epoch_number)
-	{
-	    epochs.emplace(bi.base(), EpochPeriod(ptr));
-	    add2begin = false;
-	    found = true;
-	    break;
-	}
+                found = true;
+                auto temp_i = bi;
+                add2begin = ++temp_i == epochs.rend();
+            }
+            break;
+        }
+        else if (bi->epoch_num < block->epoch_number)
+        {
+            epochs.emplace(bi.base(), EpochPeriod(ptr));
+            add2begin = false;
+            found = true;
+            break;
+        }
     }
 
     if (!found)
     {
-	epochs.emplace_front(EpochPeriod(ptr));
-	found = true;
-	add2begin = true;
+        epochs.emplace_front(EpochPeriod(ptr));
+        found = true;
+        add2begin = true;
     }
 
     return add2begin;
@@ -131,48 +157,48 @@ bool PendingBlockContainer::AddRequestBlock(RBPtr block)
 
     for (auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
     {
-	if (bi->epoch_num == block->epoch_number)
-	{
-	    for (auto rbi = bi->rbs[block->primary_delegate].rbegin();
-		    rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
-	    {
-		if ((*rbi)->block->sequence == block->sequence)
-		{
-		    //duplicate
-		    found = true;
-		    break;
-		}
-		else if ((*rbi)->block->sequence < block->sequence)
-		{
-		    bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
+        if (bi->epoch_num == block->epoch_number)
+        {
+            for (auto rbi = bi->rbs[block->primary_delegate].rbegin();
+                    rbi != bi->rbs[block->primary_delegate].rend(); ++ rbi)
+            {
+                if ((*rbi)->block->sequence == block->sequence)
+                {
+                    //duplicate
+                    found = true;
+                    break;
+                }
+                else if ((*rbi)->block->sequence < block->sequence)
+                {
+                    bi->rbs[block->primary_delegate].emplace(rbi.base(), ptr);
 
-		    found = true;
-		    break;
-		}
-	    }
-	    if (!found)
-	    {
-		bi->rbs[block->primary_delegate].emplace_front(ptr);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                bi->rbs[block->primary_delegate].emplace_front(ptr);
 
-		found = true;
-		add2begin = true;
-	    }
-	    break;
-	}
-	else if (bi->epoch_num < block->epoch_number)
-	{
-	    epochs.emplace(bi.base(), EpochPeriod(ptr));
-	    found = true;
-	    add2begin = true;
-	    break;
-	}
+                found = true;
+                add2begin = true;
+            }
+            break;
+        }
+        else if (bi->epoch_num < block->epoch_number)
+        {
+            epochs.emplace(bi.base(), EpochPeriod(ptr));
+            found = true;
+            add2begin = true;
+            break;
+        }
     }
 
     if (!found)
     {
-	epochs.emplace_front(EpochPeriod(ptr));
-	found = true;
-	add2begin = true;
+        epochs.emplace_front(EpochPeriod(ptr));
+        found = true;
+        add2begin = true;
     }
 
     return add2begin;
@@ -196,16 +222,6 @@ void PendingBlockContainer::AddDependency(const BlockHash &hash, RPtr block)
     hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
 }
 
-PendingBlockContainer::EpochPeriod *PendingBlockContainer::GetEpoch(uint32_t epoch_num)
-{
-    for (auto e = epochs.begin(); e != epochs.end(); e++)
-    {
-        if (e->epoch_num == epoch_num)
-            return &*e;
-    }
-    return 0;
-}
-
 bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
 {
     if (ptr.eptr)
@@ -226,53 +242,61 @@ bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
     return false;
 }
 
-bool PendingBlockContainer::DelDependencies(const BlockHash &hash)
+bool PendingBlockContainer::DeleteDependencies(const BlockHash &hash)
 {
-    bool res = false;
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+    std::multimap<BlockHash, ChainPtr> mapcopy;
 
-    if (!hash_dependency_table.count(hash))
     {
-        return false;
+        std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
+
+        if (!hash_dependency_table.count(hash))
+        {
+            return false;
+        }
+
+        auto range = hash_dependency_table.equal_range(hash);
+
+        mapcopy = std::multimap<BlockHash, ChainPtr>(range.first, range.second);
+
+        hash_dependency_table.erase(range.first, range.second);
     }
 
-    auto range = hash_dependency_table.equal_range(hash);
-
-    for (auto it = range.first; it != range.second; it++)
     {
-        res |= MarkForRevalidation((*it).second);
+        bool res = false;
+
+        std::lock_guard<std::mutex> lck (chains_mutex);
+
+        for (auto it = mapcopy.begin(); it != mapcopy.end(); it++)
+        {
+            res |= MarkForRevalidation((*it).second);
+        }
+
+        return res;
     }
-
-    hash_dependency_table.erase(range.first, range.second);
-
-    return res;
 }
 
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
-    cached_blocks.erase(hash);
-    return DelDependencies(hash);
+    BlockDelete(hash);
+    return DeleteDependencies(hash);
 }
 
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
-    cached_blocks.erase(hash);
-    return DelDependencies(hash);
+    BlockDelete(hash);
+    return DeleteDependencies(hash);
 }
 
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
     BlockHash hash = block->Hash();
-    cached_blocks.erase(hash);
-    bool res = DelDependencies(hash);
-    for(uint32_t i = 0; i < block->requests.size(); ++i)
+    BlockDelete(hash);
+    bool res = DeleteDependencies(hash);
+    for (uint32_t i = 0; i < block->requests.size(); ++i)
     {
-        res |= DelDependencies(block->requests[i]->Hash());
+        res |= DeleteDependencies(block->requests[i]->Hash());
     }
     return res;
 }
@@ -318,9 +342,13 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             if (ptr.rptr)
             {
                 if (success)
+                {
                     e->rbs[rb_idx].pop_front();
+                }
                 else
+                {
                     e->rbs[rb_idx].front()->lock = false;
+                }
                 ptr.rptr = nullptr;
             }
 
@@ -357,14 +385,17 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
         {
             if (ptr.mptr)
             {
-                if (success) {
+                if (success)
+                {
                     e->mbs.pop_front();
                     last_mb = ptr.mptr->block->last_micro_block;
                     if (last_mb)
                         assert(e->mbs.empty());
                 }
                 else
+                {
                     e->mbs.front()->lock = false;
+                }
                 ptr.mptr = nullptr;
             }
 
@@ -392,12 +423,16 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 e_finished = true;
             }
             else
+            {
                 e->eb->lock = false;
+            }
             ptr.eptr = nullptr;
         }
 
         if ((last_mb || mbs_empty) &&
-            e->eb && e->eb->continue_validate && !e->eb->lock)
+                e->eb &&
+                e->eb->continue_validate &&
+                !e->eb->lock)
         {
             ptr.eptr = e->eb;
             ptr.eptr->continue_validate = false;
@@ -405,42 +440,20 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             return true;
         }
 
-        if (e_finished)
-        {
-            continue;
-        }
-        else
+        if (!(e_finished ||
+                /* first 10 minutes of new epoch */
+                (epochs.size() == 2 &&
+                e->eb == nullptr &&
+                e->mbs.empty() &&
+                (++e)->mbs.empty())))
         {
             break;
-#if 0
-            //two-tip case, i.e. first 10 minutes of the latest epoch
-            bool last_epoch_begin = block_container.epochs.size()==2 &&
-                    e->eb == nullptr &&
-                    e->mbs.empty() &&
-                    (++e)->mbs.empty();
-            if(!last_epoch_begin)
-            {
-                e = block_container.epochs.end();
-            }
-            else
-            {
-                //already did ++e
-            }
-#endif
         }
     }
 
     LOG_ERROR(log) << "BlockCache::"<<__func__<<"}";
 
     return false;
-}
-
-void PendingBlockContainer::DumpCachedBlocks()
-{
-    std::lock_guard<std::mutex> lck (cache_blocks_mutex);
-    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
-    for (auto & h : cached_blocks)
-	LOG_TRACE(log) << h.to_string();
 }
 
 }

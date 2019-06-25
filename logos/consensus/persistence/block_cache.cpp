@@ -20,7 +20,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     }
 
     //safe to ignore the block for both p2p and bootstrap
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::AAddEpochBlock: BlockExists";
         return true;
@@ -47,7 +47,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
     }
 
     //safe to ignore the block for both p2p and bootstrap
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::AddMicroBlock: BlockExists";
         return true;
@@ -55,7 +55,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
 
     if (block_container.AddMicroBlock(block))
     {
-	Validate();//TODO optimize: Validate mb first
+        Validate();//TODO optimize: Validate mb first
     }
 
     //TODO remove after integration tests
@@ -75,7 +75,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
     }
 
     //safe to ignore the block for both p2p and bootstrap
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::AddRequestBlock: BlockExists";
         return true;
@@ -94,45 +94,56 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
 void BlockCache::StoreEpochBlock(EBPtr block)
 {
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::StoreEpochBlock: BlockExists";
         return;
     }
+
     write_q.StoreBlock(block);
+
     if (block_container.MarkAsValidated(block))
+    {
         Validate();
+    }
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::StoreMicroBlock: BlockExists";
         return;
     }
+
     write_q.StoreBlock(block);
+
     if (block_container.MarkAsValidated(block))
+    {
         Validate();
+    }
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
-    if (block_container.BlockExists(block))
+    if (block_container.BlockExistsAdd(block))
     {
         LOG_TRACE(log) << "BlockCache::StoreRequestBlock: BlockExists";
         return;
     }
+
     write_q.StoreBlock(block);
+
     if (block_container.MarkAsValidated(block))
+    {
         Validate();
+    }
 }
 
-bool BlockCache::IsBlockCached(const BlockHash & b)
+bool BlockCache::IsBlockCached(const BlockHash &hash)
 {
-    LOG_TRACE(log) << "BlockCache::" << __func__ << ":" << b.to_string();
-    std::lock_guard<std::mutex> lck (mtx);
-    return block_container.cached_blocks.find(b) != block_container.cached_blocks.end();
+    LOG_TRACE(log) << "BlockCache::" << __func__ << ":" << hash.to_string();
+    return block_container.IsBlockCached(hash);
 }
 
 void BlockCache::Validate(uint8_t rb_idx)
@@ -150,7 +161,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             RBPtr &block = ptr.rptr->block;
             ValidationStatus &status = ptr.rptr->status;
             LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
-                            << block->CreateTip().to_string();
+                    << block->CreateTip().to_string();
 
             if ((success = write_q.VerifyContent(block, &status)))
             {
@@ -160,8 +171,9 @@ void BlockCache::Validate(uint8_t rb_idx)
             else
             {
                 LOG_TRACE(log) << "BlockCache::Validate RB status: "
-                                << ProcessResultToString(status.reason);
-                switch (status.reason) {
+                        << ProcessResultToString(status.reason);
+                switch (status.reason)
+                {
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
@@ -184,7 +196,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
                     //Throw the block out, otherwise it blocks the rest.
-                    block_container.cached_blocks.erase(block->Hash());
+                    block_container.BlockDelete(block->Hash());
                     success = true;
                     //TODO recall?
                     //TODO detect double spend?
@@ -205,7 +217,8 @@ void BlockCache::Validate(uint8_t rb_idx)
             {
                 LOG_TRACE(log) << "BlockCache::Validate MB status: "
                         << ProcessResultToString(status.reason);
-                switch (status.reason) {
+                switch (status.reason)
+                {
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
@@ -224,7 +237,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                     LOG_ERROR(log) << "BlockCache::Validate MB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
-                    block_container.cached_blocks.erase(block->Hash());
+                    block_container.BlockDelete(block->Hash());
                     success = true;
                     //TODO recall?
                     break;
@@ -240,13 +253,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                 write_q.StoreBlock(block);
                 block_container.MarkAsValidated(block);
                 LOG_INFO(log) << "BlockCache::Validated EB, block: "
-                              << block->CreateTip().to_string();
+                        << block->CreateTip().to_string();
             }
             else
             {
                 LOG_TRACE(log) << "BlockCache::Validate EB status: "
                         << ProcessResultToString(status.reason);
-                switch (status.reason) {
+                switch (status.reason)
+                {
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
@@ -259,7 +273,7 @@ void BlockCache::Validate(uint8_t rb_idx)
                     LOG_ERROR(log) << "BlockCache::Validate EB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
-                    block_container.cached_blocks.erase(block->Hash());
+                    block_container.BlockDelete(block->Hash());
                     success = true;
                     //TODO recall?
                     break;
