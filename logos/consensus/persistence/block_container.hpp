@@ -160,9 +160,13 @@ public:
     {
     }
 
-    bool BlockExists(EBPtr block);
-    bool BlockExists(MBPtr block);
-    bool BlockExists(RBPtr block);
+    bool IsBlockCached(const BlockHash &hash);
+
+    bool BlockExistsAdd(EBPtr block);
+    bool BlockExistsAdd(MBPtr block);
+    bool BlockExistsAdd(RBPtr block);
+
+    void BlockDelete(const BlockHash &hash);
 
     bool AddEpochBlock(EBPtr block);
     bool AddMicroBlock(MBPtr block);
@@ -180,8 +184,7 @@ public:
     void DumpCachedBlocks();
 
 private:
-    bool DelDependencies(const BlockHash &hash);
-    EpochPeriod *GetEpoch(uint32_t epoch_num);
+    bool DeleteDependencies(const BlockHash &hash);
     bool MarkForRevalidation(const ChainPtr &ptr);
 
     BlockWriteQueue &                               write_q;
@@ -193,8 +196,6 @@ private:
     std::mutex                                      cache_blocks_mutex;
     std::mutex                                      hash_dependency_table_mutex;
     Log                                             log;
-
-    friend class BlockCache;
 };
 
 }

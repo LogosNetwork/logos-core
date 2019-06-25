@@ -40,65 +40,63 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
     return rb_handler.VerifyContent(*block, status);
 }
 
+bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
+{
+    std::lock_guard<std::mutex> lck (q_mutex);
+    return q_cache.find(hash) != q_cache.end();
+}
+
 bool BlockWriteQueue::BlockExists(EBPtr block)
 {
-    {
-	std::lock_guard<std::mutex> lck (q_mutex);
-	if (q_cache.find(block->Hash()) != q_cache.end())
-            return true;
-    }
-    return eb_handler.BlockExists(*block);
+    return IsBlockCached(block->Hash()) || eb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(MBPtr block)
 {
-    {
-	std::lock_guard<std::mutex> lck (q_mutex);
-	if (q_cache.find(block->Hash()) != q_cache.end())
-            return true;
-    }
-    return mb_handler.BlockExists(*block);
+    return IsBlockCached(block->Hash()) || mb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(RBPtr block)
 {
-    {
-	std::lock_guard<std::mutex> lck (q_mutex);
-	if (q_cache.find(block->Hash()) != q_cache.end())
-            return true;
-    }
-    return rb_handler.BlockExists(*block);
+    return IsBlockCached(block->Hash()) || rb_handler.BlockExists(*block);
 }
 
 void BlockWriteQueue::StoreBlock(BlockPtr ptr)
 {
     {
-	std::lock_guard<std::mutex> lck (q_mutex);
-	bool qempty = q.empty();
-	q.push(ptr);
-	q_cache.insert(ptr.hash);
-	if (!qempty) return;
+        std::lock_guard<std::mutex> lck (q_mutex);
+        bool qempty = q.empty();
+        q.push(ptr);
+        q_cache.insert(ptr.hash);
+        if (!qempty)
+        {
+            return;
+        }
     }
+
     for (;;)
     {
-	if (ptr.rptr)
-	{
-	    rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
-	}
-	else if (ptr.mptr)
-	{
-	    mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
-	}
-	else if (ptr.eptr)
-	{
-	    eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
-	}
-	std::lock_guard<std::mutex> lck (q_mutex);
-	q.pop();
-	q_cache.erase(ptr.hash);
-	if (q.empty())
-	    break;
-	ptr = q.front();
+        if (ptr.rptr)
+        {
+            rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
+        }
+        else if (ptr.mptr)
+        {
+            mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
+        }
+        else if (ptr.eptr)
+        {
+            eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
+        }
+
+        std::lock_guard<std::mutex> lck (q_mutex);
+        q.pop();
+        q_cache.erase(ptr.hash);
+        if (q.empty())
+        {
+            break;
+        }
+        ptr = q.front();
     }
 }
 

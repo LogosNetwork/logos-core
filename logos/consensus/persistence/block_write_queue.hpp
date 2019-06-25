@@ -59,6 +59,8 @@ public:
     bool VerifyContent(MBPtr block, ValidationStatus *status);
     bool VerifyContent(RBPtr block, ValidationStatus *status);
 
+    bool IsBlockCached(const BlockHash &hash);
+
     bool BlockExists(EBPtr block);
     bool BlockExists(MBPtr block);
     bool BlockExists(RBPtr block);
