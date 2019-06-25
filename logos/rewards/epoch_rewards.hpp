@@ -2,11 +2,12 @@
 
 struct EpochRewardsInfo
 {
+    bool    initialized;
     uint8_t levy_percentage;
-    Amount total_stake;
-    Amount remaining_reward;
-    Amount total_reward;
-
+    Amount  total_stake;
+    Amount  self_stake;
+    Amount  remaining_reward;
+    Amount  total_reward;
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t>& buf) const
     {
@@ -20,8 +21,10 @@ struct EpochRewardsInfo
 
     uint32_t Serialize(logos::stream & stream) const
     {
-        uint32_t s = logos::write(stream, levy_percentage);
+        uint32_t s = logos::write(stream, initialized);
+        s += logos::write(stream, levy_percentage);
         s += logos::write(stream, total_stake);
+        s += logos::write(stream, self_stake);
         s += logos::write(stream, remaining_reward);
         s += logos::write(stream, total_reward); 
         return s;
@@ -29,11 +32,12 @@ struct EpochRewardsInfo
 
     bool Deserialize(logos::stream & stream)
     {
-        return logos::read(stream, levy_percentage)
+        return logos::read(stream, initialized)
+            || logos::read(stream, levy_percentage)
             || logos::read(stream, total_stake)
+            || logos::read(stream, self_stake)
             || logos::read(stream, remaining_reward)
-            || logos::read(stream, total_reward); 
-
+            || logos::read(stream, total_reward);
     }
 };
 
@@ -42,7 +46,6 @@ struct GlobalEpochRewardsInfo
     Amount total_stake;
     Amount remaining_reward;
     Amount total_reward;
-
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t>& buf) const
     {
@@ -58,7 +61,8 @@ struct GlobalEpochRewardsInfo
     {
         uint32_t s = logos::write(stream, total_stake);
         s += logos::write(stream, remaining_reward);
-        s += logos::write(stream, total_reward); 
+        s += logos::write(stream, total_reward);
+
         return s;
     }
 
@@ -66,8 +70,7 @@ struct GlobalEpochRewardsInfo
     {
         return logos::read(stream, total_stake)
             || logos::read(stream, remaining_reward)
-            || logos::read(stream, total_reward); 
-
+            || logos::read(stream, total_reward);
     }
 };
 

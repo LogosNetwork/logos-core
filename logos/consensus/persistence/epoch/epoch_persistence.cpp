@@ -2,11 +2,12 @@
 /// This file contains declaration of Epoch related validation and persistence
 
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
+#include <logos/microblock/microblock_handler.hpp>
+#include <logos/rewards/epoch_rewards_manager.hpp>
+#include <logos/staking/voting_power_manager.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
-#include <logos/staking/voting_power_manager.hpp>
 #include <logos/staking/staking_manager.hpp>
-#include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
 #include <numeric>
@@ -109,11 +110,6 @@ PersistenceManager<ECT>::ApplyUpdates(
 
     UpdateThawing(block, transaction);
 
-    if(block.transaction_fee_pool > 0)
-    {
-        ApplyRewards(block, epoch_hash, transaction);
-    }
-
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
@@ -125,6 +121,26 @@ PersistenceManager<ECT>::ApplyUpdates(
     if(transition)
     {
         TransitionNextEpoch(transaction, block.epoch_number+1);
+
+        if(block.transaction_fee_pool > 0)
+        {
+            ApplyRewards(block, epoch_hash, transaction);
+
+            ApprovedEB previous;
+
+            if(_store.epoch_get(block.previous, previous, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to retrieve epoch with hash "
+                                << block.previous.to_string();
+                trace_and_halt();
+            }
+
+            Amount new_logos = block.total_supply - previous.total_supply;
+
+            EpochRewardsManager::GetInstance()->SetTotalGlobalReward(block.epoch_number,
+                                                                     new_logos,
+                                                                     transaction);
+        }
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
@@ -375,7 +391,7 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
                         << "failed to find previous epoch block for epoch number "
-                        << block.sequence;
+                        << block.epoch_number;
 
         trace_and_halt();
     }
@@ -424,8 +440,12 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
 
         if(i < NUM_DELEGATES - 1)
         {
-            auto ratio = d.raw_stake.number() / total_stake.number();
-            reward = ratio * fee_pool.number();
+            // TODO: refactor with lamba from request persistence
+            //
+            Float100 ratio = Float100{d.raw_stake.number()} / Float100{total_stake.number()};
+            Float100 fl = floor(ratio * Float100{fee_pool.number()});
+
+            reward = fl.convert_to<logos::uint128_t>();
 
             if(reward > remaining_pool)
             {
@@ -458,7 +478,7 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
         info.receive_head = receive.Hash();
         info.modified = logos::seconds_since_epoch();
 
-        info.SetBalance(info.GetBalance() + reward, block.sequence, txn);
+        info.SetBalance(info.GetBalance() + reward, block.epoch_number, txn);
 
         if(_store.account_put(d.account, info, txn))
         {

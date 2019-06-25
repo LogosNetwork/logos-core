@@ -47,7 +47,6 @@ struct Governance : Request
 
 struct Proxy : Governance
 {
-
     Proxy();
 
     Proxy(bool & error,
@@ -79,7 +78,6 @@ struct Proxy : Governance
 
 struct Stake : Governance
 {
-
     Stake();
 
     Stake(bool & error,
@@ -110,7 +108,6 @@ struct Stake : Governance
 
 struct Unstake : Governance
 {
-
     Unstake();
 
     Unstake(bool & error,
@@ -269,7 +266,6 @@ struct RenounceCandidacy : Governance
 
 struct StartRepresenting : Governance
 {
-
     StartRepresenting();
 
     StartRepresenting(bool & error,
@@ -307,7 +303,6 @@ struct StartRepresenting : Governance
 
 struct StopRepresenting : Governance
 {
-
     StopRepresenting();
 
     StopRepresenting(bool & error,

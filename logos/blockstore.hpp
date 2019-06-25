@@ -354,6 +354,11 @@ public:
         assert (status == 0 || status == MDB_NOTFOUND);
     }
 
+    bool rep_rewards_exist(const mdb_val & key, MDB_txn* txn);
+    bool global_rewards_exist(const mdb_val & key, MDB_txn* txn);
+
+
+
     bool stake_put(
             AccountAddress const & account,
             StakedFunds const & funds,
@@ -655,6 +660,7 @@ public:
      * epoch_number, delegate_id -> std::vector<uint8_t>
      */
     MDB_dbi address_ad_txa_db;
+
     /*
      * Epoch Rewards Info
      * logos::account || epoch_number -> EpochRewardsInfo

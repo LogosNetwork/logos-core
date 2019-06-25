@@ -18,6 +18,21 @@
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 std::mutex PersistenceManager<R>::_write_mutex;
 
+// TODO: Dynamic can be changed to static if we do type validation
+//       in the constructors of ALL the request types.
+//
+uint32_t GetEpochNum(std::shared_ptr<Request> req)
+{
+    auto governance_request = dynamic_pointer_cast<Governance>(req);
+
+    if(!governance_request)
+    {
+        trace_and_halt();
+    }
+
+    return governance_request->epoch_num;
+}
+
 PersistenceManager<R>::PersistenceManager(Store & store,
                                           ReservationsPtr reservations,
                                           Milliseconds clock_drift)
@@ -1390,8 +1405,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         case RequestType::Claim:
         {
             auto claim = dynamic_pointer_cast<const Claim>(request);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
 
-            Transaction<Amount> t(claim->origin, 0);
+            auto sum = ProcessClaim(claim, *account_info, transaction);
+
+            Transaction<Amount> t(claim->origin, sum);
 
             ApplySend(t,
                       timestamp,
@@ -1647,8 +1665,15 @@ void PersistenceManager<R>::ApplyRequest(
                     txn));
     }
 
-    Amount total_stake = VotingPowerManager::GetInstance()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
-    RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
+    VotingPowerInfo vpi;
+    auto result = VotingPowerManager::GetInstance()->GetVotingPowerInfo(request.origin, request.epoch_num, vpi, txn);
+    assert(result);
+
+    RepEpochInfo rewards_info{rep.levy_percentage,
+                              request.epoch_num,
+                              vpi.current.self_stake + vpi.current.locked_proxied,
+                              vpi.current.self_stake};
+
     EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
 
@@ -1855,21 +1880,6 @@ void PersistenceManager<R>::ApplyRequest(
         candidate.next_stake = 0; 
         _store.candidate_put(request.origin,candidate,txn);
     }
-}
-
-// TODO: Dynamic can be changed to static if we do type validation
-//       in the constructors of ALL the request types.
-//
-uint32_t GetEpochNum(std::shared_ptr<Request> req)
-{
-    auto governance_request = dynamic_pointer_cast<Governance>(req);
-
-    if(!governance_request)
-    {
-        trace_and_halt();
-    }
-
-    return governance_request->epoch_num;
 }
 
 bool VerifyCandidacyActionType(RequestType& type)
@@ -2655,6 +2665,233 @@ bool PersistenceManager<R>::ValidateRequest(
     return true;
 }
 
+Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> claim,
+                                           logos::account_info & info,
+                                           MDB_txn * transaction)
+{
+    // Used to calculate the portion of the global reward pool
+    // earned by a representative, or the portion of a
+    // representative's reward pool earned by the representative
+    // itself, or a locked proxy account.
+    auto calculate_portion  = [](const auto & stake, const auto & total_stake, const auto & pool)
+    {
+        Float100 ratio = Float100{stake} / Float100{total_stake};
+        Float100 flr = floor(ratio * Float100{pool});
+
+        return flr.convert_to<uint128_t>();
+    };
+
+    // Used to adjust the remaining reward for global and
+    // representative reward pools.
+    auto adjust_remaining = [](auto & value, auto & info)
+    {
+        if(value == 0)
+        {
+            value = 1;
+        }
+
+        if(value > info.remaining_reward.number())
+        {
+            value = info.remaining_reward.number();
+        }
+
+        info.remaining_reward -= value;
+
+        return info.remaining_reward.number() == 0;
+    };
+
+    BlockHash current_hash = info.governance_subchain_head;
+    uint32_t peak = claim->epoch_number;
+
+    bool is_rep = false;
+    AccountAddress current_rep = 0;
+    Amount staked = 0;
+
+    Amount sum = 0;
+
+    // The main loop for processing the claim request.
+    while(!current_hash.is_zero() && peak > info.claim_epoch)
+    {
+        std::shared_ptr<Request> current_request;
+
+        if(_store.request_get(current_hash, current_request, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                            << "Failed to retrieve governance request with hash: "
+                            << current_hash.to_string();
+            trace_and_halt();
+        }
+
+        // This request may determine how to harvest
+        // rewards in epoch base + 1;
+        auto base = GetEpochNum(current_request);
+
+        if(base < peak)
+        {
+            // Update the state of the account to determine
+            // how to harvest rewards for epochs in the range
+            // [base + 1, peak].
+            switch(current_request->type)
+            {
+                case RequestType::Proxy:
+                {
+                    auto proxy = dynamic_pointer_cast<Proxy>(current_request);
+                    assert(proxy);
+
+                    if(proxy->lock_proxy.is_zero())
+                    {
+                        current_rep = {0};
+                        staked = {0};
+                    }
+                    else
+                    {
+                        current_rep = proxy->rep;
+                        staked = proxy->lock_proxy;
+                    }
+
+                    break;
+                }
+                case RequestType::AnnounceCandidacy:
+                    is_rep = true;
+                    break;
+                case RequestType::StartRepresenting:
+                    is_rep = true;
+                    break;
+                case RequestType::StopRepresenting:
+                    is_rep = false;
+                    break;
+                default:
+                    break;
+            }
+
+            bool has_rep = !current_rep.is_zero();
+
+            // The account has a representative and is
+            // a representative. Should never occur.
+            if(has_rep && is_rep)
+            {
+                LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                << "Inconsistent account state while processing "
+                                << "claim for account: "
+                                << claim->origin.to_account();
+                trace_and_halt();
+            }
+
+            // There may be rewards to harvest for
+            // the epoch.
+            if(has_rep || is_rep)
+            {
+
+                auto rewards_manager = EpochRewardsManager::GetInstance();
+
+                // Iterate over all the epochs affected by the
+                // user's current status.
+                for(uint32_t epoch = base + 1; epoch <= peak; ++epoch)
+                {
+
+                    // Rewards from this epoch have already
+                    // been claimed.
+                    if(epoch <= info.claim_epoch)
+                    {
+                        continue;
+                    }
+
+                    auto rep_address = [&]()
+                    {
+                        if(is_rep)
+                        {
+                            return claim->origin;
+                        }
+
+                        return current_rep;
+                    };
+
+                    // This rep participated in voting for the epoch and
+                    // is therefore entitled to rewards.
+                    if(rewards_manager->HasRewards(rep_address(), epoch, transaction))
+                    {
+                        auto rep_info = rewards_manager->GetEpochRewardsInfo(rep_address(), epoch, transaction);
+
+                        // This rep's portion of global rewards hasn't
+                        // yet been determined.
+                        if(!rep_info.initialized)
+                        {
+
+                            // There are still global rewards available
+                            // to distribute to this rep.
+                            if(rewards_manager->GlobalRewardsAvailable(epoch, transaction))
+                            {
+                                auto global_info = rewards_manager->GetGlobalEpochRewardsInfo(epoch,
+                                                                                              transaction);
+
+                                auto rep_pool = calculate_portion(rep_info.total_stake.number(),
+                                                                  global_info.total_stake.number(),
+                                                                  global_info.total_reward.number());
+
+                                // There are no global rewards remaining
+                                // for this epoch.
+                                if(adjust_remaining(rep_pool, global_info))
+                                {
+                                    rewards_manager->RemoveGlobalRewards(epoch, transaction);
+                                }
+
+                                rep_info.total_reward = rep_pool;
+                            }
+                        }
+
+                        auto self_stake = [&]()
+                        {
+                            if(is_rep)
+                            {
+                                return rep_info.self_stake.number();
+                            }
+
+                            return staked.number();
+                        };
+
+                        auto reward = calculate_portion(self_stake(),
+                                                        rep_info.total_stake.number(),
+                                                        rep_info.total_reward.number());
+
+                        // The rep is not entitled to all the rewards,
+                        // and its earnings are trimmed per the
+                        // levy_percentage.
+                        if(rep_info.levy_percentage && rep_info.self_stake < rep_info.total_stake)
+                        {
+                            Float100 levy_factor = rep_info.levy_percentage / 100.0;
+
+                            if(is_rep)
+                            {
+                                levy_factor = 2.0 - levy_factor;
+                            }
+
+                            Float100 scaled_reward = levy_factor * Float100{reward};
+
+                            reward = floor(scaled_reward).convert_to<uint128_t>();
+                        }
+
+                        if(adjust_remaining(reward, rep_info))
+                        {
+                            rewards_manager->RemoveEpochRewardsInfo(rep_address(),
+                                                                    epoch,
+                                                                    transaction);
+                        }
+
+                        // Finally, update the sum with the
+                        // earnings from this epoch.
+                        sum += reward;
+                    }
+                }
+            }
+
+            peak = base;
+        }
+
+        current_hash = dynamic_pointer_cast<Governance>(current_request)->governance_subchain_prev;
+    }
+
+    return sum;
+}
 bool PersistenceManager<R>::ValidateRequest(
     const Claim & request,
     logos::process_return & result,

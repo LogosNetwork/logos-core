@@ -2125,6 +2125,26 @@ logos::block_store::ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args
     return result;
 }
 
+bool logos::block_store::rep_rewards_exist(const mdb_val & key, MDB_txn* txn)
+{
+    logos::mdb_val junk;
+
+    auto status(mdb_get(txn, epoch_rewards_db, key, junk));
+    assert(status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
+}
+
+bool logos::block_store::global_rewards_exist(const mdb_val & key, MDB_txn* txn)
+{
+    logos::mdb_val junk;
+
+    auto status(mdb_get(txn, global_epoch_rewards_db, key, junk));
+    assert(status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
+}
+
 bool logos::block_store::stake_put(
         AccountAddress const & account,
         StakedFunds const & funds,

@@ -214,6 +214,10 @@ private:
             uint32_t const & epoch_num,
             uint16_t transaction_index = 0);
 
+    Amount ProcessClaim(const std::shared_ptr<const Claim> claim,
+                        logos::account_info & info,
+                        MDB_txn * transaction);
+
 
     Log               _log;
     ReservationsPtr   _reservations;

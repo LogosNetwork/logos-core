@@ -21,7 +21,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     uint32_t epoch_num = 42;
     uint8_t levy = 15;
     Amount stake = 30000;
-    RepEpochInfo info{levy,epoch_num,stake};
+    RepEpochInfo info{levy,epoch_num,stake,stake};
 
     rewards_mgr.Init(rep, info, txn);
 
@@ -108,7 +108,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
             Amount stake = e % 3 == 0 ? 40000 : e % 3 == 1 ? 10000 : 2500;
             levy *= ((r % 3) + 1);
             stake = stake.number() * ((r % 3) + 1);
-            RepEpochInfo info{levy,e,stake};
+            RepEpochInfo info{levy,e,stake,stake};
             reps.push_back(std::make_pair(r,info));
             global_total += stake;
         }

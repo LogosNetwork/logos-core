@@ -1,9 +1,13 @@
 #pragma once
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 
 #include <cryptopp/osrng.h>
 #include <blake2/blake2.h>
+
+using Float50  = boost::multiprecision::cpp_dec_float_50;
+using Float100 = boost::multiprecision::cpp_dec_float_100;
 
 namespace logos
 {
@@ -21,6 +25,11 @@ logos::uint128_t const lgs_ratio = logos::uint128_t ("1000000000000000000000000"
 logos::uint128_t const mlgs_ratio = logos::uint128_t ("1000000000000000000000"); // 10^21
 logos::uint128_t const ulgs_ratio = logos::uint128_t ("1000000000000000000"); // 10^18
 
+// We operate on streams of uint8_t by convention
+using stream = std::basic_streambuf<uint8_t>;
+
+class mdb_val;
+
 union uint128_union
 {
 public:
@@ -34,6 +43,8 @@ public:
     uint128_union (uint64_t);
     uint128_union (logos::uint128_union const &) = default;
     uint128_union (logos::uint128_t const &);
+    bool Deserialize(logos::stream & stream);
+    uint32_t Serialize(logos::stream & stream) const;
     uint128_union operator+ (logos::uint128_union const &) const;
     uint128_union operator- (logos::uint128_union const &) const;
     uint128_union operator* (logos::uint128_union const &) const;
@@ -56,6 +67,7 @@ public:
     bool is_zero () const;
     std::string to_string () const;
     std::string to_string_dec () const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t>& buf) const;
     std::array<uint8_t, 16> bytes;
     std::array<char, 16> chars;
     std::array<uint32_t, 4> dwords;

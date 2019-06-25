@@ -781,7 +781,7 @@ TEST(Staking_Manager, Frozen)
 
     ThawingFunds t1 = staking_mgr.CreateThawingFunds(origin,origin,epoch,txn);
     t1.amount = 100;
-   staking_mgr.Store(t1,origin,txn);
+    staking_mgr.Store(t1,origin,txn);
 
    std::vector<ThawingFunds> thawing(staking_mgr.GetThawingFunds(origin,txn));
 

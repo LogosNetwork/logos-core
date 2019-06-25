@@ -133,6 +133,10 @@ logos::mdb_val::mdb_val (uint64_t const & val_a) :
         mdb_val (sizeof(uint64_t), const_cast<uint64_t *>(&val_a))
 {}
 
+logos::mdb_val::mdb_val (uint32_t const & val_a) :
+    mdb_val (sizeof(uint32_t), const_cast<uint32_t *>(&val_a))
+{}
+
 void * logos::mdb_val::data () const
 {
     return value.mv_data;

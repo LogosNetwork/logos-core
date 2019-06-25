@@ -1,4 +1,6 @@
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/utility.hpp>
+#include <logos/node/utility.hpp>
 
 #include <ed25519-donna/ed25519.h>
 
@@ -456,6 +458,16 @@ logos::uint128_union::uint128_union (logos::uint128_t const & value_a)
     }
 }
 
+bool logos::uint128_union::Deserialize (logos::stream & stream)
+{
+    return logos::read(stream, *this);
+}
+
+uint32_t logos::uint128_union::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, *this);
+}
+
 bool logos::uint128_union::operator== (logos::uint128_union const & other_a) const
 {
     return qwords[0] == other_a.qwords[0] && qwords[1] == other_a.qwords[1];
@@ -744,4 +756,14 @@ std::string logos::uint128_union::to_string_dec () const
     std::string result;
     encode_dec (result);
     return result;
+}
+
+logos::mdb_val logos::uint128_union::to_mdb_val(std::vector<uint8_t>& buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        Serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
 }

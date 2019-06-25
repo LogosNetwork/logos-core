@@ -467,7 +467,7 @@ TEST(Staking, Basic)
         ASSERT_EQ(tf[0].amount, 50);
         ASSERT_EQ(tf[0].target, proxy.rep);
     }
-    
+
     ++epoch_num;
 
     //decrease stake, new thawing
@@ -1087,7 +1087,7 @@ TEST(Staking, SwitchProxy)
     ASSERT_FALSE(validate(proxy));
 
     epoch_num += 42;
- 
+
     //liabilities can be pruned
     ASSERT_TRUE(validate(proxy));
     apply(proxy);
