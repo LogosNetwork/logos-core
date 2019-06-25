@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <logos/request/utility.hpp>
 #include <logos/token/requests.hpp>
 #include <logos/rewards/claim.hpp>

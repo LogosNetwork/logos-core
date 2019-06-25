@@ -45,7 +45,7 @@ struct VotingPowerSnapshot
         , self_stake(self)
     {}
 
-    VotingPowerSnapshot() 
+    VotingPowerSnapshot()
         : locked_proxied(0)
         , unlocked_proxied(0)
         , self_stake(0)

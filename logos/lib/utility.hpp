@@ -14,9 +14,6 @@
 namespace logos
 {
 
-// We operate on streams of uint8_t by convention
-using stream = std::basic_streambuf<uint8_t>;
-
 // Read a raw byte stream the size of `T' and fill value.
 template <typename T>
 bool read (logos::stream & stream_a, T & value)
