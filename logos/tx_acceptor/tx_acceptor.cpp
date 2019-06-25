@@ -142,6 +142,7 @@ TxAcceptor::ProcessBlock( std::shared_ptr<DM> block, Messages &blocks, Responses
     {
         LOG_INFO(_log) << "TxAcceptor::ProcessBlock failed validation "
                        << ProcessResultToString(result);
+        return;
     }
 
     if (result == logos::process_result::progress)
@@ -212,6 +213,10 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
                 parse(request_tree);
             }
 
+            if (response.size()==0) {
+                RespondJson(request, "error", "malformed");
+                return;
+            }
             PostProcessBlocks(blocks, response);
 
             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests "

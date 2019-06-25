@@ -229,7 +229,7 @@ DelegateIdentityManager::Init(const Config &config)
 
         // if a node starts after epoch transition start but before the last microblock
         // is proposed then the latest epoch block is not created yet and the epoch number
-        // has to be increamented by 1
+        // has to be incremented by 1
         epoch_number = previous_epoch.epoch_number + 1;
         epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
     }
