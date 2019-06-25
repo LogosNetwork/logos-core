@@ -320,8 +320,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                      pair.pub,                    // link/to
                      amount,
                      0,                           // transaction fee
-                     pair.prv.data,
-                     pair.pub, // SG: Sign with correct key
+                     logos::test_genesis_key.prv.data, // SG: Sign with correct key
+                     logos::test_genesis_key.pub,
                      work);
 
         genesis_account.SetBalance(genesis_account.GetBalance() - amount,0,transaction);
