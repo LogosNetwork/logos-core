@@ -43,8 +43,8 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
 bool BlockWriteQueue::BlockExists(EBPtr block)
 {
     {
-        std::lock_guard<std::mutex> lck (eqmutex);
-        if (e_queued.find(block->Hash()) != e_queued.end())
+	std::lock_guard<std::mutex> lck (q_mutex);
+	if (q_cache.find(block->Hash()) != q_cache.end())
             return true;
     }
     return eb_handler.BlockExists(*block);
@@ -53,8 +53,8 @@ bool BlockWriteQueue::BlockExists(EBPtr block)
 bool BlockWriteQueue::BlockExists(MBPtr block)
 {
     {
-        std::lock_guard<std::mutex> lck (mqmutex);
-        if (m_queued.find(block->Hash()) != m_queued.end())
+	std::lock_guard<std::mutex> lck (q_mutex);
+	if (q_cache.find(block->Hash()) != q_cache.end())
             return true;
     }
     return mb_handler.BlockExists(*block);
@@ -63,74 +63,58 @@ bool BlockWriteQueue::BlockExists(MBPtr block)
 bool BlockWriteQueue::BlockExists(RBPtr block)
 {
     {
-        std::lock_guard<std::mutex> lck (rqmutex);
-        if (r_queued.find(block->Hash()) != r_queued.end())
+	std::lock_guard<std::mutex> lck (q_mutex);
+	if (q_cache.find(block->Hash()) != q_cache.end())
             return true;
     }
     return rb_handler.BlockExists(*block);
 }
 
-void BlockWriteQueue::StoreBlock(EBPtr block)
+void BlockWriteQueue::StoreBlock(BlockPtr ptr)
 {
     {
-        std::lock_guard<std::mutex> lck (eqmutex);
-        bool qempty = ebs.empty();
-        ebs.push(block);
-        e_queued.insert(block->Hash());
-        if (!qempty) return;
+	std::lock_guard<std::mutex> lck (q_mutex);
+	bool qempty = q.empty();
+	q.push(ptr);
+	q_cache.insert(ptr.hash);
+	if (!qempty) return;
     }
     for (;;)
     {
-        eb_handler.ApplyUpdates(*block, block->primary_delegate);
-        std::lock_guard<std::mutex> lck (eqmutex);
-        ebs.pop();
-        e_queued.erase(block->Hash());
-        if (ebs.empty())
-            break;
-        block = ebs.front();
+	if (ptr.rptr)
+	{
+	    rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
+	}
+	else if (ptr.mptr)
+	{
+	    mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
+	}
+	else if (ptr.eptr)
+	{
+	    eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
+	}
+	std::lock_guard<std::mutex> lck (q_mutex);
+	q.pop();
+	q_cache.erase(ptr.hash);
+	if (q.empty())
+	    break;
+	ptr = q.front();
     }
+}
+
+void BlockWriteQueue::StoreBlock(EBPtr block)
+{
+    StoreBlock(BlockPtr(block));
 }
 
 void BlockWriteQueue::StoreBlock(MBPtr block)
 {
-    {
-        std::lock_guard<std::mutex> lck (mqmutex);
-        bool qempty = mbs.empty();
-        mbs.push(block);
-        m_queued.insert(block->Hash());
-        if (!qempty) return;
-    }
-    for (;;)
-    {
-        mb_handler.ApplyUpdates(*block, block->primary_delegate);
-        std::lock_guard<std::mutex> lck (mqmutex);
-        mbs.pop();
-        m_queued.erase(block->Hash());
-        if (mbs.empty())
-            break;
-        block = mbs.front();
-    }
+    StoreBlock(BlockPtr(block));
 }
 
 void BlockWriteQueue::StoreBlock(RBPtr block)
 {
-    {
-        std::lock_guard<std::mutex> lck (rqmutex);
-        bool qempty = rbs.empty();
-        rbs.push(block);
-        r_queued.insert(block->Hash());
-        if (!qempty) return;
-    }
-    for (;;)
-    {
-        rb_handler.ApplyUpdates(*block, block->primary_delegate);
-        std::lock_guard<std::mutex> lck (rqmutex);
-        rbs.pop();
-        r_queued.erase(block->Hash());
-        if (rbs.empty())
-            break;
-        block = rbs.front();
-    }
+    StoreBlock(BlockPtr(block));
 }
 
 }

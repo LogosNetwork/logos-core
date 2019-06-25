@@ -25,6 +25,30 @@ public:
     using EBPtr = std::shared_ptr<ApprovedEB>;
     using Store = logos::block_store;
 
+    struct BlockPtr
+    {
+	RBPtr		rptr;
+	MBPtr		mptr;
+	EBPtr		eptr;
+	BlockHash	hash;
+
+	BlockPtr(RBPtr r)
+	    : rptr(r)
+	    , hash(r->Hash())
+	{
+	}
+	BlockPtr(MBPtr m)
+	    : mptr(m)
+	    , hash(m->Hash())
+	{
+	}
+	BlockPtr(EBPtr e)
+	    : eptr(e)
+	    , hash(e->Hash())
+	{
+	}
+    };
+
     BlockWriteQueue(Store &store);
 
     bool VerifyAggSignature(EBPtr block);
@@ -44,21 +68,17 @@ public:
     void StoreBlock(RBPtr block);
 
 private:
-    std::queue<EBPtr>               ebs;
-    std::queue<MBPtr>               mbs;
-    std::queue<RBPtr>               rbs;
+    void StoreBlock(BlockPtr ptr);
 
-    std::unordered_set<BlockHash>   e_queued;
-    std::unordered_set<BlockHash>   m_queued;
-    std::unordered_set<BlockHash>   r_queued;
+    std::queue<BlockPtr>            q;
+
+    std::unordered_set<BlockHash>   q_cache;
 
     NonDelPersistenceManager<ECT>   eb_handler;
     NonDelPersistenceManager<MBCT>  mb_handler;
     NonDelPersistenceManager<R>     rb_handler;
 
-    std::mutex                      eqmutex;
-    std::mutex                      mqmutex;
-    std::mutex                      rqmutex;
+    std::mutex                      q_mutex;
 };
 
 }
