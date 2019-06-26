@@ -184,17 +184,19 @@ public:
     void DumpCachedBlocks();
 
 private:
-    bool DeleteDependencies(const BlockHash &hash);
+    bool DeleteHashDependencies(const BlockHash &hash);
+    bool DeleteAccountDependencies(const AccountAddress &addr);
     bool MarkForRevalidation(const ChainPtr &ptr);
 
     BlockWriteQueue &                               write_q;
     std::list<EpochPeriod>                          epochs;
     std::unordered_set<BlockHash>                   cached_blocks;
     std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
-    std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
+    std::multimap<AccountAddress, ChainPtr>         account_dependency_table;
     std::mutex                                      chains_mutex;
     std::mutex                                      cache_blocks_mutex;
     std::mutex                                      hash_dependency_table_mutex;
+    std::mutex                                      account_dependency_table_mutex;
     Log                                             log;
 };
 

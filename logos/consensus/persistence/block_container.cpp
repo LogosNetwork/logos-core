@@ -242,7 +242,7 @@ bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
     return false;
 }
 
-bool PendingBlockContainer::DeleteDependencies(const BlockHash &hash)
+bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash)
 {
     std::multimap<BlockHash, ChainPtr> mapcopy;
 
@@ -275,28 +275,110 @@ bool PendingBlockContainer::DeleteDependencies(const BlockHash &hash)
     }
 }
 
+bool PendingBlockContainer::DeleteAccountDependencies(const AccountAddress &addr)
+{
+    std::multimap<AccountAddress, ChainPtr> mapcopy;
+
+    {
+        std::lock_guard<std::mutex> lck (account_dependency_table_mutex);
+
+        if (!account_dependency_table.count(addr))
+        {
+            return false;
+        }
+
+        auto range = account_dependency_table.equal_range(addr);
+
+        mapcopy = std::multimap<AccountAddress, ChainPtr>(range.first, range.second);
+
+        account_dependency_table.erase(range.first, range.second);
+    }
+
+    {
+        bool res = false;
+
+        std::lock_guard<std::mutex> lck (chains_mutex);
+
+        for (auto it = mapcopy.begin(); it != mapcopy.end(); it++)
+        {
+            res |= MarkForRevalidation((*it).second);
+        }
+
+        return res;
+    }
+}
+
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    return DeleteDependencies(hash);
+    return DeleteHashDependencies(hash);
 }
 
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    return DeleteDependencies(hash);
+    return DeleteHashDependencies(hash);
 }
 
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    bool res = DeleteDependencies(hash);
+    bool res = DeleteHashDependencies(hash);
     for (uint32_t i = 0; i < block->requests.size(); ++i)
     {
-        res |= DeleteDependencies(block->requests[i]->Hash());
+        auto request = block->requests[i];
+        res |= DeleteHashDependencies(request->Hash());
+        res |= DeleteAccountDependencies(request->GetAccount());
+        switch (request->type)
+        {
+        case RequestType::Send:
+            {
+                auto send = dynamic_pointer_cast<const Send>(request);
+                for(auto &t : send->transactions)
+                {
+                    res |= DeleteAccountDependencies(t.destination);
+                }
+            }
+            break;
+        case RequestType::Revoke:
+            {
+                auto revoke = dynamic_pointer_cast<const Revoke>(request);
+                res |= DeleteAccountDependencies(revoke->transaction.destination);
+            }
+            break;
+        case RequestType::Distribute:
+            {
+                auto distribute = dynamic_pointer_cast<const Distribute>(request);
+                res |= DeleteAccountDependencies(distribute->transaction.destination);
+            }
+            break;
+        case RequestType::WithdrawFee:
+            {
+                auto withdraw = dynamic_pointer_cast<const WithdrawFee>(request);
+                res |= DeleteAccountDependencies(withdraw->transaction.destination);
+            }
+            break;
+        case RequestType::WithdrawLogos:
+            {
+                auto withdraw = dynamic_pointer_cast<const WithdrawLogos>(request);
+                res |= DeleteAccountDependencies(withdraw->transaction.destination);
+            }
+            break;
+        case RequestType::TokenSend:
+            {
+                auto send = dynamic_pointer_cast<const TokenSend>(request);
+                for(auto &t : send->transactions)
+                {
+                    res |= DeleteAccountDependencies(t.destination);
+                }
+            }
+            break;
+        default:
+            break;
+        }
     }
     return res;
 }
