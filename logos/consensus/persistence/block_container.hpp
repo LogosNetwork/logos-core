@@ -172,9 +172,8 @@ public:
     bool AddMicroBlock(MBPtr block);
     bool AddRequestBlock(RBPtr block);
 
-    void AddDependency(const BlockHash &hash, EPtr block);
-    void AddDependency(const BlockHash &hash, MPtr block);
-    void AddDependency(const BlockHash &hash, RPtr block);
+    void AddHashDependency(const BlockHash &hash, ChainPtr ptr);
+    void AddAccountDependency(const AccountAddress &addr, ChainPtr ptr);
 
     bool MarkAsValidated(EBPtr block);
     bool MarkAsValidated(MBPtr block);
@@ -184,9 +183,9 @@ public:
     void DumpCachedBlocks();
 
 private:
-    bool DeleteHashDependencies(const BlockHash &hash);
-    bool DeleteAccountDependencies(const AccountAddress &addr);
-    bool MarkForRevalidation(const ChainPtr &ptr);
+    bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);
+    bool DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains);
+    void MarkForRevalidation(std::list<ChainPtr> &chains);
 
     BlockWriteQueue &                               write_q;
     std::list<EpochPeriod>                          epochs;
