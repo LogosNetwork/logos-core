@@ -177,14 +177,25 @@ void BlockCache::Validate(uint8_t rb_idx)
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
-                    block_container.AddDependency(block->previous, ptr.rptr);
+                    block_container.AddHashDependency(block->previous, ptr);
                     break;
                 case logos::process_result::invalid_request:
                     for (uint32_t i = 0; i < block->requests.size(); ++i)
                     {
-                        if (status.requests[i] == logos::process_result::gap_previous)
+                        switch (status.requests[i])
                         {
-                            block_container.AddDependency(block->requests[i]->previous, ptr.rptr);
+                        case logos::process_result::gap_previous:
+                            block_container.AddHashDependency(block->requests[i]->previous, ptr);
+                            break;
+                        case logos::process_result::insufficient_balance:
+                        case logos::process_result::insufficient_fee:
+                        case logos::process_result::insufficient_token_balance:
+                        case logos::process_result::insufficient_token_fee:
+                        case logos::process_result::insufficient_funds_for_stake:
+                            block_container.AddAccountDependency(block->requests[i]->GetAccount(), ptr);
+                            break;
+                        default:
+                            break;
                         }
                     }
                     break;
@@ -222,14 +233,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
-                    block_container.AddDependency(block->previous, ptr.mptr);
+                    block_container.AddHashDependency(block->previous, ptr);
                     break;
                 case logos::process_result::invalid_request:
                     for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
                     {
                         if (status.requests[i] == logos::process_result::gap_previous)
                         {
-                            block_container.AddDependency(block->tips[i].digest, ptr.mptr);
+                            block_container.AddHashDependency(block->tips[i].digest, ptr);
                         }
                     }
                     break;
@@ -264,10 +275,10 @@ void BlockCache::Validate(uint8_t rb_idx)
                 case logos::process_result::gap_previous:
                 case logos::process_result::gap_source:
                     //TODO any other cases that can be considered as gap?
-                    block_container.AddDependency(block->previous, ptr.eptr);
+                    block_container.AddHashDependency(block->previous, ptr);
                     break;
                 case logos::process_result::invalid_tip:
-                    block_container.AddDependency(block->micro_block_tip.digest, ptr.eptr);
+                    block_container.AddHashDependency(block->micro_block_tip.digest, ptr);
                     break;
                 default:
                     LOG_ERROR(log) << "BlockCache::Validate EB status: "

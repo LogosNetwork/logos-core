@@ -204,134 +204,118 @@ bool PendingBlockContainer::AddRequestBlock(RBPtr block)
     return add2begin;
 }
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, EPtr block)
+void PendingBlockContainer::AddHashDependency(const BlockHash &hash, ChainPtr ptr)
 {
     std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
-    hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
+    hash_dependency_table.insert(std::make_pair(hash, ptr));
 }
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, MPtr block)
+void PendingBlockContainer::AddAccountDependency(const AccountAddress &addr, ChainPtr ptr)
+{
+    std::lock_guard<std::mutex> lck (account_dependency_table_mutex);
+    account_dependency_table.insert(std::make_pair(addr, ptr));
+}
+
+void PendingBlockContainer::MarkForRevalidation(std::list<ChainPtr> &chains)
+{
+    std::lock_guard<std::mutex> lck (chains_mutex);
+
+    for (auto ptr : chains)
+    {
+        if (ptr.eptr)
+        {
+            ptr.eptr->continue_validate = true;
+        }
+        else if (ptr.mptr)
+        {
+            ptr.mptr->continue_validate = true;
+        }
+        else if (ptr.rptr)
+        {
+            ptr.rptr->continue_validate = true;
+        }
+    }
+}
+
+bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains)
 {
     std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
-    hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
+
+    if (!hash_dependency_table.count(hash))
+    {
+        return false;
+    }
+
+    auto range = hash_dependency_table.equal_range(hash);
+
+    for (auto it = range.first; it != range.second; it++)
+    {
+        chains.push_back((*it).second);
+    }
+
+    hash_dependency_table.erase(range.first, range.second);
+
+    return true;
 }
 
-void PendingBlockContainer::AddDependency(const BlockHash &hash, RPtr block)
+bool PendingBlockContainer::DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains)
 {
-    std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
-    hash_dependency_table.insert(std::make_pair(hash, ChainPtr(block)));
-}
+    std::lock_guard<std::mutex> lck (account_dependency_table_mutex);
 
-bool PendingBlockContainer::MarkForRevalidation(const ChainPtr &ptr)
-{
-    if (ptr.eptr)
+    if (!account_dependency_table.count(addr))
     {
-        ptr.eptr->continue_validate = true;
-        return true;
-    }
-    else if (ptr.mptr)
-    {
-        ptr.mptr->continue_validate = true;
-        return true;
-    }
-    else if (ptr.rptr)
-    {
-        ptr.rptr->continue_validate = true;
-        return true;
-    }
-    return false;
-}
-
-bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash)
-{
-    std::multimap<BlockHash, ChainPtr> mapcopy;
-
-    {
-        std::lock_guard<std::mutex> lck (hash_dependency_table_mutex);
-
-        if (!hash_dependency_table.count(hash))
-        {
-            return false;
-        }
-
-        auto range = hash_dependency_table.equal_range(hash);
-
-        mapcopy = std::multimap<BlockHash, ChainPtr>(range.first, range.second);
-
-        hash_dependency_table.erase(range.first, range.second);
+        return false;
     }
 
+    auto range = account_dependency_table.equal_range(addr);
+
+    for (auto it = range.first; it != range.second; it++)
     {
-        bool res = false;
-
-        std::lock_guard<std::mutex> lck (chains_mutex);
-
-        for (auto it = mapcopy.begin(); it != mapcopy.end(); it++)
-        {
-            res |= MarkForRevalidation((*it).second);
-        }
-
-        return res;
-    }
-}
-
-bool PendingBlockContainer::DeleteAccountDependencies(const AccountAddress &addr)
-{
-    std::multimap<AccountAddress, ChainPtr> mapcopy;
-
-    {
-        std::lock_guard<std::mutex> lck (account_dependency_table_mutex);
-
-        if (!account_dependency_table.count(addr))
-        {
-            return false;
-        }
-
-        auto range = account_dependency_table.equal_range(addr);
-
-        mapcopy = std::multimap<AccountAddress, ChainPtr>(range.first, range.second);
-
-        account_dependency_table.erase(range.first, range.second);
+        chains.push_back((*it).second);
     }
 
-    {
-        bool res = false;
+    account_dependency_table.erase(range.first, range.second);
 
-        std::lock_guard<std::mutex> lck (chains_mutex);
-
-        for (auto it = mapcopy.begin(); it != mapcopy.end(); it++)
-        {
-            res |= MarkForRevalidation((*it).second);
-        }
-
-        return res;
-    }
+    return true;
 }
 
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    return DeleteHashDependencies(hash);
+    std::list<ChainPtr> chains;
+    bool res = DeleteHashDependencies(hash, chains);
+    if (res)
+    {
+        MarkForRevalidation(chains);
+    }
+    return res;
 }
 
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    return DeleteHashDependencies(hash);
+    std::list<ChainPtr> chains;
+    bool res = DeleteHashDependencies(hash, chains);
+    if (res)
+    {
+        MarkForRevalidation(chains);
+    }
+    return res;
 }
 
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
     BlockHash hash = block->Hash();
     BlockDelete(hash);
-    bool res = DeleteHashDependencies(hash);
+    std::list<ChainPtr> chains;
+    bool res = DeleteHashDependencies(hash, chains);
     for (uint32_t i = 0; i < block->requests.size(); ++i)
     {
         auto request = block->requests[i];
-        res |= DeleteHashDependencies(request->Hash());
-        res |= DeleteAccountDependencies(request->GetAccount());
+        res |= DeleteHashDependencies(request->Hash(), chains);
+        res |= DeleteAccountDependencies(request->GetSource(), chains);
         switch (request->type)
         {
         case RequestType::Send:
@@ -339,32 +323,32 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
                 auto send = dynamic_pointer_cast<const Send>(request);
                 for(auto &t : send->transactions)
                 {
-                    res |= DeleteAccountDependencies(t.destination);
+                    res |= DeleteAccountDependencies(t.destination, chains);
                 }
             }
             break;
         case RequestType::Revoke:
             {
                 auto revoke = dynamic_pointer_cast<const Revoke>(request);
-                res |= DeleteAccountDependencies(revoke->transaction.destination);
+                res |= DeleteAccountDependencies(revoke->transaction.destination, chains);
             }
             break;
         case RequestType::Distribute:
             {
                 auto distribute = dynamic_pointer_cast<const Distribute>(request);
-                res |= DeleteAccountDependencies(distribute->transaction.destination);
+                res |= DeleteAccountDependencies(distribute->transaction.destination, chains);
             }
             break;
         case RequestType::WithdrawFee:
             {
                 auto withdraw = dynamic_pointer_cast<const WithdrawFee>(request);
-                res |= DeleteAccountDependencies(withdraw->transaction.destination);
+                res |= DeleteAccountDependencies(withdraw->transaction.destination, chains);
             }
             break;
         case RequestType::WithdrawLogos:
             {
                 auto withdraw = dynamic_pointer_cast<const WithdrawLogos>(request);
-                res |= DeleteAccountDependencies(withdraw->transaction.destination);
+                res |= DeleteAccountDependencies(withdraw->transaction.destination, chains);
             }
             break;
         case RequestType::TokenSend:
@@ -372,13 +356,17 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
                 auto send = dynamic_pointer_cast<const TokenSend>(request);
                 for(auto &t : send->transactions)
                 {
-                    res |= DeleteAccountDependencies(t.destination);
+                    res |= DeleteAccountDependencies(t.destination, chains);
                 }
             }
             break;
         default:
             break;
         }
+    }
+    if (res)
+    {
+        MarkForRevalidation(chains);
     }
     return res;
 }
@@ -492,23 +480,21 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             }
         }
 
-        bool e_finished = false;
-
         if (ptr.eptr)
         {
+            ptr.eptr = nullptr;
             if (success)
             {
                 e->eb = nullptr;
                 auto e_old = e;
                 ++e;
                 epochs.erase(e_old);
-                e_finished = true;
+                continue;
             }
             else
             {
                 e->eb->lock = false;
             }
-            ptr.eptr = nullptr;
         }
 
         if ((last_mb || mbs_empty) &&
@@ -522,12 +508,16 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             return true;
         }
 
-        if (!(e_finished ||
-                /* first 10 minutes of new epoch */
-                (epochs.size() == 2 &&
+        /* first 10 minutes of new epoch */
+        if (epochs.size() == 2 &&
                 e->eb == nullptr &&
                 e->mbs.empty() &&
-                (++e)->mbs.empty())))
+                ++e != epochs.end() &&
+                e->mbs.empty())
+        {
+            continue;
+        }
+        else
         {
             break;
         }
