@@ -73,14 +73,12 @@ private:
     void StoreBlock(BlockPtr ptr);
 
     std::queue<BlockPtr>            q;
-
     std::unordered_set<BlockHash>   q_cache;
-
     NonDelPersistenceManager<ECT>   eb_handler;
     NonDelPersistenceManager<MBCT>  mb_handler;
     NonDelPersistenceManager<R>     rb_handler;
-
     std::mutex                      q_mutex;
+    Log                             log;
 };
 
 }

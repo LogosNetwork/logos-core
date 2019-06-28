@@ -78,14 +78,17 @@ void BlockWriteQueue::StoreBlock(BlockPtr ptr)
     {
         if (ptr.rptr)
         {
+            LOG_TRACE(log) << "BlockCache:Apply:R: " << ptr.rptr->CreateTip().to_string();
             rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
         }
         else if (ptr.mptr)
         {
+            LOG_TRACE(log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
         }
         else if (ptr.eptr)
         {
+            LOG_TRACE(log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
         }
 
@@ -102,17 +105,23 @@ void BlockWriteQueue::StoreBlock(BlockPtr ptr)
 
 void BlockWriteQueue::StoreBlock(EBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:E:{ " << block->CreateTip().to_string();
     StoreBlock(BlockPtr(block));
+    LOG_TRACE(log) << "BlockCache:Store:E:} " << block->CreateTip().to_string();
 }
 
 void BlockWriteQueue::StoreBlock(MBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:M:{ " << block->CreateTip().to_string();
     StoreBlock(BlockPtr(block));
+    LOG_TRACE(log) << "BlockCache:Store:M:} " << block->CreateTip().to_string();
 }
 
 void BlockWriteQueue::StoreBlock(RBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:R:{ " << block->CreateTip().to_string();
     StoreBlock(BlockPtr(block));
+    LOG_TRACE(log) << "BlockCache:Store:R:} " << block->CreateTip().to_string();
 }
 
 }
