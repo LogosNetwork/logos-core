@@ -11,18 +11,18 @@ BlockCache::BlockCache(Store &store)
 
 bool BlockCache::AddEpochBlock(EBPtr block)
 {
-    LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
+    LOG_TRACE(log) << "BlockCache:Add:E:" << block->CreateTip().to_string();
 
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddEpochBlock: VerifyAggSignature failed";
+        LOG_ERROR(log) << "BlockCache::AddEpochBlock: VerifyAggSignature failed";
         return false;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::AAddEpochBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::AAddEpochBlock: BlockExists";
         return true;
     }
 
@@ -39,17 +39,18 @@ bool BlockCache::AddEpochBlock(EBPtr block)
 
 bool BlockCache::AddMicroBlock(MBPtr block)
 {
-    LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
+    LOG_TRACE(log) << "BlockCache:Add:M:" << block->CreateTip().to_string();
+
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddMicroBlock: VerifyAggSignature failed";
+        LOG_ERROR(log) << "BlockCache::AddMicroBlock: VerifyAggSignature failed";
         return false;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddMicroBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::AddMicroBlock: BlockExists";
         return true;
     }
 
@@ -66,18 +67,18 @@ bool BlockCache::AddMicroBlock(MBPtr block)
 
 bool BlockCache::AddRequestBlock(RBPtr block)
 {
-    LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
+    LOG_TRACE(log) << "BlockCache:Add:R:" << block->CreateTip().to_string();
 
     if (!write_q.VerifyAggSignature(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddRequestBlock: VerifyAggSignature failed";
+        LOG_ERROR(log) << "BlockCache::AddRequestBlock: VerifyAggSignature failed";
         return false;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::AddRequestBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::AddRequestBlock: BlockExists";
         return true;
     }
 
@@ -94,9 +95,11 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
 void BlockCache::StoreEpochBlock(EBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:E:" << block->CreateTip().to_string();
+
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::StoreEpochBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::StoreEpochBlock: BlockExists";
         return;
     }
 
@@ -106,13 +109,18 @@ void BlockCache::StoreEpochBlock(EBPtr block)
     {
         Validate();
     }
+
+    //TODO remove after integration tests
+    block_container.DumpCachedBlocks();
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:M:" << block->CreateTip().to_string();
+
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::StoreMicroBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::StoreMicroBlock: BlockExists";
         return;
     }
 
@@ -122,13 +130,18 @@ void BlockCache::StoreMicroBlock(MBPtr block)
     {
         Validate();
     }
+
+    //TODO remove after integration tests
+    block_container.DumpCachedBlocks();
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Store:R:" << block->CreateTip().to_string();
+
     if (block_container.BlockExistsAdd(block))
     {
-        LOG_TRACE(log) << "BlockCache::StoreRequestBlock: BlockExists";
+        LOG_DEBUG(log) << "BlockCache::StoreRequestBlock: BlockExists";
         return;
     }
 
@@ -138,6 +151,9 @@ void BlockCache::StoreRequestBlock(RBPtr block)
     {
         Validate();
     }
+
+    //TODO remove after integration tests
+    block_container.DumpCachedBlocks();
 }
 
 bool BlockCache::IsBlockCached(const BlockHash &hash)
@@ -160,7 +176,7 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             RBPtr &block = ptr.rptr->block;
             ValidationStatus &status = ptr.rptr->status;
-            LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
+            LOG_TRACE(log) << "BlockCache::"<<__func__<<":R:verifying "
                     << block->CreateTip().to_string();
 
             if ((success = write_q.VerifyContent(block, &status)))
@@ -219,6 +235,8 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             MBPtr &block = ptr.mptr->block;
             ValidationStatus &status = ptr.mptr->status;
+            LOG_TRACE(log) << "BlockCache::"<<__func__<<":M:verifying "
+                    << block->CreateTip().to_string();
             if ((success = write_q.VerifyContent(block, &status)))
             {
                 write_q.StoreBlock(block);
@@ -259,6 +277,8 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             EBPtr &block = ptr.eptr->block;
             ValidationStatus &status = ptr.eptr->status;
+            LOG_TRACE(log) << "BlockCache::"<<__func__<<":E:verifying "
+                    << block->CreateTip().to_string();
             if ((success = write_q.VerifyContent(block, &status)))
             {
                 write_q.StoreBlock(block);

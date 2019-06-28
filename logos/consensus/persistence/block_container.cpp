@@ -53,13 +53,14 @@ void PendingBlockContainer::BlockDelete(const BlockHash &hash)
 void PendingBlockContainer::DumpCachedBlocks()
 {
     std::lock_guard<std::mutex> lck (cache_blocks_mutex);
-    LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
+    LOG_TRACE(log) << "BlockCache:Dump:count: " << cached_blocks.size();
     for (auto & h : cached_blocks)
-    LOG_TRACE(log) << h.to_string();
+        LOG_TRACE(log) << "BlockCache:Dump:hash: " << h.to_string();
 }
 
 bool PendingBlockContainer::AddEpochBlock(EBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Add:E:{ " << block->CreateTip().to_string();
     EPtr ptr = std::make_shared<PendingEB>(block);
     bool found = false;
     std::lock_guard<std::mutex> lck (chains_mutex);
@@ -89,11 +90,13 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
         epochs.emplace_front(EpochPeriod(ptr));
     }
 
+    LOG_TRACE(log) << "BlockCache:Add:E:} " << (int)!found;
     return !found;
 }
 
 bool PendingBlockContainer::AddMicroBlock(MBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Add:M:{ " << block->CreateTip().to_string();
     MPtr ptr = std::make_shared<PendingMB>(block);
     bool add2begin = false;
     bool found = false;
@@ -145,11 +148,13 @@ bool PendingBlockContainer::AddMicroBlock(MBPtr block)
         add2begin = true;
     }
 
+    LOG_TRACE(log) << "BlockCache:Add:M:} " << (int)add2begin;
     return add2begin;
 }
 
 bool PendingBlockContainer::AddRequestBlock(RBPtr block)
 {
+    LOG_TRACE(log) << "BlockCache:Add:R:{ " << block->CreateTip().to_string();
     RPtr ptr = std::make_shared<PendingRB>(block);
     bool add2begin = false;
     bool found = false;
@@ -201,6 +206,7 @@ bool PendingBlockContainer::AddRequestBlock(RBPtr block)
         add2begin = true;
     }
 
+    LOG_TRACE(log) << "BlockCache:Add:R:} " << (int)add2begin;
     return add2begin;
 }
 
@@ -224,14 +230,20 @@ void PendingBlockContainer::MarkForRevalidation(std::list<ChainPtr> &chains)
     {
         if (ptr.eptr)
         {
+            LOG_TRACE(log) << "BlockCache:Mark:E:"
+                    << ptr.eptr->block->CreateTip().to_string();
             ptr.eptr->continue_validate = true;
         }
         else if (ptr.mptr)
         {
+            LOG_TRACE(log) << "BlockCache:Mark:M:"
+                    << ptr.eptr->block->CreateTip().to_string();
             ptr.mptr->continue_validate = true;
         }
         else if (ptr.rptr)
         {
+            LOG_TRACE(log) << "BlockCache:Mark:R:"
+                    << ptr.eptr->block->CreateTip().to_string();
             ptr.rptr->continue_validate = true;
         }
     }
@@ -373,7 +385,8 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 
 bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success)
 {
-    LOG_TRACE(log) << "PendingBlockContainer::"<<__func__<<"{";
+    LOG_TRACE(log) << "BlockCache:Next"
+            << ":idx " << (int)rb_idx << ":success " << (int)success;
 
     uint32_t epoch_number;
 
@@ -443,6 +456,8 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                         ptr.rptr = *to_validate;
                         ptr.rptr->continue_validate = false;
                         ptr.rptr->lock = true;
+                        LOG_TRACE(log) << "BlockCache:Next:R: "
+                                << ptr.rptr->block->CreateTip().to_string();
                         return true;
                     }
                 }
@@ -476,6 +491,8 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 ptr.mptr = e->mbs.front();
                 ptr.mptr->continue_validate = false;
                 ptr.mptr->lock = true;
+                LOG_TRACE(log) << "BlockCache:Next:M: "
+                        << ptr.mptr->block->CreateTip().to_string();
                 return true;
             }
         }
@@ -505,6 +522,8 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             ptr.eptr = e->eb;
             ptr.eptr->continue_validate = false;
             ptr.eptr->lock = true;
+            LOG_TRACE(log) << "BlockCache:Next:E: "
+                    << ptr.eptr->block->CreateTip().to_string();
             return true;
         }
 
@@ -523,7 +542,7 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
         }
     }
 
-    LOG_ERROR(log) << "BlockCache::"<<__func__<<"}";
+    LOG_TRACE(log) << "BlockCache:Next:end";
 
     return false;
 }
