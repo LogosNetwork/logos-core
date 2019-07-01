@@ -49,7 +49,7 @@ public:
 	}
     };
 
-    BlockWriteQueue(Store &store);
+    BlockWriteQueue(Store &store, bool unit_test_);
 
     bool VerifyAggSignature(EBPtr block);
     bool VerifyAggSignature(MBPtr block);
@@ -78,6 +78,7 @@ private:
     NonDelPersistenceManager<MBCT>  mb_handler;
     NonDelPersistenceManager<R>     rb_handler;
     std::mutex                      q_mutex;
+    bool                            unit_test;
     Log                             log;
 };
 
