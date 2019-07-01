@@ -110,11 +110,14 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
                             << StateToString(_state);
             trace_and_halt();
         }
-        CommitMessage<CT> msg(hash);
+        //integration fix: use pre_prepare hash instead of post_prepare hash
+        CommitMessage<CT> msg(_pre_prepare_hash);
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);
         LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
-                        << ">::OnConsensusMessage - Re-broadcast Commit";
+                        << ">::OnConsensusMessage - Re-broadcast Commit"
+                        << ",hash=" << hash.to_string()
+                        << ",preprepare_hash=" << message.preprepare_hash.to_string();
         return;
     }
 
