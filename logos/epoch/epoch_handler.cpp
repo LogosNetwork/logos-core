@@ -43,11 +43,6 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
         trace_and_halt();
     }
 
-    // This value indicates the factor by which
-    // the total supply of native Logos currency
-    // increases with each passing epoch.
-    const double inflation_rate = 1.000035;
-
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
     epoch.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
@@ -56,7 +51,7 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     //Note, we write epoch block with epoch number i at the beginning of epoch i+1
     epoch.is_extension = !_voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
     epoch.transaction_fee_pool = _fee_pool;
-    epoch.total_supply =  previous_epoch.total_supply * inflation_rate;
+    epoch.total_supply = floor(Float100{previous_epoch.total_supply.number()} * LOGOS_INFLATION_RATE).convert_to<logos::uint128_t>();
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"
                    << " hash " << epoch.Hash().to_string()

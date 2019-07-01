@@ -31,7 +31,6 @@ struct VotingPowerFallback
 
 struct VotingPowerSnapshot
 {
-
     Amount locked_proxied;
     Amount unlocked_proxied;
     Amount self_stake;
@@ -65,8 +64,6 @@ struct VotingPowerSnapshot
             || logos::read(stream, unlocked_proxied)
             || logos::read(stream, self_stake);
     }
-
-
 };
 
 struct VotingPowerInfo

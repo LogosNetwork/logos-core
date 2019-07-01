@@ -52,7 +52,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
 
     Amount harvest_amount = 1000;
 
-    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,txn));
+    rewards_mgr.HarvestGlobalReward(epoch_num,harvest_amount,global_info,txn);
+    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,rewards_info,txn));
 
     rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
     global_info = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);
@@ -61,7 +62,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_EQ(global_info.total_reward, total_reward);
     ASSERT_EQ(global_info.remaining_reward, total_reward-harvest_amount);
 
-    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,txn));
+    rewards_mgr.HarvestGlobalReward(epoch_num,harvest_amount,global_info,txn);
+    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,rewards_info,txn));
 
 
     rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
@@ -71,7 +73,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_EQ(global_info.total_reward, total_reward);
     ASSERT_EQ(global_info.remaining_reward, total_reward-(harvest_amount+harvest_amount));
 
-    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,rewards_info.remaining_reward,txn));
+    rewards_mgr.HarvestGlobalReward(epoch_num,rewards_info.remaining_reward,global_info,txn);
+    ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,rewards_info.remaining_reward,rewards_info,txn));
 
     logos::mdb_val val;
     auto key = rewards_mgr.MakeKey(rep,epoch_num);
