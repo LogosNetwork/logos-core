@@ -2,9 +2,9 @@
 
 namespace logos {
 
-BlockCache::BlockCache(Store &store)
+BlockCache::BlockCache(Store &store, bool unit_test)
     : store_(store)
-    , write_q(store)
+    , write_q(store, unit_test)
     , block_container(write_q)
 {
 }

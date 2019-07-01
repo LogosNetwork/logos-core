@@ -78,7 +78,7 @@ public:
      * constructor
      * @param store the database
      */
-    BlockCache(Store &store);
+    BlockCache(Store &store, bool unit_test = false);
 
     /**
      * (inherited) add an epoch block to the cache
