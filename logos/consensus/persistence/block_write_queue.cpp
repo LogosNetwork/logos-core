@@ -3,25 +3,29 @@
 namespace logos
 {
 
-BlockWriteQueue::BlockWriteQueue(Store &store)
+BlockWriteQueue::BlockWriteQueue(Store &store, bool unit_test_)
     : eb_handler(store)
     , mb_handler(store)
     , rb_handler(store)
+    , unit_test(unit_test_)
 {
 }
 
 bool BlockWriteQueue::VerifyAggSignature(EBPtr block)
 {
+    if (unit_test) return true;
     return eb_handler.VerifyAggSignature(*block);
 }
 
 bool BlockWriteQueue::VerifyAggSignature(MBPtr block)
 {
+    if (unit_test) return true;
     return mb_handler.VerifyAggSignature(*block);
 }
 
 bool BlockWriteQueue::VerifyAggSignature(RBPtr block)
 {
+    if (unit_test) return true;
     return rb_handler.VerifyAggSignature(*block);
 }
 

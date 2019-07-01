@@ -442,6 +442,7 @@ if (LOGOS_TEST)
             logos/unit_test/main.cpp
             logos/unit_test/account_serialization.cpp
             logos/unit_test/bootstrap.cpp
+            logos/unit_test/block_cache.cpp
             logos/unit_test/consensus_msg_serialize.cpp
             logos/unit_test/msg_validator_setup.cpp
             logos/unit_test/dual_RB_tips.cpp
