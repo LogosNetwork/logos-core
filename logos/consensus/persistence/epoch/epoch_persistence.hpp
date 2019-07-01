@@ -65,4 +65,5 @@ public:
     void UpdateThawing(ApprovedEB const & block, MDB_txn* txn);
 
     void ApplyRewards(const ApprovedEB & block, const BlockHash & hash, MDB_txn* txn);
+    void UpdateGlobalRewards(const ApprovedEB & block, MDB_txn* txn);
 };

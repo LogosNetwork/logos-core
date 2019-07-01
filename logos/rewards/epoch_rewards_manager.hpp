@@ -68,7 +68,14 @@ public:
             AccountAddress const & rep_address,
             uint32_t const & epoch_number,
             Amount const & harvest_amount,
+            EpochRewardsInfo & info,
             MDB_txn* txn);
+
+    void HarvestGlobalReward(
+        uint32_t const & epoch,
+        Amount const & to_subtract,
+        GlobalEpochRewardsInfo global_info,
+        MDB_txn* txn);
 
     EpochRewardsInfo GetEpochRewardsInfo(
             AccountAddress const & rep_address,
@@ -79,7 +86,6 @@ public:
         AccountAddress const & rep_address,
         uint32_t const & epoch_number,
         MDB_txn* txn);
-
 
     EpochRewardsInfo GetEpochRewardsInfo(Key & key,
                                          MDB_txn * txn);
@@ -110,11 +116,6 @@ private:
     void AddGlobalTotalReward(
             uint32_t const & epoch,
             Amount const & to_add,
-            MDB_txn* txn);
-
-    void SubtractGlobalRemainingReward(
-            uint32_t const & epoch,
-            Amount const & to_subtract,
             MDB_txn* txn);
 
     BlockStore & _store;

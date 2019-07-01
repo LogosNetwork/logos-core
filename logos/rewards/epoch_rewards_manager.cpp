@@ -124,6 +124,7 @@ bool EpochRewardsManager::HarvestReward(
         AccountAddress const & rep_address,
         uint32_t const & epoch_number,
         Amount const & harvest_amount,
+        EpochRewardsInfo & info,
         MDB_txn* txn)
 {
     if(!txn)
@@ -136,8 +137,6 @@ bool EpochRewardsManager::HarvestReward(
     LOG_INFO(_log) << "EpochRewardsManager::SetTotalReward - key is " 
                    << ToString(key);
 
-    EpochRewardsInfo info = GetEpochRewardsInfo(key,txn);
-
     if(harvest_amount > info.remaining_reward)
     {
         LOG_ERROR(_log) << "EpochRewardsManager::HarvestReward - "
@@ -145,7 +144,6 @@ bool EpochRewardsManager::HarvestReward(
         return true;
     }
     info.remaining_reward -= harvest_amount;
-
 
     if(info.remaining_reward > 0)
     {
@@ -162,8 +160,35 @@ bool EpochRewardsManager::HarvestReward(
                 logos::mdb_val(key.size(),key.data()),
                 txn);
     }
-    SubtractGlobalRemainingReward(epoch_number,harvest_amount,txn);
-    return false;   
+
+    return false;
+}
+
+void EpochRewardsManager::HarvestGlobalReward(
+    uint32_t const & epoch,
+    Amount const & to_subtract,
+    GlobalEpochRewardsInfo global_info,
+    MDB_txn* txn)
+{
+    auto key = logos::mdb_val(
+        sizeof(epoch),
+        const_cast<uint32_t *>(&epoch));
+
+    if(to_subtract > global_info.remaining_reward)
+    {
+        LOG_FATAL(_log) << "EpochRewardsManager::SubtractGlobalRemainingReward -"
+                        << "to_subtract is greater than remaining reward";
+        trace_and_halt();
+    }
+    global_info.remaining_reward -= to_subtract;
+    if(global_info.remaining_reward > 0)
+    {
+        _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
+    }
+    else
+    {
+        _store.del(_store.global_epoch_rewards_db,key,txn);
+    }
 }
 
 EpochRewardsInfo EpochRewardsManager::GetEpochRewardsInfo(
@@ -303,31 +328,4 @@ void EpochRewardsManager::AddGlobalTotalReward(
     global_info.remaining_reward += to_add;
     _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
 
-}
-
-void EpochRewardsManager::SubtractGlobalRemainingReward(
-        uint32_t const & epoch,
-        Amount const & to_subtract,
-        MDB_txn* txn)
-{
-    auto key = logos::mdb_val(
-            sizeof(epoch),
-            const_cast<uint32_t *>(&epoch));
-
-    GlobalEpochRewardsInfo global_info(GetGlobalEpochRewardsInfo(epoch, txn));
-    if(to_subtract > global_info.remaining_reward)
-    {
-        LOG_FATAL(_log) << "EpochRewardsManager::SubtractGlobalRemainingReward -"
-            << "to_subtract is greater than remaining reward";
-        trace_and_halt();
-    }
-    global_info.remaining_reward -= to_subtract;
-    if(global_info.remaining_reward > 0)
-    {
-        _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
-    }
-    else
-    {
-        _store.del(_store.global_epoch_rewards_db,key,txn);
-    }
 }

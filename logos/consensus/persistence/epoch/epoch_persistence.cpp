@@ -125,22 +125,9 @@ PersistenceManager<ECT>::ApplyUpdates(
         if(block.transaction_fee_pool > 0)
         {
             ApplyRewards(block, epoch_hash, transaction);
-
-            ApprovedEB previous;
-
-            if(_store.epoch_get(block.previous, previous, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to retrieve epoch with hash "
-                                << block.previous.to_string();
-                trace_and_halt();
-            }
-
-            Amount new_logos = block.total_supply - previous.total_supply;
-
-            EpochRewardsManager::GetInstance()->SetTotalGlobalReward(block.epoch_number,
-                                                                     new_logos,
-                                                                     transaction);
         }
+
+        UpdateGlobalRewards(block, transaction);
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
@@ -490,5 +477,28 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
         }
 
         PlaceReceive(receive, block.timestamp, txn);
+    }
+}
+
+void PersistenceManager<ECT>::UpdateGlobalRewards(const ApprovedEB & block, MDB_txn * txn)
+{
+    auto reward_manager = EpochRewardsManager::GetInstance();
+
+    if(reward_manager->GlobalRewardsAvailable(block.epoch_number, txn))
+    {
+        ApprovedEB previous;
+
+        if(_store.epoch_get(block.previous, previous, txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::UpdateGlobalRewards failed to retrieve epoch with hash "
+                            << block.previous.to_string();
+            trace_and_halt();
+        }
+
+        Amount new_logos = block.total_supply - previous.total_supply;
+
+        reward_manager->SetTotalGlobalReward(block.epoch_number,
+                                             new_logos,
+                                             txn);
     }
 }

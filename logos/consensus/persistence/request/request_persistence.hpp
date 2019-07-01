@@ -205,6 +205,18 @@ private:
 
     template<typename AmountType>
     void ApplySend(
+        const Transaction<AmountType> &send,
+        uint64_t timestamp,
+        MDB_txn *transaction,
+        const BlockHash &request_hash,
+        const BlockHash &token_id,
+        const AccountAddress& origin,
+        uint32_t const & epoch_num,
+        std::shared_ptr<logos::Account> info,
+        uint16_t transaction_index = 0);
+
+    template<typename AmountType>
+    void ApplySend(
             const Transaction<AmountType> &send,
             uint64_t timestamp,
             MDB_txn *transaction,

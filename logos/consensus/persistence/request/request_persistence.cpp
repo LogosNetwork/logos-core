@@ -1417,7 +1417,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       request->GetHash(),
                       {0},
                       request->origin,
-                      cur_epoch_num);
+                      cur_epoch_num,
+                      info);
 
             break;
         }
@@ -1472,11 +1473,9 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       const BlockHash &token_id,
                                       const AccountAddress& origin,
                                       uint32_t const & epoch_num,
+                                      std::shared_ptr<logos::Account> info,
                                       uint16_t transaction_index)
 {
-    std::shared_ptr<logos::Account> info;
-    auto account_error(_store.account_get(send.destination, info, transaction));
-
     ReceiveBlock receive(
         /* Previous          */ info ? info->receive_head : 0,
         /* send_hash         */ request_hash,
@@ -1486,7 +1485,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     auto hash(receive.Hash());
 
     // Destination account doesn't exist yet
-    if(account_error)
+    if(!info)
     {
         info.reset(new logos::account_info);
         static_pointer_cast<logos::account_info>(info)->open_block = hash;
@@ -1495,14 +1494,14 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         if(_store.account_get(origin, origin_account_info, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
-                << "failed to get origin account";
+                            << "failed to get origin account";
             trace_and_halt();
         }
         if(origin_account_info->type == logos::AccountType::LogosAccount)
         {
             //set rep of destination account to same as sending accounts rep
             auto info_c = static_pointer_cast<logos::account_info>(info);
-            auto origin_info_c = 
+            auto origin_info_c =
                 static_pointer_cast<logos::account_info>(origin_account_info);
             info_c->governance_subchain_head
                 =  origin_info_c->governance_subchain_head;
@@ -1512,7 +1511,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         else
         {
             LOG_WARN(_log) << "PersistenceManager::ApplySend - "
-                << "creating new account with no rep";
+                           << "creating new account with no rep";
         }
         LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
                         << "new account: "
@@ -1582,6 +1581,36 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         entry->balance += send.amount;
     }
 
+    PlaceReceive(receive, timestamp, transaction);
+}
+
+template<typename AmountType>
+void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
+                                      uint64_t timestamp,
+                                      MDB_txn *transaction,
+                                      const BlockHash &request_hash,
+                                      const BlockHash &token_id,
+                                      const AccountAddress& origin,
+                                      uint32_t const & epoch_num,
+                                      uint16_t transaction_index)
+{
+    std::shared_ptr<logos::Account> info;
+
+    if(_store.account_get(send.destination, info, transaction))
+    {
+        info.reset();
+    }
+
+    ApplySend(send,
+              timestamp,
+              transaction,
+              request_hash,
+              token_id,
+              origin,
+              epoch_num,
+              info,
+              transaction_index);
+
     if(_store.account_put(send.destination, info, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
@@ -1590,8 +1619,6 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
 
         std::exit(EXIT_FAILURE);
     }
-
-    PlaceReceive(receive, timestamp, transaction);
 }
 
 void PersistenceManager<R>::ApplyRequest(
@@ -2676,7 +2703,7 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
     auto calculate_portion  = [](const auto & stake, const auto & total_stake, const auto & pool)
     {
         Float100 ratio = Float100{stake} / Float100{total_stake};
-        Float100 flr = floor(ratio * Float100{pool});
+        Float100 flr = ceil(ratio * Float100{pool});
 
         return flr.convert_to<uint128_t>();
     };
@@ -2695,11 +2722,10 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
             value = info.remaining_reward.number();
         }
 
-        info.remaining_reward -= value;
-
-        return info.remaining_reward.number() == 0;
+        return value > 0;
     };
 
+    std::shared_ptr<Request> current_request;
     BlockHash current_hash = info.governance_subchain_head;
     uint32_t peak = claim->epoch_number;
 
@@ -2709,11 +2735,14 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
     Amount sum = 0;
 
-    // The main loop for processing the claim request.
-    while(!current_hash.is_zero() && peak > info.claim_epoch)
+    auto advance_chain = [&]()
     {
-        std::shared_ptr<Request> current_request;
+        current_hash = dynamic_pointer_cast<Governance>(current_request)->governance_subchain_prev;
+    };
 
+    // The main loop for processing the claim request.
+    for(; !current_hash.is_zero() && peak > info.claim_epoch; advance_chain())
+    {
         if(_store.request_get(current_hash, current_request, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
@@ -2722,12 +2751,13 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
             trace_and_halt();
         }
 
-        // This request may determine how to harvest
-        // rewards in epoch base + 1;
         auto base = GetEpochNum(current_request);
 
+        // This request may determine how to harvest
+        // rewards in epoch base + 1;
         if(base < peak)
         {
+
             // Update the state of the account to determine
             // how to harvest rewards for epochs in the range
             // [base + 1, peak].
@@ -2760,8 +2790,15 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                 case RequestType::StopRepresenting:
                     is_rep = false;
                     break;
+                case RequestType::Stake:
+                case RequestType::Unstake:
+                case RequestType::ElectionVote:
+                case RequestType::RenounceCandidacy:
+                    continue;
                 default:
-                    break;
+                    LOG_FATAL(_log) << "Unexpected message type encountered in governance subchain:"
+                                    << GetRequestTypeField(current_request->type);
+                    trace_and_halt();
             }
 
             bool has_rep = !current_rep.is_zero();
@@ -2828,15 +2865,19 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                                                                   global_info.total_stake.number(),
                                                                   global_info.total_reward.number());
 
-                                // There are no global rewards remaining
-                                // for this epoch.
                                 if(adjust_remaining(rep_pool, global_info))
                                 {
-                                    rewards_manager->RemoveGlobalRewards(epoch, transaction);
+                                    rewards_manager->HarvestGlobalReward(epoch,
+                                                                         rep_pool,
+                                                                         global_info,
+                                                                         transaction);
                                 }
 
                                 rep_info.total_reward = rep_pool;
+                                rep_info.remaining_reward = rep_pool;
                             }
+
+                            rep_info.initialized = true;
                         }
 
                         auto self_stake = [&]()
@@ -2872,9 +2913,11 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
                         if(adjust_remaining(reward, rep_info))
                         {
-                            rewards_manager->RemoveEpochRewardsInfo(rep_address(),
-                                                                    epoch,
-                                                                    transaction);
+                            rewards_manager->HarvestReward(rep_address(),
+                                                           epoch,
+                                                           reward,
+                                                           rep_info,
+                                                           transaction);
                         }
 
                         // Finally, update the sum with the
@@ -2886,8 +2929,6 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
             peak = base;
         }
-
-        current_hash = dynamic_pointer_cast<Governance>(current_request)->governance_subchain_prev;
     }
 
     return sum;
@@ -2914,7 +2955,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(request.epoch_number != eb.sequence)
+    if(request.epoch_number != eb.epoch_number)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
