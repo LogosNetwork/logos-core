@@ -473,11 +473,29 @@ TEST (Rewards, Claim_Processing)
         ASSERT_EQ(balance_diff, pool_diff.number());
     }
 
+    Amount sum = 0;
+    Amount account_balance = info.GetAvailableBalance();
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+
+        for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
+        {
+            auto rep_rewards = erm->GetEpochRewardsInfo(rep, e, txn);
+
+            sum += rep_rewards.remaining_reward;
+        }
+        sum -= claim.fee;
+    }
+
     claim.origin = account;
     ASSERT_TRUE(validate(claim));
     apply(claim);
 
     update_info();
+
+    Amount balance_diff = info.GetAvailableBalance() - account_balance;
+    ASSERT_EQ(sum, balance_diff);
 
     {
         logos::transaction txn(store->environment,nullptr,true);
