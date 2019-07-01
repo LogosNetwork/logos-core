@@ -80,6 +80,8 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
             PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
             _post_prepare_hash = response.ComputeHash();
             AdvanceState(ConsensusState::POST_PREPARE);
+            LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Prepare) - APPROVED"
+                << "-hash=" << _pre_prepare_hash.to_string();
             // At this point any incoming Prepare messages will still get ignored because of state mismatch
             Send<PostPrepareMessage<C>>(response);
 
@@ -92,6 +94,8 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
             break;
         }
         case ProceedAction::DO_NOTHING :
+            LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Prepare) - DO_NOTHING"
+                << "hash=" << _pre_prepare_hash.to_string();
             break;
     }
 }
@@ -108,6 +112,13 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t r
         AdvanceState(ConsensusState::POST_COMMIT);
         // At this point, old messages will be ignored for not being in correct state
         OnConsensusReached();
+        LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Commit) - APPROVED"
+            << "-hash=" << _pre_prepare_hash.to_string();
+    }
+    else
+    {
+        LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Commit) - DO_NOTHING"
+            << "hash=" << _pre_prepare_hash.to_string();
     }
 }
 
@@ -346,6 +357,8 @@ void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const
 
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
+    LOG_INFO(_log) << "PrimaryDelegate::ReachedQuorum - _vote_quorum=" << _vote_quorum
+        << "-_stake_quorum=" << _stake_quorum << "vote=" << vote << ",stake=" << stake;
     return (vote >= _vote_quorum) && (stake >= _stake_quorum);
 }
 
@@ -376,6 +389,13 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
 
         return ProceedAction::DO_NOTHING;
     }
+
+    LOG_INFO(_log) << "PrimaryDelegate - Received "
+        << MessageToName(message)
+        << " message while in "
+        << StateToString(_state)
+        << ", message pre_prepare hash: " << message.preprepare_hash.to_string()
+        << ", internal pre_prepare hash: " << _pre_prepare_hash.to_string();
 
     if(_state != expected_state || message.preprepare_hash != _pre_prepare_hash)
     {
@@ -408,6 +428,8 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
     // ReachedQuorum returns true iff the whole Block gets enough vote + stake
     if(message.type != MessageType::Rejection && ReachedQuorum())
     {
+        LOG_INFO(_log) << "PrimaryDelegate::ProceedAction-Quorum is reached! _pre_prepare_hash=" 
+            << _pre_prepare_hash.to_string() << "ConsensusState=" << StateToString(_state);
         bool sig_aggregated = false;
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
@@ -448,6 +470,11 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         _state_changing = true;
         return ProceedAction::REJECTED;
     }
+
+
+    LOG_INFO(_log) << "PrimaryDelegate::ProceedAction-Quorum not reached! _pre_prepare_hash=" 
+        << _pre_prepare_hash.to_string() << "ConsensusState=" << StateToString(_state);
+    
     // Then either
     // 1) a standard phase message came in but we haven't reached quorum yet, or
     // 2a) a rejection message came in but hasn't cleared all of the BSB's txns hashes or
