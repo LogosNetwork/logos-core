@@ -2696,35 +2696,6 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                                            logos::account_info & info,
                                            MDB_txn * transaction)
 {
-    // Used to calculate the portion of the global reward pool
-    // earned by a representative, or the portion of a
-    // representative's reward pool earned by the representative
-    // itself, or a locked proxy account.
-    auto calculate_portion  = [](const auto & stake, const auto & total_stake, const auto & pool)
-    {
-        Float100 ratio = Float100{stake} / Float100{total_stake};
-        Float100 flr = ceil(ratio * Float100{pool});
-
-        return flr.convert_to<uint128_t>();
-    };
-
-    // Used to adjust the remaining reward for global and
-    // representative reward pools.
-    auto adjust_remaining = [](auto & value, auto & info)
-    {
-        if(value == 0)
-        {
-            value = 1;
-        }
-
-        if(value > info.remaining_reward.number())
-        {
-            value = info.remaining_reward.number();
-        }
-
-        return value > 0;
-    };
-
     std::shared_ptr<Request> current_request;
     BlockHash current_hash = info.governance_subchain_head;
     uint32_t peak = claim->epoch_number;
@@ -2861,11 +2832,11 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                                 auto global_info = rewards_manager->GetGlobalEpochRewardsInfo(epoch,
                                                                                               transaction);
 
-                                auto rep_pool = calculate_portion(rep_info.total_stake.number(),
-                                                                  global_info.total_stake.number(),
-                                                                  global_info.total_reward.number());
+                                auto rep_pool = CalculatePortion(rep_info.total_stake.number(),
+                                                                 global_info.total_stake.number(),
+                                                                 global_info.total_reward.number());
 
-                                if(adjust_remaining(rep_pool, global_info))
+                                if(AdjustRemaining(rep_pool, global_info.remaining_reward.number()))
                                 {
                                     rewards_manager->HarvestGlobalReward(epoch,
                                                                          rep_pool,
@@ -2890,9 +2861,9 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                             return staked.number();
                         };
 
-                        auto reward = calculate_portion(self_stake(),
-                                                        rep_info.total_stake.number(),
-                                                        rep_info.total_reward.number());
+                        auto reward = CalculatePortion(self_stake(),
+                                                       rep_info.total_stake.number(),
+                                                       rep_info.total_reward.number());
 
                         // The rep is not entitled to all the rewards,
                         // and its earnings are trimmed per the
@@ -2911,7 +2882,7 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                             reward = floor(scaled_reward).convert_to<uint128_t>();
                         }
 
-                        if(adjust_remaining(reward, rep_info))
+                        if(AdjustRemaining(reward, rep_info.remaining_reward.number()))
                         {
                             rewards_manager->HarvestReward(rep_address(),
                                                            epoch,

@@ -427,12 +427,9 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
 
         if(i < NUM_DELEGATES - 1)
         {
-            // TODO: refactor with lamba from request persistence
-            //
-            Float100 ratio = Float100{d.raw_stake.number()} / Float100{total_stake.number()};
-            Float100 fl = floor(ratio * Float100{fee_pool.number()});
-
-            reward = fl.convert_to<logos::uint128_t>();
+            reward = CalculatePortion(d.raw_stake.number(),
+                                      total_stake.number(),
+                                      fee_pool.number());
 
             if(reward > remaining_pool)
             {

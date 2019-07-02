@@ -28,6 +28,23 @@ extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool t=true)
 
 extern void init_ecies(ECIESPublicKey &ecies);
 
+static Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term)
+{
+    ECIESPublicKey ecies;
+    init_ecies(ecies);
+    bls::PublicKey bls_key;
+    stringstream str("1 0x16d73fc6647d0f9c6c50ec2cae8a04f20e82bee1d91ad3f7e3b3db8008db64ba "
+                     "0x17012477a44243795807c462a7cce92dc71d1626952cae8d78c6be6bd7c2bae4 "
+                     "0x13ef6f7873bc4a78feae40e9a25396a0f0a52fbb28c3d38b4bf50e18c48632c "
+                     "0x7390eee94c740350098a653d57c1705b24470434709a92f624589dc8537429d");
+    str >> bls_key;
+    std::string s;
+    bls_key.serialize(s);
+    DelegatePubKey pub;
+    memcpy(pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
+    return {account, pub, ecies, vote, stake, starting_term};
+}
+
 struct RequestMeta
 {
     BlockHash governance_subchain;
@@ -514,7 +531,7 @@ TEST (Rewards, Claim_Processing_1)
     }
 }
 
-TEST(Staking, Claim_Processing_2)
+TEST(Rewards, Claim_Processing_2)
 {
     /*
      * This test creates many accounts, all of which proxy to the same rep
@@ -889,6 +906,351 @@ TEST(Staking, Claim_Processing_2)
         ASSERT_FALSE(erm->HasRewards(rep, epoch_num - 1, txn));
         ASSERT_FALSE(erm->HasRewards(rep + 1, epoch_num - 1, txn));
     }
+}
+
+TEST(Rewards, Delegate_Rewards)
+{
+    logos::block_store* store = get_db();
+    clear_dbs();
+    DelegateIdentityManager::EpochTransitionEnable(true);
+
+    EpochVotingManager::ENABLE_ELECTIONS = true;
+
+    uint32_t epoch_num = 1;
+    auto block = create_eb_preprepare(false);
+    AggSignature sig;
+    ApprovedEB eb(block, sig, sig);
+    eb.epoch_number = epoch_num-1;
+    eb.previous = 0;
+    EpochVotingManager voting_mgr(*store);
+    PersistenceManager<ECT> persistence_mgr(*store,nullptr);
+    std::vector<Delegate> delegates;
+    //This is set large so that way every delegate stays under the cap
+    //and votes are not redistributed
+    auto base_vote = 100000;
+    for(size_t i = 0; i < 32; ++i)
+    {
+
+        logos::transaction txn(store->environment, nullptr, true);
+
+        Delegate d(init_delegate(i,base_vote+i,i==0?1:i,i));
+        d.starting_term = true;
+        eb.delegates[i] = d;
+        delegates.push_back(d);
+
+        RepInfo rep;
+
+        AnnounceCandidacy announce;
+        init_ecies(announce.ecies_key);
+        announce.origin = i;
+        announce.bls_key = d.bls_pub;
+        announce.stake = i == 0 ? 1 : i;
+        rep.candidacy_action_tip = announce.Hash();
+        store->request_put(announce,txn);
+        VotingPowerManager::GetInstance()->AddSelfStake(i,i==0?1:i,epoch_num,txn);
+
+        StartRepresenting start_rep;
+        start_rep.origin = i;
+        rep.rep_action_tip = start_rep.Hash();
+        store->request_put(start_rep,txn);
+
+        store->rep_put(i,rep,txn);
+    }
+
+    std::reverse(delegates.begin(),delegates.end());
+    std::reverse(std::begin(eb.delegates),std::end(eb.delegates));
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
+        ASSERT_FALSE(store->epoch_put(eb,txn));
+    }
+
+    EpochVotingManager::START_ELECTIONS_EPOCH = 4;
+
+    auto transition_epoch = [&](int retire_idx = -1)
+    {
+        ++epoch_num;
+        std::cout << "transitioning to epoch number " << epoch_num << std::endl;
+        eb.previous = eb.Hash();
+        eb.epoch_number = epoch_num-1;
+        logos::transaction txn(store->environment,nullptr,true);
+        eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
+        ASSERT_FALSE(store->epoch_put(eb,txn));
+        persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
+
+    };
+
+    auto compare_delegates = [&]()
+    {
+
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 32; ++i)
+        {
+            ASSERT_EQ(eb.delegates[i].account,delegates[i].account);
+            if(eb.delegates[i].stake != delegates[i].stake)
+            {
+                VotingPowerInfo vp_info;
+                VotingPowerManager::GetInstance()->GetVotingPowerInfo(
+                    delegates[i].account,
+                    eb.epoch_number+1,
+                    vp_info,
+                    txn);
+
+                std::cout << "epoch num = " << eb.epoch_number+1
+                          << " i = " << i
+                          << " delegate stake = " << delegates[i].stake.number()
+                          << " eb delegate stake = " << eb.delegates[i].stake.number()
+                          << " voting power mgr stake = "
+                          << vp_info.current.self_stake.number()
+                          << std::endl;
+                trace_and_halt();
+            }
+
+            ASSERT_EQ(eb.delegates[i].stake,delegates[i].stake);
+
+            ASSERT_EQ(eb.delegates[i].bls_pub,delegates[i].bls_pub);
+
+            ASSERT_EQ(eb.delegates[i].vote,delegates[i].vote);
+
+            ASSERT_EQ(eb.delegates[i].starting_term,delegates[i].starting_term);
+            ASSERT_EQ(eb.delegates[i],delegates[i]);
+        }
+    };
+
+    auto get_candidates = [&store]() -> std::vector<CandidateInfo>
+    {
+        std::vector<CandidateInfo> results;
+        logos::transaction txn(store->environment,nullptr,false);
+        for(auto it = logos::store_iterator(txn, store->candidacy_db);
+            it != logos::store_iterator(nullptr); ++it)
+        {
+            bool error = false;
+            CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
+            assert(!error);
+            results.push_back(info);
+        }
+        return results;
+    };
+
+    compare_delegates();
+
+    transition_epoch();
+
+    for(size_t i = 0; i < 32; ++i)
+    {
+        delegates[i].starting_term = false;
+    }
+
+
+    compare_delegates();
+
+    transition_epoch();
+
+    compare_delegates();
+
+    transition_epoch();
+
+    compare_delegates();
+
+
+    auto candidates = get_candidates();
+
+    ASSERT_EQ(candidates.size(),delegates.size());
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 8; ++i)
+        {
+            auto new_vote = delegates[i].vote+100;
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
+            delegates[i].vote = new_vote;
+            delegates[i].starting_term = true;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+            return d1.vote > d2.vote;
+        });
+    }
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),24);
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 8; i < 16; ++i)
+        {
+            auto new_vote = delegates[i].vote+200;
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
+            delegates[i].vote = new_vote;
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 0; i < 8; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+            return d1.vote > d2.vote;
+        });
+    }
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),16);
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 16; i < 24; ++i)
+        {
+            auto new_vote = delegates[i].vote+300;
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
+            delegates[i].vote = new_vote;
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 0; i < 8; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+            return d1.vote > d2.vote;
+        });
+    }
+
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),8);
+
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 24; i < 32; ++i)
+        {
+            auto new_vote = delegates[i].vote+400;
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
+            delegates[i].vote = new_vote;
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 0; i < 8; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+            return d1.vote > d2.vote;
+        });
+    }
+
+    transition_epoch(0);
+    compare_delegates();
+
+
+
+    std::cout << "starting long loop ********************"
+              << "epoch_num = " << epoch_num << std::endl;
+
+    for(size_t e = 0; e < 50; ++e)
+    {
+        candidates = get_candidates();
+        ASSERT_EQ(candidates.size(),8);
+        ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1).size(),8);
+        {
+            logos::transaction txn(store->environment,nullptr,true);
+            for(size_t i = 24; i < 32; ++i)
+            {
+                auto new_vote = delegates[i].vote + 500;
+                ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn));
+                delegates[i].raw_vote = new_vote;
+                delegates[i].vote = new_vote;
+                delegates[i].starting_term = true;
+            }
+            for(size_t i = 0; i < 8; ++i)
+            {
+                delegates[i].starting_term = false;
+            }
+            std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                return d1.vote > d2.vote;
+            });
+        }
+        transition_epoch();
+        compare_delegates();
+    }
+
+    std::cout << "finished normal case ****************" << std::endl;
+
+
+    //Test extension of delegate term
+
+    ASSERT_FALSE(eb.is_extension);
+    std::unordered_set<Delegate> retiring = voting_mgr.GetRetiringDelegates(epoch_num+1);
+    ApprovedEB retiring_eb(block, sig, sig);
+    store->epoch_get_n(3, retiring_eb,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+
+    ApprovedEB eb2(block, sig, sig);
+    store->epoch_get_n(0, eb2);
+    ASSERT_TRUE(eb2.is_extension);
+    for(size_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        delegates[i].starting_term = false;
+    }
+
+    ApprovedEB retiring_eb2(block, sig, sig);
+    store->epoch_get_n(3, retiring_eb2,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
+    ASSERT_EQ(retiring_eb.epoch_number,retiring_eb2.epoch_number);
+
+    compare_delegates();
+
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1),retiring);
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1), retiring);
+    compare_delegates();
+
+
+    //not enough votes
+    for(size_t i = 24; i <28 ; ++i)
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+    }
+
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1), retiring);
+
+
+    for(size_t i = 24; i < 32; ++i)
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].raw_vote += 500;
+        delegates[i].vote += 500;
+        delegates[i].starting_term = true;
+    }
+    std::sort(delegates.begin(), delegates.end(),[](auto d1, auto d2)
+    {
+        return d1.vote > d2.vote;
+    });
+    transition_epoch();
+    ASSERT_FALSE(eb.is_extension);
+    compare_delegates();
+
+    //make sure proper candidates were added for reelection
+    for(size_t i = 24; i < 32; ++i)
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].raw_vote += 500;
+        delegates[i].vote += 500;
+        delegates[i].starting_term = true;
+    }
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
 }
 
 #endif // #ifdef Unit_Test_Rewards

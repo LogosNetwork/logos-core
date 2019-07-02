@@ -53,6 +53,31 @@ public:
 
 protected:
 
+    static logos::uint128_t CalculatePortion(const logos::uint128_t stake,
+                                             const logos::uint128_t total_stake,
+                                             const logos::uint128_t pool)
+    {
+        Float100 ratio = Float100{stake} / Float100{total_stake};
+        Float100 flr = ceil(ratio * Float100{pool});
+
+        return flr.convert_to<logos::uint128_t>();
+    }
+
+    static bool AdjustRemaining(logos::uint128_t & value, logos::uint128_t remaining)
+    {
+        if(value == 0)
+        {
+            value = 1;
+        }
+
+        if(value > remaining)
+        {
+            value = remaining;
+        }
+
+        return value > 0;
+    }
+
     bool ValidateTimestamp(uint64_t timestamp)
     {
         auto now = GetStamp();
