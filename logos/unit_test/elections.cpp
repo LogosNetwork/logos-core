@@ -1681,6 +1681,7 @@ TEST(Elections, apply)
         req_persistence_mgr.ApplyRequest(ev, account_info, txn);
     }
 
+
     std::unordered_map<AccountAddress,Amount> election_results;
     {
         logos::transaction txn(store->environment,nullptr,true);
