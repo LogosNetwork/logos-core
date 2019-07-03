@@ -150,19 +150,20 @@ void RequestMessageHandler::MoveToTarget(RequestInternalQueue & queue, size_t si
     queue.PushBack(std::shared_ptr<Request>(new Request()));
 }
 
-void MicroBlockMessageHandler::GetQueuedSequence(uint32_t & mb_seq, uint32_t & eb_num)
+bool MicroBlockMessageHandler::GetQueuedSequence(EpochSeq & epoch_seq)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto & sequence = _entries. template get<0>();
     auto it = sequence.end();
     if (it == sequence.begin())
     {
-        mb_seq = 0;
-        eb_num = 0;
-        return;
+        epoch_seq.first = 0;
+        epoch_seq.second = 0;
+        return false;
     }
     // get last element
     it--;
-    mb_seq = it->block->sequence;
-    eb_num = it->block->epoch_number;
+    epoch_seq.first = it->block->epoch_number;
+    epoch_seq.second = it->block->sequence;
+    return true;
 }

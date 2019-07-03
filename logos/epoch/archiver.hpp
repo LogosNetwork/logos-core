@@ -78,9 +78,19 @@ private:
     /// @param store reference to block store
     bool IsFirstMicroBlock(BlockStore &store);
 
+    /// Archive MicroBlock, if a new one should be built
+    /// This method is passed to EventProposer as a scheduled action
+    /// @param internal consensus interface reference
+    void ArchiveMB(InternalConsensus &);
+
+    /// Should we skip building a new MB?
+    /// This method is called by ArchiveMB
+    /// @return true if we should skip build and proposal, either because we are behind
+    /// or an ongoing MB consensus session is not finished
+    bool ShouldSkipMBBuild();
+
     bool                       _first_epoch;
-    uint32_t                   _mb_seq;         ///< indicates the most recently BUILT MB sequence number
-    uint32_t                   _eb_num;         ///< indicates the most recently BUILT MB epoch number
+    EpochSeq                   _counter;        ///< indicates the most recently BUILT MB's <epoch number, sequence number>
     EpochVotingManager         _voting_manager;
     EventProposer              _event_proposer;
     MicroBlockHandler          _micro_block_handler;
@@ -89,4 +99,6 @@ private:
     IRecallHandler &           _recall_handler;
     logos::block_store &       _store;
     Log                        _log;
+
+    friend class Archival_ShouldSkipMBProposal_Test;
 };

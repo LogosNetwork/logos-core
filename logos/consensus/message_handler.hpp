@@ -139,11 +139,13 @@ public:
 class MicroBlockMessageHandler : public MessageHandler<ConsensusType::MicroBlock>
 {
 public:
-    /// Fetchs the most recently queued message's sequence and epoch numbers
+    /// Fetches the most recently queued message's sequence and epoch numbers
+    /// This function is called by Archiver to ascertain the latest MB epoch + sequence numbers in queue, if any exists
     ///
     /// @param[in] reference to sequence number to write to, set to 0 if queue is empty
     /// @param[in] reference to epoch number to write to, set to 0 if queue is empty
-    void GetQueuedSequence(uint32_t &, uint32_t &);
+    /// @return true if queue contains content, false if queue is empty
+    bool GetQueuedSequence(EpochSeq &);
 
     /// Instantiates a static singleton of MicroBlockMessageHandler, if one doesn't exist, and return its reference
     static MicroBlockMessageHandler & GetMessageHandler()

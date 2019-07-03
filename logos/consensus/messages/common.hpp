@@ -79,6 +79,7 @@ static const size_t CONSENSUS_BATCH_SIZE = 1500;
 using BatchTipHashes  = BlockHash[NUM_DELEGATES];
 using ParicipationMap = std::bitset<NUM_DELEGATES>;
 using RejectionMap    = std::vector<bool>;
+using EpochSeq        = std::pair<uint32_t, uint32_t>;
 
 inline uint64_t GetStamp()
 {
