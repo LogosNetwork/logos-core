@@ -155,8 +155,8 @@ public:
         }
     };
 
-    PendingBlockContainer(BlockWriteQueue &write_q_)
-        : write_q(write_q_)
+    PendingBlockContainer(BlockWriteQueue &write_q)
+        : _write_q(write_q)
     {
     }
 
@@ -187,16 +187,16 @@ private:
     bool DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains);
     void MarkForRevalidation(std::list<ChainPtr> &chains);
 
-    BlockWriteQueue &                               write_q;
-    std::list<EpochPeriod>                          epochs;
-    std::unordered_set<BlockHash>                   cached_blocks;
-    std::multimap<BlockHash, ChainPtr>              hash_dependency_table;
-    std::multimap<AccountAddress, ChainPtr>         account_dependency_table;
-    std::mutex                                      chains_mutex;
-    std::mutex                                      cache_blocks_mutex;
-    std::mutex                                      hash_dependency_table_mutex;
-    std::mutex                                      account_dependency_table_mutex;
-    Log                                             log;
+    BlockWriteQueue &                               _write_q;
+    std::list<EpochPeriod>                          _epochs;
+    std::unordered_set<BlockHash>                   _cached_blocks;
+    std::multimap<BlockHash, ChainPtr>              _hash_dependency_table;
+    std::multimap<AccountAddress, ChainPtr>         _account_dependency_table;
+    std::mutex                                      _chains_mutex;
+    std::mutex                                      _cache_blocks_mutex;
+    std::mutex                                      _hash_dependency_table_mutex;
+    std::mutex                                      _account_dependency_table_mutex;
+    Log                                             _log;
 };
 
 }
