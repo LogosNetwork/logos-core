@@ -78,7 +78,7 @@ public:
      * constructor
      * @param store the database
      */
-    BlockCache(Store &store, bool unit_test = false);
+    BlockCache(Store &store, std::queue<BlockHash> *unit_test_q = 0);
 
     /**
      * (inherited) add an epoch block to the cache
@@ -122,11 +122,11 @@ private:
      */
     void Validate(uint8_t bsb_idx = 0);
 
-    block_store &                   store_;
-    BlockWriteQueue                 write_q;
-    PendingBlockContainer           block_container;
+    block_store &                   _store;
+    BlockWriteQueue                 _write_q;
+    PendingBlockContainer           _block_container;
 
-    Log                             log;
+    Log                             _log;
 };
 
 }
