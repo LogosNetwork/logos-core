@@ -27,29 +27,29 @@ public:
 
     struct BlockPtr
     {
-	RBPtr		rptr;
-	MBPtr		mptr;
-	EBPtr		eptr;
-	BlockHash	hash;
+        RBPtr		rptr;
+        MBPtr		mptr;
+        EBPtr		eptr;
+        BlockHash	hash;
 
-	BlockPtr(RBPtr r)
-	    : rptr(r)
-	    , hash(r->Hash())
-	{
-	}
-	BlockPtr(MBPtr m)
-	    : mptr(m)
-	    , hash(m->Hash())
-	{
-	}
-	BlockPtr(EBPtr e)
-	    : eptr(e)
-	    , hash(e->Hash())
-	{
-	}
+        BlockPtr(RBPtr r)
+            : rptr(r)
+            , hash(r->Hash())
+        {
+        }
+        BlockPtr(MBPtr m)
+            : mptr(m)
+            , hash(m->Hash())
+        {
+        }
+        BlockPtr(EBPtr e)
+            : eptr(e)
+            , hash(e->Hash())
+        {
+        }
     };
 
-    BlockWriteQueue(Store &store, bool unit_test_);
+    BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_q = 0);
 
     bool VerifyAggSignature(EBPtr block);
     bool VerifyAggSignature(MBPtr block);
@@ -72,14 +72,14 @@ public:
 private:
     void StoreBlock(BlockPtr ptr);
 
-    std::queue<BlockPtr>            q;
-    std::unordered_set<BlockHash>   q_cache;
-    NonDelPersistenceManager<ECT>   eb_handler;
-    NonDelPersistenceManager<MBCT>  mb_handler;
-    NonDelPersistenceManager<R>     rb_handler;
-    std::mutex                      q_mutex;
-    bool                            unit_test;
-    Log                             log;
+    std::queue<BlockPtr>            _q;
+    std::unordered_set<BlockHash>   _q_cache;
+    NonDelPersistenceManager<ECT>   _eb_handler;
+    NonDelPersistenceManager<MBCT>  _mb_handler;
+    NonDelPersistenceManager<R>     _rb_handler;
+    std::mutex                      _q_mutex;
+    std::queue<BlockHash> *         _unit_test_q;
+    Log                             _log;
 };
 
 }

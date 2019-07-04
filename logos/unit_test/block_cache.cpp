@@ -79,7 +79,8 @@ TEST (BlockCache, VerifyTest)
         store.micro_block_tip_put(mtip, t);
     }
 
-    logos::BlockWriteQueue q(store, true);
+    std:queue<BlockHash> store_q;
+    logos::BlockWriteQueue q(store, &store_q);
     {
         ValidationStatus s;
         s.progress = 0;
