@@ -1496,7 +1496,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
 {
     ReceiveBlock receive(
         /* Previous          */ info ? info->receive_head : 0,
-        /* send_hash         */ request_hash,
+        /* source_hash       */ request_hash,
         /* transaction_index */ transaction_index
     );
 

@@ -1759,7 +1759,7 @@ void logos::rpc_handler::account_history ()
         else
         {
             // get receive's source send
-            if (node.store.request_get(receive_data.send_hash, receive_source_ptr, transaction))
+            if (node.store.request_get(receive_data.source_hash, receive_source_ptr, transaction))
             {
                 error_response (response, "Internal error: send not found for receive.");
             }
