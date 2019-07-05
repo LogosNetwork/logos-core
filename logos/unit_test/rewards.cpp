@@ -472,7 +472,7 @@ TEST (Rewards, Claim_Processing_1)
 
         ReceiveBlock receive;
         ASSERT_FALSE(store->receive_get(rep_info.receive_head, receive, txn));
-        ASSERT_EQ(claim.GetHash(), receive.send_hash);
+        ASSERT_EQ(claim.GetHash(), receive.source_hash);
 
         Amount pool_diff = 0;
 
@@ -522,7 +522,7 @@ TEST (Rewards, Claim_Processing_1)
 
         ReceiveBlock receive;
         ASSERT_FALSE(store->receive_get(info.receive_head, receive, txn));
-        ASSERT_EQ(claim.GetHash(), receive.send_hash);
+        ASSERT_EQ(claim.GetHash(), receive.source_hash);
 
         for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
         {
@@ -867,7 +867,7 @@ TEST(Rewards, Claim_Processing_2)
 
         ReceiveBlock receive;
         ASSERT_FALSE(store->receive_get(info.receive_head, receive, txn));
-        ASSERT_EQ(claim.GetHash(), receive.send_hash);
+        ASSERT_EQ(claim.GetHash(), receive.source_hash);
     }
 
     {

@@ -25,16 +25,16 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
 
         auto get_timestamp = [&](const ReceiveBlock receive)
         {
-            if(_store.request_exists(receive.send_hash))
+            if(_store.request_exists(receive.source_hash))
             {
                 epoch_generated_cur = false;
 
                 std::shared_ptr<Request> request;
-                if(_store.request_get(receive.send_hash, request, transaction))
+                if(_store.request_get(receive.source_hash, request, transaction))
                 {
                     LOG_FATAL(_log) << "Persistence::PlaceReceive - "
                                     << "Failed to get a previous request with hash: "
-                                    << receive.send_hash.to_string();
+                                    << receive.source_hash.to_string();
                     trace_and_halt();
                 }
 
@@ -52,11 +52,11 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
                 epoch_generated_cur = true;
 
                 ApprovedEB epoch;
-                if(_store.epoch_get(receive.send_hash, epoch, transaction))
+                if(_store.epoch_get(receive.source_hash, epoch, transaction))
                 {
                     LOG_FATAL(_log) << "Persistence::PlaceReceive - "
                                     << "Failed to get a previous epoch block with hash: "
-                                    << receive.send_hash.to_string();
+                                    << receive.source_hash.to_string();
                     trace_and_halt();
                 }
 
@@ -111,16 +111,16 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
         }
 
         // SYL integration fix: we only want to modify prev in DB if we are inserting somewhere in the middle of the receive chain
-        if(!prev.send_hash.is_zero())
+        if(!prev.source_hash.is_zero())
         {
             if(!epoch_generated_prev)
             {
                 std::shared_ptr<Request> prev_request;
-                if(_store.request_get(prev.send_hash, prev_request, transaction))
+                if(_store.request_get(prev.source_hash, prev_request, transaction))
                 {
                     LOG_FATAL(_log) << "Persistence::PlaceReceive - "
                                     << "Failed to get a previous request with hash: "
-                                    << prev.send_hash.to_string();
+                                    << prev.source_hash.to_string();
                     trace_and_halt();
                 }
 
@@ -128,7 +128,7 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
                 {
                     LOG_FATAL(_log) << "Persistence::PlaceReceive - "
                                     << "Encountered request with empty account field, hash: "
-                                    << prev.send_hash.to_string();
+                                    << prev.source_hash.to_string();
                     trace_and_halt();
                 }
             }

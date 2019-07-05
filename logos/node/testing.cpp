@@ -165,9 +165,9 @@ void logos::system::generate_receive (logos::node & node_a)
         auto i (node_a.store.pending_begin (transaction, logos::pending_key (random_block, 0)));
         if (i != node_a.store.pending_end ())
         {
-            logos::pending_key send_hash (i->first);
+            logos::pending_key source_hash (i->first);
             logos::pending_info info (i->second);
-            send_block = node_a.store.block_get (transaction, send_hash.hash);
+            send_block = node_a.store.block_get (transaction, source_hash.hash);
         }
     }
     if (send_block != nullptr)

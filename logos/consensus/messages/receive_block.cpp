@@ -4,7 +4,7 @@ ReceiveBlock::ReceiveBlock(const BlockHash & previous,
                            const BlockHash & send_hash,
                            uint16_t index2send)
     : previous(previous)
-    , send_hash(send_hash)
+    , source_hash(send_hash)
     , index2send(index2send)
 {}
 
@@ -18,7 +18,7 @@ ReceiveBlock::ReceiveBlock(bool & error, const logos::mdb_val & mdbval)
         return;
     }
 
-    error = logos::read(stream, send_hash);
+    error = logos::read(stream, source_hash);
     if(error)
     {
         return;
@@ -51,7 +51,7 @@ boost::property_tree::ptree ReceiveBlock::SerializeJson() const
 void ReceiveBlock::SerializeJson(boost::property_tree::ptree & tree) const
 {
     tree.put("previous", previous.to_string());
-    tree.put("send_hash", send_hash.to_string());
+    tree.put("source_hash", source_hash.to_string());
     tree.put("index_to_send_block", std::to_string(index2send));
 }
 
@@ -60,7 +60,7 @@ void ReceiveBlock::Serialize(logos::stream & stream) const
     uint16_t idx = htole16(index2send);
 
     logos::write(stream, previous);
-    logos::write(stream, send_hash);
+    logos::write(stream, source_hash);
     logos::write(stream, idx);
 }
 
@@ -72,7 +72,7 @@ BlockHash ReceiveBlock::Hash() const
 void ReceiveBlock::Hash(blake2b_state & hash) const
 {
     uint16_t s = htole16(index2send);
-    send_hash.Hash(hash);
+    source_hash.Hash(hash);
     blake2b_update(&hash, &s, sizeof(uint16_t));
 }
 

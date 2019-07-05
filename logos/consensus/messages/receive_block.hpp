@@ -59,6 +59,6 @@ struct ReceiveBlock
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
 
     BlockHash previous;
-    BlockHash send_hash;
+    BlockHash source_hash;
     uint16_t  index2send = 0;
 };
