@@ -21,11 +21,11 @@ struct ReceiveBlock
 
     /// Class constructor
     /// @param previous the hash of the previous ReceiveBlock on the account chain
-    /// @param send_hash the hash of the StateBlock
-    /// @param index2send the index to the array of transactions in the StateBlock
+    /// @param source_hash the hash of the request or block that generated this receive
+    /// @param index the index to the array of transactions in the source request
     ReceiveBlock(const BlockHash & previous,
                  const BlockHash & send_hash,
-                 uint16_t index2send = 0);
+                 uint16_t index = 0);
 
     /// Constructor from deserializing a buffer read from the database
     /// @param error it will be set to true if deserialization fail [out]
@@ -37,7 +37,6 @@ struct ReceiveBlock
     std::string ToJson() const;
 
     /// Add the data members to the property_tree which will be encoded to Json
-    /// @param batch_state_block the property_tree to add data members to
     void SerializeJson(boost::property_tree::ptree & tree) const;
     boost::property_tree::ptree SerializeJson() const;
 
@@ -60,5 +59,5 @@ struct ReceiveBlock
 
     BlockHash previous;
     BlockHash source_hash;
-    uint16_t  index2send = 0;
+    uint16_t  index = 0;
 };
