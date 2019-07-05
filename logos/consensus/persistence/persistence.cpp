@@ -21,23 +21,57 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
 
     if(!_store.receive_get(receive.previous, cur, transaction))
     {
+        bool epoch_generated_cur = false;
+
+        auto get_timestamp = [&](const ReceiveBlock receive)
+        {
+            if(_store.request_exists(receive.send_hash))
+            {
+                epoch_generated_cur = false;
+
+                std::shared_ptr<Request> request;
+                if(_store.request_get(receive.send_hash, request, transaction))
+                {
+                    LOG_FATAL(_log) << "Persistence::PlaceReceive - "
+                                    << "Failed to get a previous request with hash: "
+                                    << receive.send_hash.to_string();
+                    trace_and_halt();
+                }
+
+                ApprovedRB approved;
+
+                if(_store.request_block_get(request->locator.hash, approved, transaction))
+                {
+                    return uint64_t(0);
+                }
+
+                return approved.timestamp;
+            }
+            else
+            {
+                epoch_generated_cur = true;
+
+                ApprovedEB epoch;
+                if(_store.epoch_get(receive.send_hash, epoch, transaction))
+                {
+                    LOG_FATAL(_log) << "Persistence::PlaceReceive - "
+                                    << "Failed to get a previous epoch block with hash: "
+                                    << receive.send_hash.to_string();
+                    trace_and_halt();
+                }
+
+                return epoch.timestamp;
+            }
+        };
+
         // Returns true if 'a' should precede 'b'
         // in the receive chain.
         auto receive_cmp = [&](const ReceiveBlock & a,
                                const ReceiveBlock & b)
         {
             // need b's timestamp
-            std::shared_ptr<Request> request;
-            if(_store.request_get(b.send_hash, request, transaction))
-            {
-                LOG_FATAL(_log) << "Persistence::PlaceReceive - "
-                                << "Failed to get a previous state block with hash: "
-                                << b.send_hash.to_string();
-                trace_and_halt();
-            }
+            auto timestamp_b = get_timestamp(b);
 
-            ApprovedRB approved;
-            auto timestamp_b = (_store.request_block_get(request->locator.hash, approved, transaction)) ? 0 : approved.timestamp;
             bool a_is_less;
             if(timestamp_a != timestamp_b)
             {
@@ -54,9 +88,13 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
             return a_is_less;
         };
 
+        bool epoch_generated_prev = false;
+
         while(receive_cmp(receive, cur))
         {
             prev = cur;
+            epoch_generated_prev = epoch_generated_cur;
+
             if(_store.receive_get(cur.previous,
                                   cur,
                                   transaction))
@@ -75,34 +113,37 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
         // SYL integration fix: we only want to modify prev in DB if we are inserting somewhere in the middle of the receive chain
         if(!prev.send_hash.is_zero())
         {
-            std::shared_ptr<Request> prev_request;
-            if(_store.request_get(prev.send_hash, prev_request, transaction))
+            if(!epoch_generated_prev)
             {
-                LOG_FATAL(_log) << "Persistence::PlaceReceive - "
-                                << "Failed to get a previous state block with hash: "
-                                << prev.send_hash.to_string();
-                trace_and_halt();
-            }
-            if(!prev_request->origin.is_zero())
-            {
-                // point following receive aka prev's 'previous' field to new receive
-                receive.previous = prev.previous;
-                prev.previous = hash;
-                auto prev_hash (prev.Hash());
-                if(_store.receive_put(prev_hash, prev, transaction))
+                std::shared_ptr<Request> prev_request;
+                if(_store.request_get(prev.send_hash, prev_request, transaction))
                 {
                     LOG_FATAL(_log) << "Persistence::PlaceReceive - "
-                                    << "Failed to store receive block with hash: "
-                                    << prev_hash.to_string();
+                                    << "Failed to get a previous request with hash: "
+                                    << prev.send_hash.to_string();
+                    trace_and_halt();
+                }
 
+                if(prev_request->origin.is_zero())  // sending to burn address is already prohibited
+                {
+                    LOG_FATAL(_log) << "Persistence::PlaceReceive - "
+                                    << "Encountered request with empty account field, hash: "
+                                    << prev.send_hash.to_string();
                     trace_and_halt();
                 }
             }
-            else  // sending to burn address is already prohibited
+
+            // point following receive aka prev's 'previous' field to new receive
+            receive.previous = prev.previous;
+            prev.previous = hash;
+            auto prev_hash (prev.Hash());
+
+            if(_store.receive_put(prev_hash, prev, transaction))
             {
                 LOG_FATAL(_log) << "Persistence::PlaceReceive - "
-                                << "Encountered state block with empty account field, hash: "
-                                << prev.send_hash.to_string();
+                                << "Failed to store receive block with hash: "
+                                << prev_hash.to_string();
+
                 trace_and_halt();
             }
         }

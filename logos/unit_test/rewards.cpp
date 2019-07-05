@@ -922,9 +922,12 @@ TEST(Rewards, Delegate_Rewards)
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
+    eb.transaction_fee_pool = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
     EpochVotingManager voting_mgr(*store);
     PersistenceManager<ECT> persistence_mgr(*store,nullptr);
     std::vector<Delegate> delegates;
+    Amount initial_del_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    initial_del_balance += MIN_DELEGATE_STAKE;
     //This is set large so that way every delegate stays under the cap
     //and votes are not redistributed
     auto base_vote = 100000;
@@ -955,6 +958,11 @@ TEST(Rewards, Delegate_Rewards)
         store->request_put(start_rep,txn);
 
         store->rep_put(i,rep,txn);
+
+        logos::account_info delegate_info;
+
+        delegate_info.SetBalance(initial_del_balance, 0, txn);
+        store->account_put(i, delegate_info, txn);
     }
 
     std::reverse(delegates.begin(),delegates.end());
@@ -978,7 +986,7 @@ TEST(Rewards, Delegate_Rewards)
         ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
         persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
-
+        persistence_mgr.ApplyRewards(eb, eb.Hash(), txn);
     };
 
     auto compare_delegates = [&]()

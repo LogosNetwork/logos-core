@@ -455,7 +455,7 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
         ReceiveBlock receive(
             /* Previous          */ info.receive_head,
             /* send_hash         */ hash,
-            /* transaction_index */ 0
+            /* transaction_index */ i
         );
 
         info.receive_count++;
