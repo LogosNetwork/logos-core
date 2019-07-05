@@ -7,8 +7,17 @@ BlockWriteQueue::BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_
     : _eb_handler(store)
     , _mb_handler(store)
     , _rb_handler(store)
+    , _terminate(false)
     , _unit_test_q(unit_test_q)
+    , _write_thread(&BlockWriteQueue::WriteThread, this)
 {
+}
+
+BlockWriteQueue::~BlockWriteQueue()
+{
+    _terminate = true;
+    _write_sem.notify();
+    _write_thread.join();
 }
 
 bool BlockWriteQueue::VerifyAggSignature(EBPtr block)
@@ -75,53 +84,60 @@ void BlockWriteQueue::StoreBlock(BlockPtr ptr)
 {
     {
         std::lock_guard<std::mutex> lck (_q_mutex);
-        bool qempty = _q.empty();
         _q.push(ptr);
         _q_cache.insert(ptr.hash);
-        if (!qempty)
-        {
-            return;
-        }
     }
 
-    for (;;)
+    _write_sem.notify();
+}
+
+void BlockWriteQueue::WriteThread()
+{
+    BlockPtr ptr;
+
+    for(;;)
     {
+        _write_sem.wait();
+
+        if (_terminate)
+            break;
+
+        {
+            std::lock_guard<std::mutex> lck (_q_mutex);
+            if (_q.empty())
+                continue;
+            ptr = _q.front();
+        }
+
         if (ptr.rptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:R: " << ptr.rptr->CreateTip().to_string();
             _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
-            if (_unit_test_q)
-            {
-                _unit_test_q->push(ptr.hash);
-            }
+            ptr.rptr = nullptr;
         }
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             _mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
-            if (_unit_test_q)
-            {
-                _unit_test_q->push(ptr.hash);
-            }
+            ptr.mptr = nullptr;
         }
         else if (ptr.eptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             _eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
-            if (_unit_test_q)
-            {
-                _unit_test_q->push(ptr.hash);
-            }
+            ptr.eptr = nullptr;
         }
 
-        std::lock_guard<std::mutex> lck (_q_mutex);
-        _q.pop();
-        _q_cache.erase(ptr.hash);
-        if (_q.empty())
         {
-            break;
+            std::lock_guard<std::mutex> lck (_q_mutex);
+            _q.pop();
+            _q_cache.erase(ptr.hash);
         }
-        ptr = _q.front();
+
+        if (_unit_test_q)
+        {
+            _unit_test_q->push(ptr.hash);
+        }
     }
 }
 
