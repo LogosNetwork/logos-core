@@ -2,6 +2,8 @@
 
 #include <queue>
 #include <mutex>
+#include <thread>
+#include <condition_variable>
 
 #include <logos/consensus/messages/messages.hpp>
 
@@ -25,31 +27,8 @@ public:
     using EBPtr = std::shared_ptr<ApprovedEB>;
     using Store = logos::block_store;
 
-    struct BlockPtr
-    {
-        RBPtr		rptr;
-        MBPtr		mptr;
-        EBPtr		eptr;
-        BlockHash	hash;
-
-        BlockPtr(RBPtr r)
-            : rptr(r)
-            , hash(r->Hash())
-        {
-        }
-        BlockPtr(MBPtr m)
-            : mptr(m)
-            , hash(m->Hash())
-        {
-        }
-        BlockPtr(EBPtr e)
-            : eptr(e)
-            , hash(e->Hash())
-        {
-        }
-    };
-
     BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_q = 0);
+    ~BlockWriteQueue();
 
     bool VerifyAggSignature(EBPtr block);
     bool VerifyAggSignature(MBPtr block);
@@ -70,7 +49,57 @@ public:
     void StoreBlock(RBPtr block);
 
 private:
+    struct BlockPtr
+    {
+        RBPtr		rptr;
+        MBPtr		mptr;
+        EBPtr		eptr;
+        BlockHash	hash;
+
+        BlockPtr()
+        {
+        }
+
+        BlockPtr(RBPtr r)
+            : rptr(r)
+            , hash(r->Hash())
+        {
+        }
+        BlockPtr(MBPtr m)
+            : mptr(m)
+            , hash(m->Hash())
+        {
+        }
+        BlockPtr(EBPtr e)
+            : eptr(e)
+            , hash(e->Hash())
+        {
+        }
+    };
+
+    class Semaphore
+    {
+    public:
+        void notify() {
+            std::lock_guard<decltype(_mutex)> lock(_mutex);
+            ++_count;
+            _condition.notify_one();
+        }
+
+        void wait() {
+            std::unique_lock<decltype(_mutex)> lock(_mutex);
+            while(!_count) // Handle spurious wake-ups.
+                _condition.wait(lock);
+            --_count;
+        }
+    private:
+        std::mutex              _mutex;
+        std::condition_variable _condition;
+        unsigned long           _count = 0; // Initialized as locked.
+    };
+
     void StoreBlock(BlockPtr ptr);
+    void WriteThread();
 
     std::queue<BlockPtr>            _q;
     std::unordered_set<BlockHash>   _q_cache;
@@ -78,8 +107,11 @@ private:
     NonDelPersistenceManager<MBCT>  _mb_handler;
     NonDelPersistenceManager<R>     _rb_handler;
     std::mutex                      _q_mutex;
+    std::atomic<bool>               _terminate;
+    Semaphore                       _write_sem;
     std::queue<BlockHash> *         _unit_test_q;
     Log                             _log;
+    std::thread                     _write_thread;
 };
 
 }
