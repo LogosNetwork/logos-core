@@ -19,6 +19,8 @@
 namespace logos
 {
 
+class PendingBlockContainer;
+
 class BlockWriteQueue
 {
 public:
@@ -48,6 +50,7 @@ public:
     void StoreBlock(MBPtr block);
     void StoreBlock(RBPtr block);
 
+    PendingBlockContainer *         _block_container;
 private:
     struct BlockPtr
     {
