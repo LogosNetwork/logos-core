@@ -14,14 +14,16 @@ using RBPtr = logos::IBlockCache::RBPtr;
 using MBPtr = logos::IBlockCache::MBPtr;
 using EBPtr = logos::IBlockCache::EBPtr;
 
-static RBPtr make_rb(int epoch_num, uint8_t delegate_id) {
+static RBPtr make_rb(int epoch_num, uint8_t delegate_id)
+{
     RBPtr rb = std::make_shared<ApprovedRB>();
     rb->epoch_number = epoch_num;
     rb->primary_delegate = delegate_id;
     return rb;
 }
 
-static MBPtr make_mb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous) {
+static MBPtr make_mb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous)
+{
     MBPtr mb = std::make_shared<ApprovedMB>();
     mb->epoch_number = epoch_num;
     mb->primary_delegate = delegate_id;
@@ -30,7 +32,8 @@ static MBPtr make_mb(int epoch_num, uint8_t delegate_id, int sequence, const Blo
     return mb;
 }
 
-static EBPtr make_eb(int epoch_num, uint8_t delegate_id, const Tip &micro_tip, const BlockHash &previous) {
+static EBPtr make_eb(int epoch_num, uint8_t delegate_id, const Tip &micro_tip, const BlockHash &previous)
+{
     EBPtr eb = std::make_shared<ApprovedEB>();
     eb->epoch_number = epoch_num;
     eb->primary_delegate = delegate_id;
@@ -128,7 +131,8 @@ TEST (BlockCache, WriteTest)
     std::vector<BlockHash> hashes;
     BlockHash hash;
 
-    for (int i = 0; i < NUM_DELEGATES; ++i) {
+    for (int i = 0; i < NUM_DELEGATES; ++i)
+    {
         RBPtr rb = make_rb(3, i);
         hash = rb->Hash();
         EXPECT_EQ(q.BlockExists(rb), false);
@@ -162,6 +166,56 @@ TEST (BlockCache, WriteTest)
     {
         EXPECT_EQ(hashes[i], t.store_q.front());
         EXPECT_EQ(q.IsBlockCached(hashes[i]), false);
+        t.store_q.pop();
+    }
+}
+
+#define N_BLOCKS NUM_DELEGATES
+
+TEST (BlockCache, MicroBlocksLinearTest)
+{
+    test_data t;
+    EXPECT_EQ(t.error, false);
+    logos::BlockCache c(t.store, &t.store_q);
+    std::vector<MBPtr> mbs;
+    std::vector<BlockHash> hashes;
+    BlockHash hash = t.m0->Hash();
+
+    for (int i = 0; i < N_BLOCKS; ++i)
+    {
+        MBPtr mb = make_mb(3, i, i + 1, hash);
+        hash = mb->Hash();
+        hashes.push_back(hash);
+        mbs.push_back(mb);
+    }
+
+    for (int i = 0; i < N_BLOCKS * N_BLOCKS; ++i)
+    {
+        int j = rand() % N_BLOCKS, k = rand() % N_BLOCKS;
+        if (j != k)
+        {
+            MBPtr m = mbs[j];
+            mbs[j] = mbs[k];
+            mbs[k] = m;
+        }
+    }
+
+    for (int i = 0; i < N_BLOCKS; ++i)
+    {
+        EXPECT_EQ(c.AddMicroBlock(mbs[i]), true);
+    }
+
+    for (int i = 0; i < 3 && hashes.size() != t.store_q.size(); ++i)
+    {
+        sleep(1);
+    }
+
+    EXPECT_EQ(hashes.size(), t.store_q.size());
+
+    for (int i = 0; i < hashes.size(); ++i)
+    {
+        EXPECT_EQ(hashes[i], t.store_q.front());
+        EXPECT_EQ(c.IsBlockCached(hashes[i]), false);
         t.store_q.pop();
     }
 }
