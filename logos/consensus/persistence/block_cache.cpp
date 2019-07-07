@@ -7,6 +7,7 @@ BlockCache::BlockCache(Store &store, std::queue<BlockHash> *unit_test_q)
     , _write_q(store, unit_test_q)
     , _block_container(_write_q)
 {
+    _write_q._block_container = &_block_container;
 }
 
 bool BlockCache::AddEpochBlock(EBPtr block)
@@ -182,7 +183,6 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
-                _block_container.MarkAsValidated(block);
             }
             else
             {
@@ -240,7 +240,6 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
-                _block_container.MarkAsValidated(block);
             }
             else
             {
@@ -282,7 +281,6 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
-                _block_container.MarkAsValidated(block);
                 LOG_INFO(_log) << "BlockCache::Validated EB, block: "
                         << block->CreateTip().to_string();
             }

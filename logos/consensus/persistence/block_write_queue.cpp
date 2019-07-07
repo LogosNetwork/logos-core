@@ -1,10 +1,12 @@
 #include "block_write_queue.hpp"
+#include "block_container.hpp"
 
 namespace logos
 {
 
 BlockWriteQueue::BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_q)
-    : _eb_handler(store)
+    : _block_container(nullptr)
+    , _eb_handler(store)
     , _mb_handler(store)
     , _rb_handler(store)
     , _terminate(false)
@@ -113,18 +115,24 @@ void BlockWriteQueue::WriteThread()
         {
             LOG_TRACE(_log) << "BlockCache:Apply:R: " << ptr.rptr->CreateTip().to_string();
             _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
+            if (_block_container)
+                _block_container->MarkAsValidated(ptr.rptr);
             ptr.rptr = nullptr;
         }
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             _mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
+            if (_block_container)
+                _block_container->MarkAsValidated(ptr.mptr);
             ptr.mptr = nullptr;
         }
         else if (ptr.eptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             _eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
+            if (_block_container)
+                _block_container->MarkAsValidated(ptr.eptr);
             ptr.eptr = nullptr;
         }
 
