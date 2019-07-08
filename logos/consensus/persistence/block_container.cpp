@@ -294,7 +294,6 @@ bool PendingBlockContainer::DeleteAccountDependencies(const AccountAddress &addr
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
     BlockHash hash = block->Hash();
-    BlockDelete(hash);
     std::list<ChainPtr> chains;
     bool res = DeleteHashDependencies(hash, chains);
     if (res)
@@ -307,7 +306,6 @@ bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
     BlockHash hash = block->Hash();
-    BlockDelete(hash);
     std::list<ChainPtr> chains;
     bool res = DeleteHashDependencies(hash, chains);
     if (res)
@@ -320,7 +318,6 @@ bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
     BlockHash hash = block->Hash();
-    BlockDelete(hash);
     std::list<ChainPtr> chains;
     bool res = DeleteHashDependencies(hash, chains);
     for (uint32_t i = 0; i < block->requests.size(); ++i)

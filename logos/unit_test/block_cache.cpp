@@ -88,7 +88,7 @@ TEST (BlockCache, VerifyTest)
 {
     test_data t;
     EXPECT_EQ(t.error, false);
-    logos::BlockWriteQueue q(t.store, &t.store_q);
+    logos::BlockWriteQueue q(t.store, 0, &t.store_q);
 
     {
         ValidationStatus s;
@@ -127,7 +127,7 @@ TEST (BlockCache, WriteTest)
 {
     test_data t;
     EXPECT_EQ(t.error, false);
-    logos::BlockWriteQueue q(t.store, &t.store_q);
+    logos::BlockWriteQueue q(t.store, 0, &t.store_q);
     std::vector<BlockHash> hashes;
     BlockHash hash;
 
