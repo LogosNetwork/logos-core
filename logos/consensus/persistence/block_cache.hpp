@@ -112,6 +112,9 @@ public:
      */
     bool IsBlockCached(const BlockHash &b) override;
 
+    void ProcessDependencies(EBPtr block);
+    void ProcessDependencies(MBPtr block);
+    void ProcessDependencies(RBPtr block);
 private:
 
     /*
