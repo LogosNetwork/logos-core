@@ -7,6 +7,8 @@
 #include <logos/unit_test/msg_validator_setup.hpp>
 #include <logos/staking/voting_power_manager.hpp>
 
+#include <numeric>
+
 #define Unit_Test_Rewards
 
 #ifdef Unit_Test_Rewards
@@ -977,16 +979,45 @@ TEST(Rewards, Delegate_Rewards)
 
     auto transition_epoch = [&](int retire_idx = -1)
     {
-        ++epoch_num;
-        std::cout << "transitioning to epoch number " << epoch_num << std::endl;
-        eb.previous = eb.Hash();
-        eb.epoch_number = epoch_num-1;
-        logos::transaction txn(store->environment,nullptr,true);
-        eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
-        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
-        ASSERT_FALSE(store->epoch_put(eb,txn));
-        persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
-        persistence_mgr.ApplyRewards(eb, eb.Hash(), txn);
+        std::vector<logos::account_info> delegate_accounts_a(32);
+        std::vector<logos::account_info> delegate_accounts_b(32);
+
+        auto update_info = [&](auto & acc)
+        {
+            logos::transaction txn(store->environment, nullptr, false);
+
+            for(size_t i = 0; i < 32; ++i)
+            {
+                store->account_get(i, acc[i], txn);
+            }
+        };
+
+        {
+            ++epoch_num;
+            std::cout << "transitioning to epoch number " << epoch_num << std::endl;
+            eb.previous = eb.Hash();
+            eb.epoch_number = epoch_num - 1;
+            logos::transaction txn(store->environment, nullptr, true);
+            eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates, epoch_num);
+            ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(), txn));
+            ASSERT_FALSE(store->epoch_put(eb, txn));
+            persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
+
+            update_info(delegate_accounts_a);
+
+            persistence_mgr.ApplyRewards(eb, eb.Hash(), txn);
+        }
+
+        update_info(delegate_accounts_b);
+
+        Amount diff;
+        for(size_t i = 0; i < 32; ++i)
+        {
+            diff += delegate_accounts_b[i].GetAvailableBalance() -
+                    delegate_accounts_a[i].GetAvailableBalance();
+        }
+
+        ASSERT_EQ(diff, eb.transaction_fee_pool);
     };
 
     auto compare_delegates = [&]()
