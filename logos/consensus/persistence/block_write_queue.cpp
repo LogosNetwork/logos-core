@@ -1,15 +1,15 @@
 #include "block_write_queue.hpp"
-#include "block_container.hpp"
+#include "block_cache.hpp"
 
 namespace logos
 {
 
-BlockWriteQueue::BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_q)
-    : _block_container(nullptr)
-    , _eb_handler(store)
+BlockWriteQueue::BlockWriteQueue(Store &store, BlockCache *cache, std::queue<BlockHash> *unit_test_q)
+    : _eb_handler(store)
     , _mb_handler(store)
     , _rb_handler(store)
     , _terminate(false)
+    , _block_cache(cache)
     , _unit_test_q(unit_test_q)
     , _write_thread(&BlockWriteQueue::WriteThread, this)
 {
@@ -115,24 +115,24 @@ void BlockWriteQueue::WriteThread()
         {
             LOG_TRACE(_log) << "BlockCache:Apply:R: " << ptr.rptr->CreateTip().to_string();
             _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
-            if (_block_container)
-                _block_container->MarkAsValidated(ptr.rptr);
+            if (_block_cache)
+                _block_cache->ProcessDependencies(ptr.rptr);
             ptr.rptr = nullptr;
         }
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             _mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
-            if (_block_container)
-                _block_container->MarkAsValidated(ptr.mptr);
+            if (_block_cache)
+                _block_cache->ProcessDependencies(ptr.mptr);
             ptr.mptr = nullptr;
         }
         else if (ptr.eptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             _eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
-            if (_block_container)
-                _block_container->MarkAsValidated(ptr.eptr);
+            if (_block_cache)
+                _block_cache->ProcessDependencies(ptr.eptr);
             ptr.eptr = nullptr;
         }
 

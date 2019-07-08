@@ -19,7 +19,7 @@
 namespace logos
 {
 
-class PendingBlockContainer;
+class BlockCache;
 
 class BlockWriteQueue
 {
@@ -29,7 +29,7 @@ public:
     using EBPtr = std::shared_ptr<ApprovedEB>;
     using Store = logos::block_store;
 
-    BlockWriteQueue(Store &store, std::queue<BlockHash> *unit_test_q = 0);
+    BlockWriteQueue(Store &store, BlockCache *cache = 0, std::queue<BlockHash> *unit_test_q = 0);
     ~BlockWriteQueue();
 
     bool VerifyAggSignature(EBPtr block);
@@ -49,8 +49,6 @@ public:
     void StoreBlock(EBPtr block);
     void StoreBlock(MBPtr block);
     void StoreBlock(RBPtr block);
-
-    PendingBlockContainer *         _block_container;
 private:
     struct BlockPtr
     {
@@ -111,6 +109,7 @@ private:
     NonDelPersistenceManager<R>     _rb_handler;
     std::mutex                      _q_mutex;
     std::atomic<bool>               _terminate;
+    BlockCache *                    _block_cache;
     Semaphore                       _write_sem;
     std::queue<BlockHash> *         _unit_test_q;
     Log                             _log;

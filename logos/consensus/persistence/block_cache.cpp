@@ -4,10 +4,9 @@ namespace logos {
 
 BlockCache::BlockCache(Store &store, std::queue<BlockHash> *unit_test_q)
     : _store(store)
-    , _write_q(store, unit_test_q)
+    , _write_q(store, this, unit_test_q)
     , _block_container(_write_q)
 {
-    _write_q._block_container = &_block_container;
 }
 
 bool BlockCache::AddEpochBlock(EBPtr block)
@@ -105,11 +104,7 @@ void BlockCache::StoreEpochBlock(EBPtr block)
     }
 
     _write_q.StoreBlock(block);
-
-    if (_block_container.MarkAsValidated(block))
-    {
-        Validate();
-    }
+    _block_container.BlockDelete(block->Hash());
 
     //TODO remove after integration tests
     _block_container.DumpCachedBlocks();
@@ -126,11 +121,7 @@ void BlockCache::StoreMicroBlock(MBPtr block)
     }
 
     _write_q.StoreBlock(block);
-
-    if (_block_container.MarkAsValidated(block))
-    {
-        Validate();
-    }
+    _block_container.BlockDelete(block->Hash());
 
     //TODO remove after integration tests
     _block_container.DumpCachedBlocks();
@@ -147,14 +138,34 @@ void BlockCache::StoreRequestBlock(RBPtr block)
     }
 
     _write_q.StoreBlock(block);
+    _block_container.BlockDelete(block->Hash());
 
+    //TODO remove after integration tests
+    _block_container.DumpCachedBlocks();
+}
+
+void BlockCache::ProcessDependencies(EBPtr block)
+{
     if (_block_container.MarkAsValidated(block))
     {
         Validate();
     }
+}
 
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
+void BlockCache::ProcessDependencies(MBPtr block)
+{
+    if (_block_container.MarkAsValidated(block))
+    {
+        Validate();
+    }
+}
+
+void BlockCache::ProcessDependencies(RBPtr block)
+{
+    if (_block_container.MarkAsValidated(block))
+    {
+        Validate();
+    }
 }
 
 bool BlockCache::IsBlockCached(const BlockHash &hash)
@@ -183,6 +194,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
+                _block_container.BlockDelete(block->Hash());
             }
             else
             {
@@ -240,6 +252,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
+                _block_container.BlockDelete(block->Hash());
             }
             else
             {
@@ -281,6 +294,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             if ((success = _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
+                _block_container.BlockDelete(block->Hash());
                 LOG_INFO(_log) << "BlockCache::Validated EB, block: "
                         << block->CreateTip().to_string();
             }
