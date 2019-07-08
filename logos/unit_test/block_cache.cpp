@@ -14,11 +14,13 @@ using RBPtr = logos::IBlockCache::RBPtr;
 using MBPtr = logos::IBlockCache::MBPtr;
 using EBPtr = logos::IBlockCache::EBPtr;
 
-static RBPtr make_rb(int epoch_num, uint8_t delegate_id)
+static RBPtr make_rb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous)
 {
     RBPtr rb = std::make_shared<ApprovedRB>();
     rb->epoch_number = epoch_num;
     rb->primary_delegate = delegate_id;
+    rb->sequence = sequence;
+    rb->previous = previous;
     return rb;
 }
 
@@ -93,7 +95,7 @@ TEST (BlockCache, VerifyTest)
     {
         ValidationStatus s;
         s.progress = 0;
-        RBPtr rb = make_rb(3, 7);
+        RBPtr rb = make_rb(3, 7, 0, BlockHash());
         EXPECT_EQ(q.VerifyAggSignature(rb), true);
         EXPECT_EQ(q.VerifyContent(rb, &s), true);
         std::cout << "RB status: " << ProcessResultToString(s.reason) << std::endl;
@@ -133,7 +135,7 @@ TEST (BlockCache, WriteTest)
 
     for (int i = 0; i < NUM_DELEGATES; ++i)
     {
-        RBPtr rb = make_rb(3, i);
+        RBPtr rb = make_rb(3, i, 0, BlockHash());
         hash = rb->Hash();
         EXPECT_EQ(q.BlockExists(rb), false);
         q.StoreBlock(rb);
@@ -216,6 +218,73 @@ TEST (BlockCache, MicroBlocksLinearTest)
     {
         EXPECT_EQ(hashes[i], t.store_q.front());
         EXPECT_EQ(c.IsBlockCached(hashes[i]), false);
+        t.store_q.pop();
+    }
+}
+
+#undef N_BLOCKS
+#define N_BLOCKS    8
+#define N_DELEGATES 8
+#define N_TOTAL     (N_BLOCKS * N_DELEGATES)
+
+TEST (BlockCache, RequestsSquaredTest)
+{
+    test_data t;
+    EXPECT_EQ(t.error, false);
+    logos::BlockCache c(t.store, &t.store_q);
+    std::vector<RBPtr> rbs;
+    std::vector<BlockHash> hashes[N_DELEGATES];
+    int indexes[N_DELEGATES] = {0};
+
+    for (int i = 0; i < N_DELEGATES; ++i)
+    {
+        BlockHash hash;
+        for (int j = 0; j < N_BLOCKS; ++j)
+        {
+            RBPtr rb = make_rb(3, (i * i) % (NUM_DELEGATES - 3), j, hash);
+            hash = rb->Hash();
+            hashes[i].push_back(hash);
+            rbs.push_back(rb);
+        }
+    }
+
+    for (int i = 0; i < N_TOTAL * N_TOTAL; ++i)
+    {
+        int j = rand() % N_TOTAL, k = rand() % N_TOTAL;
+        if (j != k)
+        {
+            RBPtr r = rbs[j];
+            rbs[j] = rbs[k];
+            rbs[k] = r;
+        }
+    }
+
+    for (int i = 0; i < N_TOTAL; ++i)
+    {
+        EXPECT_EQ(c.AddRequestBlock(rbs[i]), true);
+    }
+
+    for (int i = 0; i < 3 && t.store_q.size() != N_TOTAL; ++i)
+    {
+        sleep(1);
+    }
+
+    EXPECT_EQ(t.store_q.size(), N_TOTAL);
+
+    for (int i = 0; i < N_TOTAL; ++i)
+    {
+        BlockHash hash = t.store_q.front();
+        int j;
+        for (j = 0; j < N_DELEGATES; ++j)
+        {
+            if (indexes[j] < N_BLOCKS && hash == hashes[j][indexes[j]])
+            {
+                indexes[j]++;
+                break;
+            }
+        }
+        EXPECT_NE(j, N_DELEGATES);
+        EXPECT_EQ(c.IsBlockCached(hash), false);
         t.store_q.pop();
     }
 }
