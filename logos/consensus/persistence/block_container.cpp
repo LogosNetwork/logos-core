@@ -237,13 +237,13 @@ void PendingBlockContainer::MarkForRevalidation(std::list<ChainPtr> &chains)
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:M:"
-                    << ptr.eptr->block->CreateTip().to_string();
+                    << ptr.mptr->block->CreateTip().to_string();
             ptr.mptr->continue_validate = true;
         }
         else if (ptr.rptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:R:"
-                    << ptr.eptr->block->CreateTip().to_string();
+                    << ptr.rptr->block->CreateTip().to_string();
             ptr.rptr->continue_validate = true;
         }
     }
