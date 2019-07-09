@@ -61,10 +61,10 @@ public:
     /// @returns time lapse in seconds for the next epoch event
     Milliseconds GetNextEpochTime(uint8_t skip=0);
 
-    /// Is this epoch time (12h boundary +- clock drift)
-    /// @returns true if it is epoch construction/transition time
-    bool IsEpochTime();
-    bool IsOneMBPastEpochTime();
+    /// Is this at or past epoch time (> 12h boundary  + 10min MB time - clock drift)
+    /// @returns true if it is at or past epoch construction/transition time
+    static bool IsPastEpochBlockTime();
+
 private:
     /// Get next timeout value
     /// @param timeout value [in]

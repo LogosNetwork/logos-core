@@ -42,19 +42,19 @@ typename MessageHandler<CT>::MessagePtr MessageHandler<CT>::GetFront()
 }
 
 template<ConsensusType CT>
-void MessageHandler<CT>::OnPostCommit(std::shared_ptr<PrePrepare> block)
+void MessageHandler<CT>::OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>> block)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    auto & hashed = _entries. template get <1> ();
-    auto hash = block->Hash();
-    auto n_erased = hashed.erase(hash);
-    if (n_erased)
+    auto & hashed = _entries. template get<1>();
+
+    for(auto req_ptr : block->requests)
     {
-        LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
-    }
-    else
-    {
-        LOG_WARN (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - already erased: " << hash.to_string();
+        auto hash = req_ptr->GetHash();
+
+        if(hashed.find(hash) != hashed.end())
+        {
+            hashed.erase(hash);
+        }
     }
 }
 
@@ -115,23 +115,6 @@ bool MessageHandler<CT>::Empty()
 template class MessageHandler<ConsensusType::Request>;
 template class MessageHandler<ConsensusType::MicroBlock>;
 template class MessageHandler<ConsensusType::Epoch>;
-
-
-void RequestMessageHandler::OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>> block)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-    auto & hashed = _entries. template get<1>();
-
-    for(uint64_t pos = 0; pos < block->requests.size(); ++pos)
-    {
-        auto hash = block->requests[pos]->GetHash();
-
-        if(hashed.find(hash) != hashed.end())
-        {
-            hashed.erase(hash);
-        }
-    }
-}
 
 void RequestMessageHandler::MoveToTarget(RequestInternalQueue & queue, size_t size)
 {

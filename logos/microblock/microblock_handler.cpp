@@ -150,8 +150,7 @@ MicroBlockHandler::GetTipsSlow(
 
 bool
 MicroBlockHandler::Build(
-        MicroBlock &block,
-        bool last_micro_block)
+        MicroBlock &block)
 {
     Tip micro_tip;
     BlockHash & previous_micro_block_hash = micro_tip.digest;
@@ -203,7 +202,24 @@ MicroBlockHandler::Build(
     block.sequence = first_micro_block
                      ? 0
                      : previous_micro_block.sequence + 1;
-    block.last_micro_block = last_micro_block;
+
+    // Decide whether it is the last micro block by checking
+    // 1) we are not in recall mode, and
+    // 2) if we are past epoch block proposal time but the database is lagging behind (current -2)
+    // This approach handles the case where the software genesis launch time is right before epoch transition cutoff.
+
+    bool db_epoch_behind (epoch.epoch_number == ConsensusContainer::GetCurEpochNumber() - 2 &&
+                                  EpochTimeUtil::IsPastEpochBlockTime());
+    bool last (!_recall_handler.IsRecall() && db_epoch_behind);
+
+    // We should abort the build if an epoch block isn't post-committed yet
+    // (can detect by checking whether both the previous MB and the current one have `last` as true).
+    if (last && previous_micro_block.last_micro_block)
+    {
+        LOG_ERROR(_log) << " MicroBlockHandler::Build - most recent epoch block is not post-committed yet, aborting.";
+        return false;
+    }
+    block.last_micro_block = last;
 
     // collect current batch block tips
     // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
@@ -226,7 +242,6 @@ MicroBlockHandler::Build(
             }
             end[delegate] = previous_micro_block.tips[delegate].digest;
         }
-        EpochTimeUtil util;
         GetTipsSlow(start, end, block.tips, block.number_batch_blocks);
     }
     // Microblock cut off time is the previous microblock's proposed time;

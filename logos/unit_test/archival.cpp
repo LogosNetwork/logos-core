@@ -60,3 +60,27 @@ TEST (Archival, ShouldSkipMBProposal)
     ASSERT_FALSE(archiver.ShouldSkipMBBuild());
     ASSERT_EQ(archiver._counter, std::make_pair(old_epoch, old_seq + 2));  // no side effect
 }
+
+TEST (Archival, EraseSameSlot)
+{
+    // This test checks that the Archival MessageHandler, upon getting a post-committed message,
+    // erase queued messages occupying the same <epoch, seq> slot even if the hashes differ
+    uint32_t epoch = 3;
+    uint32_t sequence = 5;
+
+    auto queued_mb = std::make_shared<DelegateMessage<ConsensusType::MicroBlock>>();
+    queued_mb->epoch_number = epoch;
+    queued_mb->sequence = sequence;
+    queued_mb->last_micro_block = 0;
+
+    auto post_committed_mb = std::make_shared<PrePrepareMessage<ConsensusType::MicroBlock>>();
+    post_committed_mb->epoch_number = epoch;
+    post_committed_mb->sequence = sequence;
+    post_committed_mb->last_micro_block = 1;
+
+    MicroBlockMessageHandler::GetMessageHandler().OnMessage(queued_mb);
+    MicroBlockMessageHandler::GetMessageHandler().OnPostCommit(post_committed_mb);
+
+    ASSERT_FALSE(MicroBlockMessageHandler::GetMessageHandler().Contains(queued_mb->Hash()));
+    ASSERT_FALSE(MicroBlockMessageHandler::GetMessageHandler().Contains(post_committed_mb->Hash()));
+}

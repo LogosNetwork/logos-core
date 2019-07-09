@@ -86,13 +86,14 @@ Archiver::OnApplyUpdates(const ApprovedMB &block)
 void
 Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microblock)
 {
-    _event_proposer.ProposeMicroBlockOnce([this, &consensus, last_microblock]()->void {
+    _event_proposer.ProposeMicroBlockOnce([this, &consensus, &last_microblock]()->void {
         auto micro_block = std::make_shared<DelegateMessage<ConsensusType::MicroBlock>>();
-        if (false == _micro_block_handler.Build(*micro_block, last_microblock))
+        if (! _micro_block_handler.Build(*micro_block))
         {
             LOG_ERROR(_log) << "Archiver::Test_ProposeMicroBlock failed to build micro block";
             return;
         }
+        micro_block->last_micro_block = last_microblock;
         consensus.OnDelegateMessage(micro_block);
     });
 }
@@ -124,32 +125,15 @@ Archiver::IsFirstMicroBlock(BlockStore &store)
 void
 Archiver::ArchiveMB(InternalConsensus & consensus)
 {
-    EpochTimeUtil util;
     auto micro_block = std::make_shared<DelegateMessage<ConsensusType::MicroBlock>>();
-    bool is_epoch_time = util.IsEpochTime();
-    bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
 
-    // This is used for the edge case where software is launched within one MB interval before epoch cutoff,
-    // in which case the first time this callback is invoked will be two mb intervals past epoch start
-    // (i.e. one mb past epoch block proposal time), indicating that we are already past the first epoch skip time
-    // and need to set _first_epoch to false below
-    bool one_mb_past = util.IsOneMBPastEpochTime();
-
-    if (ShouldSkipMBBuild()) return;
-
-    if (!_micro_block_handler.Build(*micro_block, last_microblock))
     {
-        LOG_ERROR(_log) << "Archiver::ArchiveMB failed to build micro block";
-        return;
-    }
-
-    if (is_epoch_time
-        || (_first_epoch &&
-            !micro_block->sequence &&
-            micro_block->epoch_number == GENESIS_EPOCH + 1 &&
-            one_mb_past))
-    {
-        _first_epoch = false;
+        // use write transaction to ensure sequencing:
+        // if MB backup writes first, then we can reliably get latest MB sequence from DB or MessageHandler Queue
+        // if we get tx handle first, then the latest MB sequence must still be in MH queue
+        // (since backup DB write takes place before queue clear)
+        logos::transaction tx(_store.environment, nullptr, true);
+        if (ShouldSkipMBBuild() || !_micro_block_handler.Build(*micro_block)) return;
     }
 
     _counter.first = micro_block->epoch_number;
@@ -178,38 +162,31 @@ Archiver::ShouldSkipMBBuild()
     bool is_queued;
     uint32_t latest_mb_seq, latest_eb_num, queued_mb_seq, queued_eb_num;
     ApprovedMB mb;
+    Tip mb_tip;
+
+    // get DB's latest MB first
+    if (_store.micro_block_tip_get(mb_tip))
     {
-        Tip mb_tip;
-        // use write transaction to ensure sequencing:
-        // if MB backup writes first, then we can reliably get latest MB sequence from DB or MessageHandler Queue
-        // if we get tx handle first, then the latest MB sequence must still be in MH queue
-        // (since backup DB write takes place before queue clear)
-        logos::transaction tx(_store.environment, nullptr, true);
+        LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock tip";
+        trace_and_halt();
+    }
+    if (_store.micro_block_get(mb_tip.digest, mb))
+    {
+        LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock";
+        trace_and_halt();
+    }
+    stored = std::make_pair(mb.epoch_number, mb.sequence);
 
-        // get DB's latest MB first
-        if (_store.micro_block_tip_get(mb_tip, tx))
-        {
-            LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock tip";
-            trace_and_halt();
-        }
-        if (_store.micro_block_get(mb_tip.digest, mb, tx))
-        {
-            LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock";
-            trace_and_halt();
-        }
-        stored = std::make_pair(mb.epoch_number, mb.sequence);
-
-        // check queue content
-        is_queued = _mb_message_handler.GetQueuedSequence(queued);
-        if (!is_queued)  // queue is empty
-        {
-            latest = stored;
-        }
-        else  // queued number must be greater than or equal to database-stored number
-        {
-            latest = queued;
-            assert (latest >= stored);
-        }
+    // check queue content
+    is_queued = _mb_message_handler.GetQueuedSequence(queued);
+    if (!is_queued)  // queue is empty
+    {
+        latest = stored;
+    }
+    else  // queued number must be greater than or equal to database-stored number
+    {
+        latest = queued;
+        assert (latest >= stored);
     }
 
     // TODO: Archiver's internal counter should really be directly updated by post commit
@@ -222,7 +199,7 @@ Archiver::ShouldSkipMBBuild()
         LOG_WARN(_log) << "Archiver::ArchiveMB - internal counter epoch:seq="
                        << _counter.first << ":" << _counter.second
                        << ", latest stored/queued epoch:seq=" << latest.first << ":" << latest.second
-                       << ", local clock is behind";
+                       << ", local clock is behind, skipping MB archival proposal.";
         // TODO: sync clock?
 
         // update internal counter to catch up to latest sequence, skip proposal

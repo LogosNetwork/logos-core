@@ -36,9 +36,8 @@ public:
     /// Build the block, called periodically by node
     /// Could be called by any delegate
     /// @param block to build [in|out]
-    /// @param last_micro_block last microblock in the poch [in]
     /// @returns true on success
-    bool Build(MicroBlock &block, bool last_micro_block);
+    bool Build(MicroBlock &block);
 
     /// Get microblock cut-off time in milliseconds
     /// @param timestamp the base time stamp

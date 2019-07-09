@@ -60,7 +60,41 @@ public:
     /// Attempts to erase post-committed message from queue
     ///
     /// @param[in] shared pointer to PrePrepare message to erase
-    virtual void OnPostCommit(std::shared_ptr<PrePrepare>);
+    template<ConsensusType PCT = CT>
+    std::enable_if_t<PCT != ConsensusType::Request, void> OnPostCommit(std::shared_ptr<PrePrepare> block)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto & hashed = _entries. template get <1> ();
+        auto hash = block->Hash();
+        auto n_erased = hashed.erase(hash);
+        if (n_erased)
+        {
+            LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
+        }
+        else
+        {
+            LOG_WARN (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - hash does not exist: "
+                            << hash.to_string();
+            // For MB and EB, we also need to erase based on <epoch, sequence> slot
+            // (until better rejection logic handling is implemented)
+            for (auto it = _entries.begin(); it != _entries.end(); it++)
+            {
+                if (it->block->epoch_number == block->epoch_number && it->block->sequence == block->sequence)
+                {
+                    LOG_ERROR(_log) << "MessageHandler<" << ConsensusToName(CT)
+                                    << ">::OnPostCommit - queued conflicting archival block detected: "
+                                    << it->block->ToJson();
+                    _entries.erase(it);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Attempts to erase all contents from post-committed message from queue
+    ///
+    /// @param[in] shared pointer to PrePrepare whose requests we wish to erase
+    void OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>>);
 
     /// Checks if no message in queue is ready for primary consensus
     ///
@@ -116,11 +150,6 @@ protected:
 class RequestMessageHandler : public MessageHandler<ConsensusType::Request>
 {
 public:
-
-    /// Attempts to erase all contents from post-committed message from queue
-    ///
-    /// @param[in] shared pointer to PrePrepare whose requests we wish to erase
-    void OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>>) override;
 
     /// Moves queued requests to RequestConsensusManager's internal queue, up to the specified size
     ///

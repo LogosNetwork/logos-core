@@ -253,24 +253,6 @@ bool PersistenceManager<R>::ValidateRequest(
         LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
                     << " expecting=" << info->block_count;
     }
-    // No previous block set.
-    if(request->previous.is_zero() && info->block_count)
-    {
-        result.code = logos::process_result::fork;
-        return false;
-    }
-
-    // This account has issued at least one send transaction.
-    if(info->block_count)
-    {
-        if(!_store.request_exists(request->previous))
-        {
-            result.code = logos::process_result::gap_previous;
-            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
-                << "; current account info head is: " << info->head.to_string();
-            return false;
-        }
-    }
 
     // Make sure there's enough Logos
     // to cover the request.
