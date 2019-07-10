@@ -60,7 +60,41 @@ public:
     /// Attempts to erase post-committed message from queue
     ///
     /// @param[in] shared pointer to PrePrepare message to erase
-    virtual void OnPostCommit(std::shared_ptr<PrePrepare>);
+    template<ConsensusType PCT = CT>
+    std::enable_if_t<PCT != ConsensusType::Request, void> OnPostCommit(std::shared_ptr<PrePrepare> block)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto & hashed = _entries. template get <1> ();
+        auto hash = block->Hash();
+        auto n_erased = hashed.erase(hash);
+        if (n_erased)
+        {
+            LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
+        }
+        else
+        {
+            LOG_WARN (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - hash does not exist: "
+                            << hash.to_string();
+            // For MB and EB, we also need to erase based on <epoch, sequence> slot
+            // (until better rejection logic handling is implemented)
+            for (auto it = _entries.begin(); it != _entries.end(); it++)
+            {
+                if (it->block->epoch_number == block->epoch_number && it->block->sequence == block->sequence)
+                {
+                    LOG_ERROR(_log) << "MessageHandler<" << ConsensusToName(CT)
+                                    << ">::OnPostCommit - queued conflicting archival block detected: "
+                                    << it->block->ToJson();
+                    _entries.erase(it);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Attempts to erase all contents from post-committed message from queue
+    ///
+    /// @param[in] shared pointer to PrePrepare whose requests we wish to erase
+    void OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>>);
 
     /// Checks if no message in queue is ready for primary consensus
     ///
@@ -117,11 +151,6 @@ class RequestMessageHandler : public MessageHandler<ConsensusType::Request>
 {
 public:
 
-    /// Attempts to erase all contents from post-committed message from queue
-    ///
-    /// @param[in] shared pointer to PrePrepare whose requests we wish to erase
-    void OnPostCommit(std::shared_ptr<PrePrepareMessage<ConsensusType::Request>>) override;
-
     /// Moves queued requests to RequestConsensusManager's internal queue, up to the specified size
     ///
     /// @param[in] reference to target RequestManager internal queue
@@ -139,11 +168,13 @@ public:
 class MicroBlockMessageHandler : public MessageHandler<ConsensusType::MicroBlock>
 {
 public:
-    /// Fetchs the most recently queued message's sequence and epoch numbers
+    /// Fetches the most recently queued message's sequence and epoch numbers
+    /// This function is called by Archiver to ascertain the latest MB epoch + sequence numbers in queue, if any exists
     ///
     /// @param[in] reference to sequence number to write to, set to 0 if queue is empty
     /// @param[in] reference to epoch number to write to, set to 0 if queue is empty
-    void GetQueuedSequence(uint32_t &, uint32_t &);
+    /// @return true if queue contains content, false if queue is empty
+    bool GetQueuedSequence(EpochSeq &);
 
     /// Instantiates a static singleton of MicroBlockMessageHandler, if one doesn't exist, and return its reference
     static MicroBlockMessageHandler & GetMessageHandler()

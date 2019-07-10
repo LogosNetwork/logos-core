@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <logos/blockstore.hpp>
-#include <logos/blockstore.hpp>
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
