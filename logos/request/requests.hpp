@@ -12,29 +12,29 @@ enum class RequestType : uint8_t
 {
     // Native Logos Requests
     //
-    Send              = 0,
-    Proxy             = 1,
-    Issuance          = 2,
+    Send               = 0,
+    Proxy              = 1,
+    Issuance           = 2,
 
     // Administrative Token
     // Requests
     //
-    IssueAdditional  = 3,
-    ChangeSetting    = 4,
-    ImmuteSetting    = 5,
-    Revoke           = 6,
-    AdjustUserStatus = 7,
-    AdjustFee        = 8,
-    UpdateIssuerInfo = 9,
-    UpdateController = 10,
-    Burn             = 11,
-    Distribute       = 12,
-    WithdrawFee      = 13,
-    WithdrawLogos    = 14,
+    IssueAdditional   = 3,
+    ChangeSetting     = 4,
+    ImmuteSetting     = 5,
+    Revoke            = 6,
+    AdjustUserStatus  = 7,
+    AdjustFee         = 8,
+    UpdateIssuerInfo  = 9,
+    UpdateController  = 10,
+    Burn              = 11,
+    Distribute        = 12,
+    WithdrawFee       = 13,
+    WithdrawLogos     = 14,
 
     // Token User Requests
     //
-    TokenSend        = 15,
+    TokenSend         = 15,
 
     //Election Requests
     ElectionVote      = 16,
@@ -51,7 +51,7 @@ enum class RequestType : uint8_t
 
     // Unknown
     //
-    Unknown          = 23
+    Unknown           = 23
 };
 
 class Reservations;

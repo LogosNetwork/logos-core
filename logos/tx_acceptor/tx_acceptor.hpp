@@ -137,9 +137,9 @@ private:
     /// @return StateBlock structure
     std::shared_ptr<DM> ToRequest(const std::string &block_text);
     /// Validate state block
-    /// @param block state block [in]
+    /// @param request state block [in]
     /// @return result of the validation, 'progress' is success
-    logos::process_result Validate(const std::shared_ptr<DM> & block);
+    logos::process_result Validate(const std::shared_ptr<DM> & request);
     /// Validate/send received transaction for consensus protocol
     /// @param block received transaction [in]
     /// @param blocks to aggregate in delegate mode [in|out]

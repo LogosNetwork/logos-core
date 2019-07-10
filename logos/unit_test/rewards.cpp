@@ -199,7 +199,7 @@ TEST (Rewards, Claim_Processing_1)
     AccountAddress candidate = 347823468274382;
 
     // Initialize empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     logos::account_info info;
@@ -220,7 +220,7 @@ TEST (Rewards, Claim_Processing_1)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(req.type);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::shared_ptr<Request> req_ptr(&req, [](auto r){});
@@ -553,7 +553,7 @@ TEST(Rewards, Claim_Processing_2)
 
     // Initialize Epoch
     ApprovedEB eb = initialize_epoch(epoch_num, store);
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
+    Amount initial_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 100;
     AccountAddress rep = 42;
     AccountAddress candidate = 347823468274382;
 
@@ -569,7 +569,7 @@ TEST(Rewards, Claim_Processing_2)
     }
 
     // Initialize empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     logos::account_info candidate_info;
@@ -592,7 +592,7 @@ TEST(Rewards, Claim_Processing_2)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(RequestType::Send);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::shared_ptr<Request> req_ptr(&req, [](auto r){});
@@ -924,11 +924,11 @@ TEST(Rewards, Delegate_Rewards)
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
-    eb.transaction_fee_pool = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    eb.transaction_fee_pool = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     EpochVotingManager voting_mgr(*store);
     PersistenceManager<ECT> persistence_mgr(*store,nullptr);
     std::vector<Delegate> delegates;
-    Amount initial_del_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_del_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_del_balance += MIN_DELEGATE_STAKE;
     //This is set large so that way every delegate stays under the cap
     //and votes are not redistributed
@@ -977,7 +977,7 @@ TEST(Rewards, Delegate_Rewards)
 
     EpochVotingManager::START_ELECTIONS_EPOCH = 4;
 
-    auto transition_epoch = [&](int retire_idx = -1)
+    auto transition_epoch = [&](int retire_idx = -1, Amount transaction_fee_pool = {0})
     {
         std::vector<logos::account_info> delegate_accounts_a(32);
         std::vector<logos::account_info> delegate_accounts_b(32);
@@ -999,6 +999,10 @@ TEST(Rewards, Delegate_Rewards)
             eb.epoch_number = epoch_num - 1;
             logos::transaction txn(store->environment, nullptr, true);
             eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates, epoch_num);
+            if(!transaction_fee_pool.is_zero())
+            {
+                eb.transaction_fee_pool = transaction_fee_pool;
+            }
             ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(), txn));
             ASSERT_FALSE(store->epoch_put(eb, txn));
             persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
@@ -1089,7 +1093,7 @@ TEST(Rewards, Delegate_Rewards)
 
     compare_delegates();
 
-    transition_epoch();
+    transition_epoch(-1, 10);
 
     compare_delegates();
 
@@ -1112,7 +1116,8 @@ TEST(Rewards, Delegate_Rewards)
             return d1.vote > d2.vote;
         });
     }
-    transition_epoch(0);
+
+    transition_epoch(0, PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500);
     compare_delegates();
     candidates = get_candidates();
     ASSERT_EQ(candidates.size(),24);

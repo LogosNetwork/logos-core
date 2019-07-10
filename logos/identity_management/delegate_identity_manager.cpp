@@ -315,7 +315,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         logos::genesis_delegates.push_back(delegate);
 
-        logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MIN_TRANSACTION_FEE);
+        logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MinTransactionFee(RequestType::Send));
         uint64_t work = 0;
 
         Send request(logos::logos_test_account,   // account

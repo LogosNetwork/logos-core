@@ -15,7 +15,6 @@
 #include <logos/staking/staking_manager.hpp>
 #include <logos/node/node.hpp>
 
-constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 std::mutex PersistenceManager<R>::_write_mutex;
 
 // TODO: Dynamic can be changed to static if we do type validation
@@ -224,7 +223,7 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             result.code = logos::process_result::gap_previous;
             LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
-                << "; current account info head is: " << info->head.to_string();
+                            << "; current account info head is: " << info->head.to_string();
             return false;
         }
     }
@@ -232,9 +231,9 @@ bool PersistenceManager<R>::ValidateRequest(
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
-            << request->previous.to_string()
-            << ") and current account info head ("
-            << info->head.to_string() << ")";
+                        << request->previous.to_string()
+                        << ") and current account info head ("
+                        << info->head.to_string() << ")";
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
@@ -262,13 +261,13 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         result.code = logos::process_result::wrong_sequence_number;
         LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-            << " expecting=" << info->block_count;
+                       << " expecting=" << info->block_count;
         return false;
     }
     else
     {
         LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
-                    << " expecting=" << info->block_count;
+                       << " expecting=" << info->block_count;
     }
 
     // Make sure there's enough Logos
@@ -937,7 +936,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             }
             else
             {
-                _epoch_handler->OnFeeCollected(MIN_TRANSACTION_FEE);
+                _epoch_handler->OnFeeCollected(MinTransactionFee(request->type));
             }
         }
         else
@@ -1075,7 +1074,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             // TODO: Consider providing a TokenIsuance field
             //       for explicitly  declaring the amount of
             //       Logos designated for the account's balance.
-            account.SetBalance(account.GetBalance() + request->fee - MIN_TRANSACTION_FEE, cur_epoch_num, transaction);
+            account.SetBalance(account.GetBalance() + request->fee - MinTransactionFee(request->type),
+                               cur_epoch_num,
+                               transaction);
 
             // SG: put Issuance Request on TokenAccount's receive chain as genesis receive,
             // update TokenAccount's relevant fields
@@ -1439,6 +1440,89 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
 }
 
+uint128_t PersistenceManager<R>::MinTransactionFee(RequestType type)
+{
+    uint128_t fee = 0;
+
+    switch(type)
+    {
+        case RequestType::Send:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Proxy:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Issuance:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::IssueAdditional:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::ChangeSetting:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::ImmuteSetting:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Revoke:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::AdjustUserStatus:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::AdjustFee:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::UpdateIssuerInfo:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::UpdateController:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Burn:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Distribute:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::WithdrawFee:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::WithdrawLogos:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::TokenSend:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::ElectionVote:
+            break;
+        case RequestType::AnnounceCandidacy:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::RenounceCandidacy:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::StartRepresenting:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::StopRepresenting:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Stake:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Unstake:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Claim:
+            fee = 0x21e19e0c9bab2400000_cppui128;
+            break;
+        case RequestType::Unknown:
+            break;
+    }
+
+    return fee;
+}
 
 template<typename SendType>
 void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,

@@ -1,5 +1,6 @@
 #include <logos/request/requests.hpp>
 
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
@@ -16,8 +17,6 @@
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
-
-constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 Request::Locator::Locator(bool & error,
                           logos::stream & stream)
@@ -375,7 +374,7 @@ bool Request::Validate(logos::process_return & result) const
 
     // Validate the Logos transaction fee
     //
-    if(fee.number() < MIN_TRANSACTION_FEE)
+    if(fee.number() < PersistenceManager<R>::MinTransactionFee(type))
     {
         result.code = logos::process_result::insufficient_fee;
         return false;

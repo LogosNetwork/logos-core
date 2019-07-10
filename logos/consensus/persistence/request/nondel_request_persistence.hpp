@@ -58,21 +58,21 @@ public:
         return PersistenceManager<R>::Validate(message, status);
     }
 
-    bool ValidateSingleRequest(std::shared_ptr<const Request> block, uint32_t cur_epoch_num, logos::process_return &result, bool allow_duplicate=false) override
+    bool ValidateSingleRequest(std::shared_ptr<const Request> request, uint32_t cur_epoch_num, logos::process_return &result, bool allow_duplicate=false) override
     {
-        if(block->origin.is_zero())
+        if(request->origin.is_zero())
         {
             result.code = logos::process_result::opened_burn_account;
             return false;
         }
 
-        if(block->fee.number() < MIN_TRANSACTION_FEE)
+        if(request->fee.number() < MinTransactionFee(request->type))
         {
             result.code = logos::process_result::insufficient_fee;
             return false;
         }
 
-        return PersistenceManager<R>::ValidateSingleRequest(block, cur_epoch_num, result, allow_duplicate);
+        return PersistenceManager<R>::ValidateSingleRequest(request, cur_epoch_num, result, allow_duplicate);
     }
 
     bool ValidateSingleRequest(const std::shared_ptr<Request> block, uint32_t cur_epoch_num)

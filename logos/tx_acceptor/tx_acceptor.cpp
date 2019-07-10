@@ -339,27 +339,26 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 }
 
 logos::process_result
-TxAcceptor::Validate(const std::shared_ptr<DM> & block)
+TxAcceptor::Validate(const std::shared_ptr<DM> & request)
 {
-    if (!block->VerifySignature(block->origin))
+    if (!request->VerifySignature(request->origin))
     {
         LOG_INFO(_log) << "TxAcceptor::Validate , bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->origin.to_string();
+                       << request->signature.to_string()
+                       << " account: " << request->origin.to_string();
         return logos::process_result::bad_signature;
     }
 
-    if (block->origin.is_zero())
+    if (request->origin.is_zero())
     {
         return logos::process_result::opened_burn_account;
     }
 
-    if (block->fee.number() < PersistenceManager<R>::MIN_TRANSACTION_FEE
-            && block->type != RequestType::ElectionVote)
+    if (request->fee.number() < PersistenceManager<R>::MinTransactionFee(request->type))
     {
         LOG_INFO(_log) << "TxAcceptor::Validate , bad transaction fee: "
-                       << block->fee.number()
-                       << " account: " << block->origin.to_string();
+                       << request->fee.number()
+                       << " account: " << request->origin.to_string();
         return logos::process_result::insufficient_fee;
     }
 

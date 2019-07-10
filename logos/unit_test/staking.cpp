@@ -72,8 +72,8 @@ TEST(Staking, Basic)
 
 
     //init empty accounts
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 100;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info info;
     logos::account_info rep_info;
@@ -155,7 +155,7 @@ TEST(Staking, Basic)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(req.type);
         req.previous = req.origin == rep ? rep_prev : req.origin == account ? prev : 0;
         req.sequence = req.origin == rep ? rep_seq : req.origin == account ? seq : 0;
         if(IsStakingRequest(req))
@@ -299,7 +299,7 @@ TEST(Staking, Basic)
         store->account_put(dummy_account,dummy_info,txn);
         store->account_put(dummy_account2,dummy_info,txn);
     }
-    send.AddTransaction(dummy_account, PersistenceManager<R>::MIN_TRANSACTION_FEE + 4567);
+    send.AddTransaction(dummy_account, PersistenceManager<R>::MinTransactionFee(RequestType::Send) + 4567);
     send.AddTransaction(dummy_account2,3260);
     bal = info.GetAvailableBalance();
     ASSERT_TRUE(validate(send));
@@ -631,8 +631,8 @@ TEST(Staking, SwitchProxy)
     AccountAddress rep4 = 43546435445;
 
     //init empty accounts
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 100;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info info;
     logos::account_info rep_info;
@@ -752,7 +752,7 @@ TEST(Staking, SwitchProxy)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(req.type);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::shared_ptr<Request> req_ptr(&req, [](auto r){});
@@ -919,7 +919,7 @@ TEST(Staking, SwitchProxy)
 
         //Send with some transactions
 
-        send.AddTransaction(dummy_account, PersistenceManager<R>::MIN_TRANSACTION_FEE + 4567);
+        send.AddTransaction(dummy_account, PersistenceManager<R>::MinTransactionFee(RequestType::Send) + 4567);
         send.AddTransaction(dummy_account2,3260);
 
         ASSERT_TRUE(validate(send));
@@ -1127,7 +1127,7 @@ TEST(Staking, MultipleProxy)
 
 
 
-    Amount initial_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 100;
+    Amount initial_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 100;
     AccountAddress rep = 42;
     
     std::vector<std::pair<AccountAddress,logos::account_info>> accounts;
@@ -1143,7 +1143,7 @@ TEST(Staking, MultipleProxy)
 
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_REP_STAKE;
     logos::account_info rep_info;
     {
@@ -1260,7 +1260,7 @@ TEST(Staking, MultipleProxy)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(req.type);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::shared_ptr<Request> req_ptr(&req, [](auto r){});
@@ -1470,7 +1470,7 @@ TEST(Staking, StakeUnstake)
     AccountAddress rep = 12132819283791273;
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     {
@@ -1583,7 +1583,7 @@ TEST(Staking, StakeUnstake)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(RequestType::Send);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::cout << "epoch_num of request is " << req.epoch_num << std::endl;
@@ -1900,7 +1900,7 @@ TEST(Staking, Votes)
     AccountAddress candidate = 347823468274382;
 
     //init empty accounts
-    Amount initial_rep_balance = PersistenceManager<R>::MIN_TRANSACTION_FEE * 500;
+    Amount initial_rep_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     initial_rep_balance += MIN_DELEGATE_STAKE;
     logos::account_info rep_info;
     logos::account_info info;
@@ -2026,7 +2026,7 @@ TEST(Staking, Votes)
 
     auto validate = [&](auto& req)
     {
-        req.fee = PersistenceManager<R>::MIN_TRANSACTION_FEE;
+        req.fee = PersistenceManager<R>::MinTransactionFee(req.type);
         request_meta[req.origin].FillIn(req, epoch_num);
         req.Hash();
         std::shared_ptr<Request> req_ptr(&req, [](auto r){});
