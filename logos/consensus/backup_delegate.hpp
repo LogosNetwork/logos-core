@@ -111,6 +111,9 @@ protected:
     bool Validate(const M & message);
     bool Validate(const PrePrepare & message);
 
+    template<typename M>
+    bool ValidateQuorum(const M & message);
+
     virtual bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;

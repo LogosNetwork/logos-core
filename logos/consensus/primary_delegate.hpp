@@ -12,6 +12,8 @@
 #include <boost/asio/io_service.hpp>
 
 #include <unordered_map>
+template<ConsensusType CT>
+class BackupDelegate;
 
 class PrimaryDelegate : public Self<PrimaryDelegate>
 {
@@ -24,6 +26,9 @@ class PrimaryDelegate : public Self<PrimaryDelegate>
     };
 
     friend class Archiver;
+
+    template <ConsensusType CT>
+    friend class BackupDelegate;
 
     using Signatures = std::vector<MessageValidator::DelegateSignature>;
     using Timer      = boost::asio::deadline_timer;

@@ -149,6 +149,17 @@ template<typename M>
 void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id)
 {
     LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type " << MessageToName(message);
+
+    //Integration Fix: Need to check that we didn't already tally for this 
+    //remote_delegate. Could be a re-broadcast, or could have received message 
+    //via direct connection and p2p
+    for(size_t i = 0; i < _signatures.size(); ++i)
+    {
+        if(_signatures[i].delegate_id == remote_delegate_id)
+        {
+            return;
+        }
+    } 
     _prepare_vote += _weights[remote_delegate_id].vote_weight;
     _prepare_stake += _weights[remote_delegate_id].stake_weight;
 
