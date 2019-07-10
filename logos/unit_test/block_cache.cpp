@@ -327,8 +327,11 @@ TEST (BlockCache, MixedBlocksTest)
                 MBPtr mb = make_mb(3 + i, N_DELEGATES * (i + 1), ++mb_sqn, mhash);
                 for (int k = 0; k < N_DELEGATES; ++k)
                 {
+                    mb->tips[k * (i + 1)].epoch = 3 + i;
+                    mb->tips[k * (i + 1)].sqn = j;
                     mb->tips[k * (i + 1)].digest = rhashes[k];
                 }
+                mb->number_batch_blocks = N_DELEGATES * (N_RBLOCKS / N_MBLOCKS);
                 if (j == N_RBLOCKS - 1)
                     mb->last_micro_block = true;
                 mhash = mb->Hash();
