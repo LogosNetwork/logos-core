@@ -467,7 +467,12 @@ TEST (Rewards, Claim_Processing_1)
     ASSERT_TRUE(validate(claim));
     apply(claim);
 
+    auto rep_claim_epoch = rep_info.claim_epoch;
+
     update_info();
+
+    ASSERT_NE(rep_info.claim_epoch, rep_claim_epoch);
+    ASSERT_EQ(rep_info.claim_epoch, eb.epoch_number);
 
     {
         logos::transaction txn(store->environment,nullptr,true);
@@ -514,7 +519,12 @@ TEST (Rewards, Claim_Processing_1)
     ASSERT_TRUE(validate(claim));
     apply(claim);
 
+    auto account_claim_epoch = info.claim_epoch;
+
     update_info();
+
+    ASSERT_NE(info.claim_epoch, account_claim_epoch);
+    ASSERT_EQ(info.claim_epoch, eb.epoch_number);
 
     Amount balance_diff = info.GetAvailableBalance() - account_balance;
     ASSERT_EQ(sum, balance_diff);
@@ -855,6 +865,15 @@ TEST(Rewards, Claim_Processing_2)
     {
         AccountAddress address = 1217638716 + (i * 100);
 
+        logos::account_info info;
+
+        {
+             logos::transaction txn(store->environment, nullptr, false);
+             store->account_get(address, info, txn);
+        }
+
+        auto claim_epoch = info.claim_epoch;
+
         Claim claim;
         claim.origin = address;
         claim.epoch_hash = eb.Hash();
@@ -862,10 +881,11 @@ TEST(Rewards, Claim_Processing_2)
         ASSERT_TRUE(validate(claim));
         apply(claim);
 
-        logos::transaction txn(store->environment, nullptr, true);
-
-        logos::account_info info;
+        logos::transaction txn(store->environment, nullptr, false);
         store->account_get(address, info, txn);
+
+        ASSERT_NE(claim_epoch, info.claim_epoch);
+        ASSERT_EQ(eb.epoch_number, info.claim_epoch);
 
         ReceiveBlock receive;
         ASSERT_FALSE(store->receive_get(info.receive_head, receive, txn));

@@ -2986,8 +2986,11 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
         }
     }
 
+    info.claim_epoch = claim->epoch_number;
+
     return sum;
 }
+
 bool PersistenceManager<R>::ValidateRequest(
     const Claim & request,
     logos::process_return & result,
