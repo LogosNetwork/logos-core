@@ -64,6 +64,16 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     if (BlockExists(message))
     {
         LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - request block already exists, ignoring";
+        // Integration Fix: Need to still unreserve. A delegate could receive
+        // a post committed block via p2p, and then later receive a preprepare
+        // for the same block (particularly if consensus is in p2p mode). 
+        // Delegate would reserve when receiving the preprepare, but on
+        // post-commit, the block already exists. Need to release reservation
+        for(uint16_t i = 0; i < message.requests.size(); ++i)
+        {
+            _reservations->Release(message.requests[i]->GetAccount());
+        }
+
         return;
     }
 
@@ -82,6 +92,8 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // Need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
     {
+        //Note, creating a write transaction blocks if another write transaction
+        //exists elsewhere
         logos::transaction transaction(_store.environment, nullptr, true);
         StoreRequestBlock(message, transaction, delegate_id);
         ApplyRequestBlock(message, transaction);

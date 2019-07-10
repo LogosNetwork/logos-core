@@ -273,6 +273,14 @@ bool BackupDelegate<CT>::Validate(const M & message)
             // TODO: bootstrap here
             return false;
         }
+
+        //Verify that enough delegates signed the message and quorum was
+        //actually reached
+        if(!ValidateQuorum(message))
+        {
+            return false;
+        }
+
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
         {
@@ -297,6 +305,13 @@ bool BackupDelegate<CT>::Validate(const M & message)
                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
             return false;
         }
+
+        //Verify that enough delegates signed the message and quorum was
+        //actually reached
+        if(!ValidateQuorum(message))
+        {
+            return false;
+        }
         return _validator.Validate(_post_prepare_hash, message.signature);
 
         // We received the PostCommit without
@@ -314,6 +329,49 @@ bool BackupDelegate<CT>::Validate(const M & message)
                     << StateToString(_state);
 
     return false;
+}
+template<ConsensusType CT>
+template<typename M>
+bool BackupDelegate<CT>::ValidateQuorum(const M & message)
+{
+    std::shared_ptr<PrimaryDelegate> primary = _primary.lock();
+    if(!primary)
+    {
+        LOG_FATAL(_log) << "BackupDelegate<" << ConsensusToName(CT) 
+            << ">::ValidateQuorum - Attempting to validate "
+                    << MessageToName(message)
+                    << " - failed to get shared_ptr to primary";
+        trace_and_halt();
+    }
+
+    uint128_t vote = 0;
+    uint128_t stake = 0;
+
+
+    for(size_t i = 0; i < message.signature.map.size(); ++i)
+    {
+        if(message.signature.map[i])
+        {
+            vote += primary->_weights[i].vote_weight;
+            stake += primary->_weights[i].stake_weight;    
+        }
+    }
+    if(vote >= primary->_vote_quorum && stake >= primary->_stake_quorum)
+    {
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::ValidateQuorum - Quorum is valid for "
+            << MessageToName(message) << " ,preprepare_hash="
+            << message.preprepare_hash.to_string();
+        return true;
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::ValidateQuorum - Quorum is not valid for " 
+                << MessageToName(message) << " ,preprepare_hash="
+                << message.preprepare_hash.to_string();
+        return false;
+    }
 }
 
 template<ConsensusType CT>
@@ -402,7 +460,7 @@ bool BackupDelegate<CT>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
-        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Proceeding with PostCommit"
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Disregarding PostCommit"
                        << " message received while in " << StateToString(_state);
         return false;
     }
