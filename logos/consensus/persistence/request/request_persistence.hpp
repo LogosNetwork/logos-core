@@ -102,9 +102,9 @@ protected:
         if(!ValidateRequest(*derived,*account_info,cur_epoch_num,txn,result))
         {
             LOG_ERROR(_log) << "PersistenceManager<R>::ValidateRequestWithStaking - "
-               << " request is invalid: " << derived->GetHash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code)
-                << " type is " << GetRequestTypeField(request->type);
+                            << " request is invalid: " << derived->GetHash().to_string()
+                            << " code is " << logos::ProcessResultToString(result.code)
+                            << " type is " << GetRequestTypeField(request->type);
             return false;
         }
         return true;
@@ -175,8 +175,9 @@ protected:
         _epoch_handler = &handler;
     }
 
-    static constexpr uint32_t  RESERVATION_PERIOD  = 2;
-    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
+    static uint128_t MinTransactionFee(RequestType type);
+
+    static constexpr uint32_t  RESERVATION_PERIOD = 2;
 
 private:
 
