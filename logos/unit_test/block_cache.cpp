@@ -56,8 +56,10 @@ struct test_data
     logos::block_store      store;
     EBPtr                   e0;
     MBPtr                   m0;
+    MBPtr                   m1;
     Tip                     etip;
     Tip                     mtip;
+    Tip                     mtip1;
     std::queue<BlockHash>   store_q;
 
     test_data()
@@ -66,6 +68,7 @@ struct test_data
         , store(error, data_path)
         , e0(make_eb(2, 0, Tip(), BlockHash()))
         , m0(make_mb(3, 1, 0, BlockHash()))
+        , m1(make_mb(4, 2, 0, BlockHash()))
     {
         etip.epoch = 2;
         etip.sqn = 0;
@@ -75,13 +78,19 @@ struct test_data
         mtip.sqn = 0;
         mtip.digest = m0->Hash();
 
+        mtip1.epoch = 4;
+        mtip1.sqn = 0;
+        mtip1.digest = m1->Hash();
+
         {
             logos::transaction t(store.environment, nullptr, true);
 
             store.epoch_put(*e0, t);
             store.epoch_tip_put(etip, t);
             store.micro_block_put(*m0, t);
+            store.micro_block_put(*m1, t);
             store.micro_block_tip_put(mtip, t);
+            store.micro_block_tip_put(mtip1, t);
         }
     }
 };
@@ -302,41 +311,49 @@ TEST (BlockCache, MixedBlocksTest)
     test_data t;
     EXPECT_EQ(t.error, false);
     logos::BlockCache c(t.store, &t.store_q);
-    std::vector<RBPtr> rbs;
+    std::vector<RBPtr> rbs, rbs0;
     std::vector<MBPtr> mbs;
     std::vector<EBPtr> ebs;
     BlockHash ehash = t.e0->Hash(), mhash = t.m0->Hash(), rhash;
     std::vector<int> indexes;
-    int mb_sqn = 0;
+    int mb_sqn = 0, blocks_number = NUM_DELEGATES + N_DELEGATES * (N_RBLOCKS / N_MBLOCKS);
 
     for (int i = 0; i < N_EPOCHS; ++i)
     {
-        BlockHash rhashes[N_DELEGATES];
+        BlockHash rhashes[NUM_DELEGATES];
+        for (int j = 0; j < NUM_DELEGATES; ++j)
+        {
+            RBPtr rb = make_rb(3 + i, j, 0, BlockHash());
+            rhashes[j] = rb->Hash();
+            c.StoreRequestBlock(rb);
+            rbs0.push_back(rb);
+        }
         for (int j = 0; j < N_RBLOCKS; ++j)
         {
             for (int k = 0; k < N_DELEGATES; ++k)
             {
-                RBPtr rb = make_rb(3 + i, k * (i + 1), j, rhashes[k]);
+                RBPtr rb = make_rb(3 + i, k * (i + 1), j + 1, rhashes[k * (i + 1)]);
                 rhash = rb->Hash();
-                rhashes[k] = rhash;
+                rhashes[k * (i + 1)] = rhash;
                 indexes.push_back(rbs.size() << 2);
                 rbs.push_back(rb);
             }
             if ((j + 1) % (N_RBLOCKS / N_MBLOCKS) == 0)
             {
                 MBPtr mb = make_mb(3 + i, N_DELEGATES * (i + 1), ++mb_sqn, mhash);
-                for (int k = 0; k < N_DELEGATES; ++k)
+                for (int k = 0; k < NUM_DELEGATES; ++k)
                 {
-                    mb->tips[k * (i + 1)].epoch = 3 + i;
-                    mb->tips[k * (i + 1)].sqn = j;
-                    mb->tips[k * (i + 1)].digest = rhashes[k];
+                    mb->tips[k].epoch = 3 + i;
+                    mb->tips[k].sqn = (k % (i + 1) || k / (i + 1) >= N_DELEGATES ? 0 : j + 1);
+                    mb->tips[k].digest = rhashes[k];
                 }
-                mb->number_batch_blocks = N_DELEGATES * (N_RBLOCKS / N_MBLOCKS);
+                mb->number_batch_blocks = blocks_number;
                 if (j == N_RBLOCKS - 1)
                     mb->last_micro_block = true;
                 mhash = mb->Hash();
                 indexes.push_back(mbs.size() << 2 | 1);
                 mbs.push_back(mb);
+                blocks_number = N_DELEGATES * (N_RBLOCKS / N_MBLOCKS);
             }
         }
         Tip mtip;
@@ -347,6 +364,10 @@ TEST (BlockCache, MixedBlocksTest)
         ehash = eb->Hash();
         indexes.push_back(ebs.size() << 2 | 2);
         ebs.push_back(eb);
+
+        mhash = t.m1->Hash();
+        mb_sqn = 0;
+        blocks_number = 2 * NUM_DELEGATES + N_DELEGATES * (N_RBLOCKS + N_RBLOCKS / N_MBLOCKS);
     }
 
     int size = indexes.size();
@@ -382,12 +403,20 @@ TEST (BlockCache, MixedBlocksTest)
         }
     }
 
-    for (int i = 0; i < 3 && t.store_q.size() != size; ++i)
+    for (int i = 0; i < 5 && t.store_q.size() != size + N_EPOCHS * NUM_DELEGATES; ++i)
     {
         sleep(1);
     }
 
-    EXPECT_EQ(t.store_q.size(), size);
+    EXPECT_EQ(t.store_q.size(), size + N_EPOCHS * NUM_DELEGATES);
+
+    for (int i = 0; i < N_EPOCHS * NUM_DELEGATES; ++i)
+    {
+        BlockHash hash = t.store_q.front();
+        t.store_q.pop();
+        EXPECT_EQ(c.IsBlockCached(hash), false);
+        EXPECT_EQ(hash, rbs0[i]->Hash());
+    }
 
     int rindexes[N_EPOCHS * N_DELEGATES] = {0}, mindexes[N_EPOCHS] = {0}, eindex = 0;
 
@@ -403,6 +432,7 @@ TEST (BlockCache, MixedBlocksTest)
             if (rindexes[j] < N_RBLOCKS && hash == rbs[j * N_RBLOCKS + rindexes[j]]->Hash())
             {
                 rindexes[j]++;
+                printf("rindex[%d] = %d\n", j, rindexes[j]);
                 break;
             }
         }
@@ -414,6 +444,7 @@ TEST (BlockCache, MixedBlocksTest)
             if (mindexes[j] < N_MBLOCKS && hash == mbs[j * N_MBLOCKS + mindexes[j]]->Hash())
             {
                 mindexes[j]++;
+                printf("mindex[%d] = %d\n", j, mindexes[j]);
                 break;
             }
         }
@@ -423,6 +454,7 @@ TEST (BlockCache, MixedBlocksTest)
         if (eindex < N_EPOCHS && hash == ebs[eindex]->Hash())
         {
             eindex++;
+            printf("eindex = %d\n", eindex);
         }
         else
         {
