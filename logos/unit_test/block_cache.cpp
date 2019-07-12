@@ -14,13 +14,20 @@ using RBPtr = logos::IBlockCache::RBPtr;
 using MBPtr = logos::IBlockCache::MBPtr;
 using EBPtr = logos::IBlockCache::EBPtr;
 
-static RBPtr make_rb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous)
+static RBPtr make_rb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous,
+                     const std::vector<BlockHash> &requests_previous = std::vector<BlockHash>())
 {
     RBPtr rb = std::make_shared<ApprovedRB>();
     rb->epoch_number = epoch_num;
     rb->primary_delegate = delegate_id;
     rb->sequence = sequence;
     rb->previous = previous;
+    for (int i = 0; i < requests_previous.size(); ++i)
+    {
+        auto r = std::make_shared<Request>();
+        r->previous = requests_previous[i];
+        rb->requests.push_back(r);
+    }
     return rb;
 }
 
@@ -452,4 +459,50 @@ TEST (BlockCache, MixedBlocksTest)
     cont:;
     }
 
+}
+
+TEST (BlockCache, RequestsTest)
+{
+    test_data t;
+    EXPECT_EQ(t.error, false);
+    logos::BlockCache c(t.store, &t.store_q);
+    RBPtr rb[4];
+    std::vector<BlockHash> v[4], h;
+
+    v[0].push_back(BlockHash());
+    rb[0] = make_rb(3, 0, 0, BlockHash(), v[0]);
+    h.push_back(rb[0]->Hash());
+
+    v[1].push_back(rb[0]->requests[0]->Hash());
+    rb[1] = make_rb(3, 0, 1, h[0], v[1]);
+    h.push_back(rb[1]->Hash());
+
+    v[2].push_back(rb[1]->requests[0]->Hash());
+    rb[2] = make_rb(3, 1, 0, BlockHash(), v[2]);
+    h.push_back(rb[2]->Hash());
+
+    v[3].push_back(rb[2]->requests[0]->Hash());
+    rb[3] = make_rb(3, 1, 1, h[2], v[3]);
+    h.push_back(rb[3]->Hash());
+
+    for (int i = 0; i < 4; ++i)
+    {
+        c.AddRequestBlock(rb[3 - i]);
+        h[3 - i] = rb[3 - i]->Hash();
+    }
+
+    for (int i = 0; i < 2 && t.store_q.size() != 4; ++i)
+    {
+        sleep(1);
+    }
+
+    EXPECT_EQ(t.store_q.size(), 4);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        BlockHash hash = t.store_q.front();
+        t.store_q.pop();
+        EXPECT_EQ(c.IsBlockCached(hash), false);
+        EXPECT_EQ(hash, h[i]);
+    }
 }

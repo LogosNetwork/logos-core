@@ -112,6 +112,7 @@ private:
     BlockCache *                    _block_cache;
     Semaphore                       _write_sem;
     std::queue<BlockHash> *         _unit_test_q;
+    std::unordered_set<BlockHash>   _unit_test_requests;
     Log                             _log;
     std::thread                     _write_thread;
 };

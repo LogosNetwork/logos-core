@@ -58,7 +58,24 @@ bool BlockWriteQueue::VerifyContent(MBPtr block, ValidationStatus *status)
 
 bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
 {
-    return _rb_handler.VerifyContent(*block, status);
+    if (_unit_test_q && block->requests.size())
+    {
+        status->reason = logos::process_result::progress;
+        for (int i = 0; i < block->requests.size(); ++i)
+        {
+            if (block->requests[i]->previous != BlockHash()
+                    && _unit_test_requests.find(block->requests[i]->previous) == _unit_test_requests.end())
+            {
+                status->requests[i] = logos::process_result::gap_previous;
+                status->reason = logos::process_result::invalid_request;
+            }
+        }
+        return status->reason == logos::process_result::progress;
+    }
+    else
+    {
+        return _rb_handler.VerifyContent(*block, status);
+    }
 }
 
 bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
@@ -114,7 +131,17 @@ void BlockWriteQueue::WriteThread()
         if (ptr.rptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:R: " << ptr.rptr->CreateTip().to_string();
-            _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
+            if (_unit_test_q && ptr.rptr->requests.size())
+            {
+                for (int i = 0; i < ptr.rptr->requests.size(); ++i)
+                {
+                    _unit_test_requests.insert(ptr.rptr->requests[i]->Hash());
+                }
+            }
+            else
+            {
+                _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
+            }
             if (_block_cache)
                 _block_cache->ProcessDependencies(ptr.rptr);
             ptr.rptr = nullptr;
