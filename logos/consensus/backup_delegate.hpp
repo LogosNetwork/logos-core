@@ -101,11 +101,13 @@ protected:
     void OnConsensusMessage(const PrePrepare & message) override;
     void OnConsensusMessage(const PostPrepare & message) override;
     void OnConsensusMessage(const PostCommit & message) override;
+    void OnPostCommittedBlock(const ApprovedBlock & block) override;
 
     // Messages received by primary delegates
     void OnConsensusMessage(const Prepare & message) override;
     void OnConsensusMessage(const Commit & message) override;
     void OnConsensusMessage(const Rejection & message) override;
+
 
     template<typename M>
     bool Validate(const M & message);
@@ -171,4 +173,5 @@ protected:
     PersistenceManager<CT> &    _persistence_manager;
     uint32_t                    _epoch_number;
     uint32_t                    _expected_epoch_number;
+    std::mutex                  _post_commit_mutex;
 };

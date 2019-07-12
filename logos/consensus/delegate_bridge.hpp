@@ -33,6 +33,7 @@ class DelegateBridge : public ConsensusP2pBridge,
     using PostCommit  = PostCommitMessage<CT>;
     using Rejection   = RejectionMessage<CT>;
     using Service     = boost::asio::io_service;
+    using ApprovedBlock = PostCommittedBlock<CT>;
 
 public:
     DelegateBridge(Service &service, std::shared_ptr<IOChannel>, p2p_interface & p2p, uint8_t delegate_id);
@@ -53,11 +54,13 @@ protected:
     virtual void OnConsensusMessage(const PrePrepare & message) = 0;
     virtual void OnConsensusMessage(const PostPrepare & message) = 0;
     virtual void OnConsensusMessage(const PostCommit & message) = 0;
+    virtual void OnPostCommittedBlock(const ApprovedBlock & block) = 0;
 
     // Messages received by primary delegates
     virtual void OnConsensusMessage(const Prepare & message) = 0;
     virtual void OnConsensusMessage(const Commit & message) = 0;
     virtual void OnConsensusMessage(const Rejection & message) = 0;
+
 
     virtual uint8_t RemoteDelegateId() = 0;
 

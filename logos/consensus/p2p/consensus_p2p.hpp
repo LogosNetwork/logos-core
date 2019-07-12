@@ -11,6 +11,7 @@
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/node/peer_provider.hpp>
+#include <logos/consensus/delegate_map.hpp>
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
 constexpr int P2P_GET_PEER_NEW_SESSION = -1;
@@ -76,6 +77,23 @@ public:
         , _p2p(p2p,
             [this](const PostCommittedBlock<CT> &message) -> bool
             {
+                auto sink = DelegateMap::GetInstance()->GetSink(message.epoch_number,message.primary_delegate);
+                if(sink)
+                {
+                    Log log;
+                    LOG_TRACE(log) << "PersistenceP2p::Pushing to sink - "
+                    << unsigned(delegate_id) << " - " << message.epoch_number
+                        << " - " << message.Hash().to_string();
+                    sink->Push(message);
+                }
+                else
+                {
+                    Log log;
+                    LOG_TRACE(log) << "PersistenceP2p:Sink is null"
+                        << unsigned(delegate_id) << " - " << message.epoch_number
+                        << " - " << message.Hash().to_string();
+                }
+
                 return this->_add_block(std::make_shared<PostCommittedBlock<CT>>(message));
             }
         )
