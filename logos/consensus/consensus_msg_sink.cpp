@@ -58,6 +58,47 @@ ConsensusMsgSink::Push(const uint8_t * data,
     return true;
 }
 
+template <ConsensusType CT>
+bool ConsensusMsgSink::Push(PostCommittedBlock<CT> const & block)
+{
+    auto message_type = MessageType::Post_Committed_Block;
+    auto consensus_type = CT;
+    auto is_p2p = true;
+    std::shared_ptr<MessageBase> message = std::make_shared<PostCommittedBlock<CT>>(block);
+    std::lock_guard<std::mutex> lock(_queue_mutex);
+    if (false == _consuming)
+    {
+        _consuming = true;
+        if (!_msg_queue.empty())
+        {
+            _msg_queue.emplace(Message{is_p2p,message_type,consensus_type, message});
+
+            auto toconsume = _msg_queue.front();
+            _msg_queue.pop();
+
+            message = toconsume.message;
+            message_type = toconsume.message_type;
+            is_p2p = toconsume.is_p2p;
+        }
+
+        Post(message, message_type, consensus_type, is_p2p);
+    }
+    else
+    {
+        _msg_queue.emplace(Message{is_p2p, message_type, consensus_type, message});
+    }
+    return true;
+}
+
+template
+bool ConsensusMsgSink::Push(PostCommittedBlock<ConsensusType::Request> const & block);
+
+template
+bool ConsensusMsgSink::Push(PostCommittedBlock<ConsensusType::MicroBlock> const & block);
+
+template
+bool ConsensusMsgSink::Push(PostCommittedBlock<ConsensusType::Epoch> const & block);
+
 void
 ConsensusMsgSink::Pop()
 {

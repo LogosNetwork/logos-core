@@ -77,12 +77,12 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
 void ConsensusNetIO::BindSocket(
         std::shared_ptr<Socket> socket)
 {
-
     std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
     _socket = socket;
     Reset(socket);
     //bind to assembler
     _assembler->ResetSocket(socket);
+
 }
 
 void ConsensusNetIO::BindEndpoint(

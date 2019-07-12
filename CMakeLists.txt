@@ -366,6 +366,7 @@ add_library (node
     logos/consensus/persistence/block_write_queue.cpp
     logos/consensus/persistence/block_write_queue.hpp
     logos/consensus/primary_delegate.cpp
+    logos/consensus/delegate_map.cpp
     logos/elections/representative.cpp
     logos/elections/candidate.cpp
     logos/epoch/archiver.cpp

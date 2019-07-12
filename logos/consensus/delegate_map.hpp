@@ -64,7 +64,7 @@ class DelegateMap
         {
             Log log;
             LOG_FATAL(log) << "DelegateMap::AddSink - Sink already exists";
-            //TODO from Peng to CJ, trace_and_halt();
+            trace_and_halt();
         }
         second.arr[remote_id] = sink;
 
