@@ -34,7 +34,7 @@ template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epo
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 
-const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
+const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{20};
 const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,

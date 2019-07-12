@@ -327,9 +327,8 @@ ConsensusNetIOManager::AddNetIOConnection(
     auto netio = std::make_shared<ConsensusNetIO>(
             _service, _alarm, remote_delegate_id,
             _delegate_id, bc, info, *this, pending);
-    //TODO - uncomment this when DelegateMap gets merged into development
     //DelegateMap is used to treat a Post_Committed block as a post-commit
-    //DelegateMap::GetInstance()->AddSink(info->GetEpochNumber(), remote_delegate_id, netio);
+    DelegateMap::GetInstance()->AddSink(info->GetEpochNumber(), remote_delegate_id, netio);
 
     {
         std::lock_guard<std::recursive_mutex> lock(_connection_mutex);

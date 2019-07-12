@@ -97,6 +97,13 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
             break;
         }
         case MessageType::Post_Committed_Block:
+        {
+            auto msg = dynamic_pointer_cast<ApprovedBlock>(message);
+            log_message_received(MessageToName(message_type), msg->Hash().to_string());
+            OnPostCommittedBlock(*msg);
+            break;
+        
+        }
             // will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
         case MessageType::TxAcceptor_Message:

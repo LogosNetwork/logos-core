@@ -146,11 +146,73 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
     if(ProceedWithMessage(message))
     {
+        if(_pre_prepare && message.preprepare_hash == _pre_prepare_hash)
+        {
+            LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::OnConsensusMessage - PostCommit - "
+                << "Found matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << message.preprepare_hash.to_string();
+            assert(_pre_prepare);
+            _post_commit_sig = message.signature;
+            ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
+            // Must apply to DB before clearing from queue so that Archiver can fetch latest microblock sequence
+            ApplyUpdates(block, _delegate_ids.remote);
+            OnPostCommit();
+            BlocksCallback::Callback<CT>(block);
+
+            _state = ConsensusState::VOID;
+            SetPreviousPrePrepareHash(_pre_prepare_hash);
+            AdvanceCounter();
+            _pre_prepare_hash.clear();
+            _post_prepare_sig.clear();
+            _post_commit_sig.clear();
+            _post_prepare_hash.clear();
+
+            notifier->OnPostCommit(_pre_prepare->epoch_number);
+
+            std::vector<uint8_t> buf;
+            block.Serialize(buf, true, true);
+            this->Broadcast(buf.data(), buf.size(), block.type);
+        }
+        else
+        {
+            LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::OnConsensusMessage - PostCommit - "
+                << "No matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << message.preprepare_hash.to_string();
+        }
+    }
+}
+
+template <ConsensusType CT>
+void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
+{
+    LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+        << ">::OnPostCommittedBlock";
+
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
+    if (!notifier)
+    {
+        return;
+    }
+
+    auto hash = block.Hash();
+
+    if(_pre_prepare && _pre_prepare_hash == hash)
+    {
+
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::OnPostCommittedBlock-clearing matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << hash.to_string();
         assert(_pre_prepare);
-        _post_commit_sig = message.signature;
-        ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
-        // Must apply to DB before clearing from queue so that Archiver can fetch latest microblock sequence
-        ApplyUpdates(block, _delegate_ids.remote);
+        _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);
 
@@ -168,7 +230,16 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         block.Serialize(buf, true, true);
         this->Broadcast(buf.data(), buf.size(), block.type);
     }
+    else
+    {
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::OnPostCommittedBlock-no matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << hash.to_string();
+    }
 }
+
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
