@@ -59,7 +59,6 @@ struct test_data
     MBPtr                   m1;
     Tip                     etip;
     Tip                     mtip;
-    Tip                     mtip1;
     std::queue<BlockHash>   store_q;
 
     test_data()
@@ -78,10 +77,6 @@ struct test_data
         mtip.sqn = 0;
         mtip.digest = m0->Hash();
 
-        mtip1.epoch = 4;
-        mtip1.sqn = 0;
-        mtip1.digest = m1->Hash();
-
         {
             logos::transaction t(store.environment, nullptr, true);
 
@@ -90,7 +85,6 @@ struct test_data
             store.micro_block_put(*m0, t);
             store.micro_block_put(*m1, t);
             store.micro_block_tip_put(mtip, t);
-            store.micro_block_tip_put(mtip1, t);
         }
     }
 };
@@ -418,38 +412,33 @@ TEST (BlockCache, MixedBlocksTest)
         EXPECT_EQ(hash, rbs0[i]->Hash());
     }
 
-    int rindexes[N_EPOCHS * N_DELEGATES] = {0}, mindexes[N_EPOCHS] = {0}, eindex = 0;
+    int rindexes[N_EPOCHS][N_DELEGATES] = {0}, mindexes[N_EPOCHS] = {0}, eindex = 0;
 
     for (int i = 0; i < size; ++i)
     {
         BlockHash hash = t.store_q.front();
         t.store_q.pop();
         EXPECT_EQ(c.IsBlockCached(hash), false);
-        int j;
 
-        for (j = 0; j < N_EPOCHS * N_DELEGATES; ++j)
+        for (int j = 0; j < N_EPOCHS; ++j)
         {
-            if (rindexes[j] < N_RBLOCKS && hash == rbs[j * N_RBLOCKS + rindexes[j]]->Hash())
+            for (int k = 0; k < N_DELEGATES; ++k)
             {
-                rindexes[j]++;
-                printf("rindex[%d] = %d\n", j, rindexes[j]);
-                break;
+                if (rindexes[j][k] < N_RBLOCKS && hash == rbs[(j * N_RBLOCKS + rindexes[j][k]) * N_DELEGATES + k]->Hash())
+                {
+                    rindexes[j][k]++;
+                    printf("rindex[%d][%d] = %d\n", j, k, rindexes[j][k]);
+                    goto cont;
+                }
             }
-        }
-        if (j < N_EPOCHS * N_DELEGATES)
-            continue;
 
-        for (j = 0; j < N_EPOCHS; ++j)
-        {
             if (mindexes[j] < N_MBLOCKS && hash == mbs[j * N_MBLOCKS + mindexes[j]]->Hash())
             {
                 mindexes[j]++;
                 printf("mindex[%d] = %d\n", j, mindexes[j]);
-                break;
+                goto cont;
             }
         }
-        if (j < N_EPOCHS)
-            continue;
 
         if (eindex < N_EPOCHS && hash == ebs[eindex]->Hash())
         {
@@ -460,6 +449,7 @@ TEST (BlockCache, MixedBlocksTest)
         {
             EXPECT_EQ(2,3);
         }
+    cont:;
     }
 
 }
