@@ -102,19 +102,20 @@ private:
     void StoreBlock(BlockPtr ptr);
     void WriteThread();
 
-    std::queue<BlockPtr>            _q;
-    std::unordered_set<BlockHash>   _q_cache;
-    NonDelPersistenceManager<ECT>   _eb_handler;
-    NonDelPersistenceManager<MBCT>  _mb_handler;
-    NonDelPersistenceManager<R>     _rb_handler;
-    std::mutex                      _q_mutex;
-    std::atomic<bool>               _terminate;
-    BlockCache *                    _block_cache;
-    Semaphore                       _write_sem;
-    std::queue<BlockHash> *         _unit_test_q;
-    std::unordered_set<BlockHash>   _unit_test_requests;
-    Log                             _log;
-    std::thread                     _write_thread;
+    std::queue<BlockPtr>                _q;
+    std::unordered_set<BlockHash>       _q_cache;
+    NonDelPersistenceManager<ECT>       _eb_handler;
+    NonDelPersistenceManager<MBCT>      _mb_handler;
+    NonDelPersistenceManager<R>         _rb_handler;
+    std::mutex                          _q_mutex;
+    std::atomic<bool>                   _terminate;
+    BlockCache *                        _block_cache;
+    Semaphore                           _write_sem;
+    std::queue<BlockHash> *             _unit_test_q;
+    std::unordered_set<BlockHash>       _unit_test_requests;
+    std::unordered_set<AccountAddress>  _unit_test_accounts;
+    Log                                 _log;
+    std::thread                         _write_thread;
 };
 
 }

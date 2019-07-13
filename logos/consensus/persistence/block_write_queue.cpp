@@ -69,6 +69,13 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
                 status->requests[i] = logos::process_result::gap_previous;
                 status->reason = logos::process_result::invalid_request;
             }
+            else if (block->requests[i]->origin != AccountAddress()
+                    && _unit_test_accounts.find(block->requests[i]->origin) == _unit_test_requests.end()
+                    && block->requests[i]->fee == Amount(0))
+            {
+                status->requests[i] = logos::process_result::insufficient_fee;
+                status->reason = logos::process_result::invalid_request;
+            }
         }
         return status->reason == logos::process_result::progress;
     }
@@ -136,6 +143,8 @@ void BlockWriteQueue::WriteThread()
                 for (int i = 0; i < ptr.rptr->requests.size(); ++i)
                 {
                     _unit_test_requests.insert(ptr.rptr->requests[i]->Hash());
+                    if (ptr.rptr->requests[i]->fee > Amount(0))
+                        _unit_test_accounts.insert(ptr.rptr->requests[i]->origin);
                 }
             }
             else
