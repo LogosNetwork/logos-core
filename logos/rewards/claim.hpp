@@ -24,8 +24,6 @@ struct Claim : public Request
 
     void Hash(blake2b_state & hash) const override;
 
-    uint16_t WireSize() const override;
-
     bool operator==(const Request & other) const override;
 
     BlockHash epoch_hash;

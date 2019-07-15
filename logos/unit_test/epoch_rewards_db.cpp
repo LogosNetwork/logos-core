@@ -41,7 +41,11 @@ TEST(Epoch_Rewards_DB, RewardsManager)
 
     Amount total_reward = 100000;
 
-    rewards_mgr.SetTotalReward(rep,epoch_num,total_reward,txn);
+    rewards_info.total_reward = total_reward;
+    rewards_info.remaining_reward = total_reward;
+
+    rewards_mgr.HarvestReward(rep,epoch_num,0,rewards_info,txn);
+    rewards_mgr.SetTotalGlobalReward(epoch_num,total_reward,txn);
 
     rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
     global_info = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);

@@ -43,6 +43,8 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
         trace_and_halt();
     }
 
+    const uint32_t INFLATION_RATE_FACTOR = 1000000;
+
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
     epoch.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
@@ -51,7 +53,18 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     //Note, we write epoch block with epoch number i at the beginning of epoch i+1
     epoch.is_extension = !_voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
     epoch.transaction_fee_pool = _fee_pool;
-    epoch.total_supply = floor(Float100{previous_epoch.total_supply.number()} * LOGOS_INFLATION_RATE).convert_to<logos::uint128_t>();
+
+    auto total_supply = (logos::uint256_t(previous_epoch.total_supply.number()) *
+                         logos::uint256_t(LOGOS_INFLATION_RATE * INFLATION_RATE_FACTOR)) / INFLATION_RATE_FACTOR;
+
+    if(total_supply <= previous_epoch.total_supply.number())
+    {
+        LOG_ERROR(_log) << "EpochHandler::Build: Inflating total supply resulted in overflow.";
+    }
+    else
+    {
+        epoch.total_supply = total_supply.convert_to<logos::uint128_t>();
+    }
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"
                    << " hash " << epoch.Hash().to_string()

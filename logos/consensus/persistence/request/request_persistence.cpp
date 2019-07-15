@@ -102,11 +102,11 @@ bool PersistenceManager<R>::BlockExists(
 }
 
 template <typename T>
-bool ValidateStakingSubchain(
-        T const & req,
-        logos::account_info const & info,
-        logos::process_return& result,
-        MDB_txn* txn)
+bool ValidateGovernanceSubchain(
+    T const & req,
+    logos::account_info const & info,
+    logos::process_return & result,
+    MDB_txn *txn)
 {
     if(info.governance_subchain_head != req.governance_subchain_prev)
     {
@@ -360,15 +360,11 @@ bool PersistenceManager<R>::ValidateRequest(
             break;
         case RequestType::ElectionVote:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto ev = dynamic_pointer_cast<const ElectionVote>(request);
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*ev, cur_epoch_num, *account_info, txn, result))
+            if(!ValidateRequestWithStaking<ElectionVote>(request,info,cur_epoch_num,result))
             {
-                LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
-                                << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
+
             break;
         }
         case RequestType::AnnounceCandidacy:
@@ -1444,6 +1440,8 @@ uint128_t PersistenceManager<R>::MinTransactionFee(RequestType type)
 {
     uint128_t fee = 0;
 
+    // TODO: Decide on distinct values for each
+    //       request type.
     switch(type)
     {
         case RequestType::Send:
@@ -2007,12 +2005,57 @@ bool VerifyRepActionType(RequestType& type)
         || type == RequestType::StopRepresenting;
 }
 
+template <typename T>
+bool HasMinGovernanceStake(T & request, MDB_txn* txn)
+{
+    //verify origin will have enough stake to be candidate after this request is
+    //applied
+    Amount stake = request.stake;
+    if(!request.set_stake)
+    {
+        StakedFunds cur_stake;
+        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                cur_stake,
+                txn);
+        if(!has_stake)
+        {
+            Log log;
+            LOG_WARN(log) << "HasMinGovernanceStake - account has no stake. "
+                          << "request does not set stake";
+            return false;
+        }
+        stake = cur_stake.amount;
+    }
+    bool is_announce_candidacy = request.type == RequestType::AnnounceCandidacy;
+    return stake >= MIN_REP_STAKE && (!is_announce_candidacy || stake >= MIN_DELEGATE_STAKE);
+}
+
+//Returns true if account is a delegate in the next epoch
+//This function should not be called inside elections dead period
+bool IsDelegateNextEpoch(
+        logos::block_store& store,
+        AccountAddress const & account,
+        MDB_txn* txn)
+{
+    ApprovedEB epoch;
+    store.epoch_get_n(0,epoch,txn);
+    for(auto delegate : epoch.delegates)
+    {
+        if(delegate.account == account)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool PersistenceManager<R>::ValidateRequest(
-        const ElectionVote& vote_request,
-        uint32_t cur_epoch_num,
-        logos::account_info & info,
-        MDB_txn* txn,
-        logos::process_return & result)
+    const ElectionVote& vote_request,
+    logos::account_info & info,
+    uint32_t cur_epoch_num,
+    MDB_txn* txn,
+    logos::process_return & result)
 {
     assert(txn != nullptr);
     if(vote_request.epoch_num != cur_epoch_num)
@@ -2021,14 +2064,14 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
     if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH
-            || !EpochVotingManager::ENABLE_ELECTIONS)
+       || !EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
     }
 
     // Verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(vote_request, info, result, txn))
+    if(!ValidateGovernanceSubchain(vote_request, info, result, txn))
     {
         return false;
     }
@@ -2053,9 +2096,9 @@ bool PersistenceManager<R>::ValidateRequest(
     assert(!_store.request_get(hash, rep_req, txn));
     assert(VerifyRepActionType(rep_req->type));
     uint32_t rep_req_epoch = GetEpochNum(rep_req);
-    if((rep_req->type == RequestType::StartRepresenting 
-            || rep_req->type == RequestType::AnnounceCandidacy)
-            && rep_req_epoch == cur_epoch_num) 
+    if((rep_req->type == RequestType::StartRepresenting
+        || rep_req->type == RequestType::AnnounceCandidacy)
+       && rep_req_epoch == cur_epoch_num)
     {
         result.code = logos::process_result::pending_rep_action;
         return false;
@@ -2119,51 +2162,6 @@ bool PersistenceManager<R>::ValidateRequest(
     return total <= MAX_VOTES;
 }
 
-template <typename T>
-bool HasMinGovernanceStake(T & request, MDB_txn* txn)
-{
-    //verify origin will have enough stake to be candidate after this request is
-    //applied
-    Amount stake = request.stake;
-    if(!request.set_stake)
-    {
-        StakedFunds cur_stake;
-        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
-                request.origin,
-                cur_stake,
-                txn);
-        if(!has_stake)
-        {
-            Log log;
-            LOG_WARN(log) << "HasMinGovernanceStake - account has no stake. "
-                          << "request does not set stake";
-            return false;
-        }
-        stake = cur_stake.amount;
-    }
-    bool is_announce_candidacy = request.type == RequestType::AnnounceCandidacy;
-    return stake >= MIN_REP_STAKE && (!is_announce_candidacy || stake >= MIN_DELEGATE_STAKE);
-}
-
-//Returns true if account is a delegate in the next epoch
-//This function should not be called inside elections dead period
-bool IsDelegateNextEpoch(
-        logos::block_store& store,
-        AccountAddress const & account,
-        MDB_txn* txn)
-{
-    ApprovedEB epoch;
-    store.epoch_get_n(0,epoch,txn);
-    for(auto delegate : epoch.delegates)
-    {
-        if(delegate.account == account)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool PersistenceManager<R>::ValidateRequest(
         const AnnounceCandidacy& request,
         logos::account_info const & info,
@@ -2193,7 +2191,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2275,7 +2273,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2382,7 +2380,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2455,7 +2453,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //Verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2546,7 +2544,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //Verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2643,7 +2641,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //Verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2738,7 +2736,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
     //Verify governance_subchain_prev is correct
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateGovernanceSubchain(request, info, result, txn))
     {
         return false;
     }
@@ -2837,9 +2835,8 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                     break;
                 }
                 case RequestType::AnnounceCandidacy:
-                    is_rep = true;
-                    break;
                 case RequestType::StartRepresenting:
+                    current_rep = {0};
                     is_rep = true;
                     break;
                 case RequestType::StopRepresenting:
@@ -2932,39 +2929,45 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                                 rep_info.remaining_reward = rep_pool;
                             }
 
+                            else
+                            {
+                                // This may occur since rewards are
+                                // rounded to avoid distributing
+                                // fractional values.
+                            }
+
                             rep_info.initialized = true;
                         }
 
+                        // This manipulates the stake amounts used in determining
+                        // rep and locked proxy rewards in order to adhere to the
+                        // prescribed levy_percentage.
                         auto self_stake = [&]()
                         {
+                            logos::uint256_t hecto = 100;
+                            logos::uint256_t result;
+
                             if(is_rep)
                             {
-                                return rep_info.self_stake.number();
+                                logos::uint256_t factor = hecto - rep_info.levy_percentage;
+                                logos::uint256_t proxy_stake = rep_info.total_stake.number() - rep_info.self_stake.number();
+
+                                result = rep_info.self_stake.number() +
+                                         ((factor * proxy_stake) / 100);
                             }
 
-                            return staked.number();
+                            else
+                            {
+                                result = (logos::uint256_t(staked.number()) *
+                                          logos::uint256_t(rep_info.levy_percentage)) / hecto;
+                            }
+
+                            return result.convert_to<logos::uint128_t>();
                         };
 
                         auto reward = CalculatePortion(self_stake(),
                                                        rep_info.total_stake.number(),
                                                        rep_info.total_reward.number());
-
-                        // The rep is not entitled to all the rewards,
-                        // and its earnings are trimmed per the
-                        // levy_percentage.
-                        if(rep_info.levy_percentage && rep_info.self_stake < rep_info.total_stake)
-                        {
-                            Float100 levy_factor = rep_info.levy_percentage / 100.0;
-
-                            if(is_rep)
-                            {
-                                levy_factor = 2.0 - levy_factor;
-                            }
-
-                            Float100 scaled_reward = levy_factor * Float100{reward};
-
-                            reward = floor(scaled_reward).convert_to<uint128_t>();
-                        }
 
                         if(AdjustRemaining(reward, rep_info.remaining_reward.number()))
                         {

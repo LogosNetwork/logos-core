@@ -18,7 +18,7 @@ using BlockStore = logos::block_store;
 // This value indicates the factor by which
 // the total supply of native Logos currency
 // increases with each passing epoch.
-static const Float100 LOGOS_INFLATION_RATE = 1.000035;
+static const double LOGOS_INFLATION_RATE = 1.000035;
 
 /// EpochHandler builds Epoch block
 class EpochHandler

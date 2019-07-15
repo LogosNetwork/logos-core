@@ -121,13 +121,6 @@ PersistenceManager<ECT>::ApplyUpdates(
     if(transition)
     {
         TransitionNextEpoch(transaction, block.epoch_number+1);
-
-        if(block.transaction_fee_pool > 0)
-        {
-            ApplyRewards(block, epoch_hash, transaction);
-        }
-
-        UpdateGlobalRewards(block, transaction);
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
@@ -152,6 +145,13 @@ PersistenceManager<ECT>::ApplyUpdates(
     {
         LinkAndUpdateTips(delegate, cur_epoch_number, cur_e_first[delegate], transaction);
     }
+
+    if(block.transaction_fee_pool > 0)
+    {
+        ApplyRewards(block, epoch_hash, transaction);
+    }
+
+    UpdateGlobalRewards(block, transaction);
 }
 
 void
@@ -370,14 +370,23 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
 {
     ApprovedEB prev;
 
-    // Retrieve the previous epoch to access
-    // each delegate's staking which determines
-    // to the rewards it earns for the current
-    // epoch.
     if(_store.epoch_get(block.previous, prev, txn))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
                         << "failed to find previous epoch block for epoch number "
+                        << block.epoch_number;
+
+        trace_and_halt();
+    }
+
+    // Retrieve the antepenultimate epoch to access
+    // each delegate's raw stake which determine
+    // to the rewards it earns for the current
+    // epoch.
+    if(_store.epoch_get(prev.previous, prev, txn))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                        << "failed to find antepenultimate epoch block for epoch number "
                         << block.epoch_number;
 
         trace_and_halt();
@@ -416,6 +425,12 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
     // personal stake.
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
+
+        // Since the reward amounts earned are rounded to
+        // avoid dealing with fractional amounts of logos,
+        // it is technically possible for delegates to
+        // earn no rewards from transaction fees in certain
+        // cases.
         if(remaining_pool == 0)
         {
             break;
@@ -436,6 +451,11 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
                 reward = remaining_pool;
             }
         }
+
+        // For the last delegate, there is no need
+        // to calculate its percentage of rewards
+        // and it simply earns the remainder of the
+        // pool.
         else
         {
             reward = remaining_pool;
@@ -462,7 +482,7 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
         info.receive_head = receive.Hash();
         info.modified = logos::seconds_since_epoch();
 
-        info.SetBalance(info.GetBalance() + reward, block.epoch_number, txn);
+        info.SetBalance(info.GetBalance() + reward, block.epoch_number + 1, txn);
 
         if(_store.account_put(d.account, info, txn))
         {

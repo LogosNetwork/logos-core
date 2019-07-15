@@ -939,11 +939,7 @@ TEST(Rewards, Delegate_Rewards)
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
-    auto block = create_eb_preprepare(false);
-    AggSignature sig;
-    ApprovedEB eb(block, sig, sig);
-    eb.epoch_number = epoch_num-1;
-    eb.previous = 0;
+    ApprovedEB eb = initialize_epoch(epoch_num, store);
     eb.transaction_fee_pool = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 500;
     EpochVotingManager voting_mgr(*store);
     PersistenceManager<ECT> persistence_mgr(*store,nullptr);
@@ -1248,14 +1244,24 @@ TEST(Rewards, Delegate_Rewards)
 
     //Test extension of delegate term
 
+    auto create_eb = []()
+    {
+        auto block = create_eb_preprepare(false);
+        AggSignature sig;
+
+        ApprovedEB eb(block, sig, sig);
+
+        return eb;
+    };
+
     ASSERT_FALSE(eb.is_extension);
     std::unordered_set<Delegate> retiring = voting_mgr.GetRetiringDelegates(epoch_num+1);
-    ApprovedEB retiring_eb(block, sig, sig);
+    auto retiring_eb = create_eb();
     store->epoch_get_n(3, retiring_eb,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
     transition_epoch();
     ASSERT_TRUE(eb.is_extension);
 
-    ApprovedEB eb2(block, sig, sig);
+    ApprovedEB eb2 = create_eb();
     store->epoch_get_n(0, eb2);
     ASSERT_TRUE(eb2.is_extension);
     for(size_t i = 0; i < NUM_DELEGATES; ++i)
@@ -1263,7 +1269,7 @@ TEST(Rewards, Delegate_Rewards)
         delegates[i].starting_term = false;
     }
 
-    ApprovedEB retiring_eb2(block, sig, sig);
+    auto retiring_eb2 = create_eb();
     store->epoch_get_n(3, retiring_eb2,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
     ASSERT_EQ(retiring_eb.epoch_number,retiring_eb2.epoch_number);
 

@@ -74,13 +74,6 @@ protected:
     void ApplyRequest(const Stake& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const Unstake& request, logos::account_info& info, MDB_txn* txn);
 
-    bool ValidateRequest(
-            const ElectionVote& request,
-            uint32_t cur_epoch_num,
-            logos::account_info & info,
-            MDB_txn* txn,
-            logos::process_return& result); 
-
     //This function is only to be called for requests that involve staking
     //Specifically, StartRepresenting, StopRepresenting, AnnounceCandidacy,
     //RenounceCandidacy, Stake and Unstake
@@ -109,6 +102,13 @@ protected:
         }
         return true;
     }
+
+    bool ValidateRequest(
+        const ElectionVote& request,
+        logos::account_info & info,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result);
 
     bool ValidateRequest(
             const AnnounceCandidacy& request,

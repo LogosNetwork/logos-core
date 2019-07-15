@@ -69,40 +69,6 @@ void EpochRewardsManager::Init(AccountAddress const & rep_address,
     AddGlobalStake(rep_epoch_info, txn);
 }
 
-bool EpochRewardsManager::SetTotalReward(
-        AccountAddress const & rep_address,
-        uint32_t const & epoch_number,
-        Amount const & total_reward,
-        MDB_txn* txn)
-{
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "EpochRewardsManager::SetTotalReward - txn is null";
-        trace_and_halt();
-    }
-
-    auto key = MakeKey(rep_address, epoch_number);
-
-    LOG_INFO(_log) << "EpochRewardsManager::SetTotalReward - key is " 
-                   << ToString(key);
-    
-    EpochRewardsInfo info = GetEpochRewardsInfo(key,txn);
-
-    info.total_reward = total_reward;
-    info.remaining_reward = total_reward;
-
-    _store.put(
-            _store.epoch_rewards_db,
-            logos::mdb_val(key.size(),key.data()),
-            info,
-            txn);
-
-    // TODO: set global total first, then infer rep total
-    AddGlobalTotalReward(epoch_number,total_reward,txn);
-
-    return false;
-}
-
 bool EpochRewardsManager::SetTotalGlobalReward(
     uint32_t const & epoch_number,
     Amount const & total_reward,

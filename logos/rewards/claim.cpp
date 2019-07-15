@@ -145,13 +145,6 @@ void Claim::Hash(blake2b_state & hash) const
     blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
 }
 
-uint16_t Claim::WireSize() const
-{
-    return sizeof(epoch_hash.bytes) +
-           sizeof(epoch_number) +
-           Request::WireSize();
-}
-
 bool Claim::operator==(const Request & other) const
 {
     try

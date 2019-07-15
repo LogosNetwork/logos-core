@@ -57,10 +57,14 @@ protected:
                                              const logos::uint128_t total_stake,
                                              const logos::uint128_t pool)
     {
-        Float100 ratio = Float100{stake} / Float100{total_stake};
-        Float100 flr = ceil(ratio * Float100{pool});
+        auto numerator = logos::uint256_t(stake) * logos::uint256_t(pool);
 
-        return flr.convert_to<logos::uint128_t>();
+        // Calculate the ceiling of the portion of the pool
+        // that corresponds to stake / total_stake.
+        auto portion = numerator / total_stake
+            + (((numerator < 0) ^ (total_stake > 0)) && (numerator % total_stake));
+
+        return portion.convert_to<logos::uint128_t>();
     }
 
     static bool AdjustRemaining(logos::uint128_t & value, logos::uint128_t remaining)
