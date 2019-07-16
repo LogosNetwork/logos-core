@@ -15,7 +15,7 @@
 #include <logos/staking/thawing_funds.hpp>
 #include <logos/staking/liability.hpp>
 #include <logos/staking/voting_power.hpp>
-#
+#include <logos/rewards/epoch_rewards.hpp>
 
 namespace logos
 {
@@ -354,10 +354,17 @@ public:
         assert (status == 0 || status == MDB_NOTFOUND);
     }
 
-    bool rep_rewards_exist(const mdb_val & key, MDB_txn* txn);
-    bool global_rewards_exist(const mdb_val & key, MDB_txn* txn);
+    bool rewards_exist(const mdb_val & key, MDB_txn * txn);
+    bool global_rewards_exist(const mdb_val & key, MDB_txn * txn);
 
+    bool rewards_put(const mdb_val & key, const RewardsInfo & info, MDB_txn * txn);
+    bool global_rewards_put(const mdb_val & key, const GlobalRewardsInfo & info, MDB_txn * txn);
 
+    bool rewards_get(const mdb_val & key, RewardsInfo & info, MDB_txn * txn);
+    bool global_rewards_get(const mdb_val & key, GlobalRewardsInfo & info, MDB_txn * txn);
+
+    bool rewards_remove(const mdb_val & key, MDB_txn * txn);
+    bool global_rewards_remove(const mdb_val & key, MDB_txn * txn);
 
     bool stake_put(
             AccountAddress const & account,
@@ -662,16 +669,16 @@ public:
     MDB_dbi address_ad_txa_db;
 
     /*
-     * Epoch Rewards Info
-     * logos::account || epoch_number -> EpochRewardsInfo
+     * Rewards Info
+     * logos::account || epoch_number -> RewardsInfo
      */
-    MDB_dbi epoch_rewards_db;
+    MDB_dbi rewards_db;
 
     /**
-     * Aggregate of Epoch Rewards Info
-     * epoch_number -> GlobalEpochRewardsInfo
+     * Aggregate of Rewards Info
+     * epoch_number -> GlobalRewardsInfo
      */
-    MDB_dbi global_epoch_rewards_db;
+    MDB_dbi global_rewards_db;
 
     /**
      * Voting Power Info per epoch
@@ -704,7 +711,6 @@ public:
      * LiabilityHash -> Liability
      */
     MDB_dbi master_liabilities_db;
-
 
     /**
      * Liabilities where rep is a target

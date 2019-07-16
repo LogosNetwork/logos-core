@@ -447,7 +447,7 @@ TEST (Rewards, Claim_Processing_1)
         for(uint32_t e = start_epoch + 2; e <= epoch_num; ++e)
         {
             ASSERT_TRUE(erm->GlobalRewardsAvailable(e, txn));
-            ASSERT_TRUE(erm->HasRewards(rep, e, txn));
+            ASSERT_TRUE(erm->RewardsAvailable(rep, e, txn));
         }
     }
 
@@ -485,13 +485,13 @@ TEST (Rewards, Claim_Processing_1)
 
         for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
         {
-            auto rep_rewards = erm->GetEpochRewardsInfo(rep, e, txn);
+            auto rep_rewards = erm->GetRewardsInfo(rep, e, txn);
 
             pool_diff += rep_rewards.total_reward -
                          rep_rewards.remaining_reward;
 
             ASSERT_FALSE(erm->GlobalRewardsAvailable(e, txn));
-            ASSERT_TRUE(erm->HasRewards(rep, e, txn));
+            ASSERT_TRUE(erm->RewardsAvailable(rep, e, txn));
         }
 
         pool_diff -= claim.fee;
@@ -508,7 +508,7 @@ TEST (Rewards, Claim_Processing_1)
 
         for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
         {
-            auto rep_rewards = erm->GetEpochRewardsInfo(rep, e, txn);
+            auto rep_rewards = erm->GetRewardsInfo(rep, e, txn);
 
             sum += rep_rewards.remaining_reward;
         }
@@ -538,7 +538,7 @@ TEST (Rewards, Claim_Processing_1)
 
         for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
         {
-            ASSERT_FALSE(erm->HasRewards(rep, e, txn));
+            ASSERT_FALSE(erm->RewardsAvailable(rep, e, txn));
         }
     }
 }
@@ -734,7 +734,7 @@ TEST(Rewards, Claim_Processing_2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_TRUE(erm->GlobalRewardsAvailable(epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep, epoch_num - 1, txn));
     }
 
     {
@@ -794,8 +794,8 @@ TEST(Rewards, Claim_Processing_2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_TRUE(erm->GlobalRewardsAvailable(epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep, epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep + 1, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep + 1, epoch_num - 1, txn));
     }
 
     update_info();
@@ -896,8 +896,8 @@ TEST(Rewards, Claim_Processing_2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_TRUE(erm->GlobalRewardsAvailable(epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep, epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep + 1, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep + 1, epoch_num - 1, txn));
     }
 
     Claim claim;
@@ -911,8 +911,8 @@ TEST(Rewards, Claim_Processing_2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_FALSE(erm->GlobalRewardsAvailable(epoch_num - 1, txn));
-        ASSERT_FALSE(erm->HasRewards(rep, epoch_num - 1, txn));
-        ASSERT_TRUE(erm->HasRewards(rep + 1, epoch_num - 1, txn));
+        ASSERT_FALSE(erm->RewardsAvailable(rep, epoch_num - 1, txn));
+        ASSERT_TRUE(erm->RewardsAvailable(rep + 1, epoch_num - 1, txn));
     }
 
     claim.origin = rep + 1;
@@ -925,8 +925,8 @@ TEST(Rewards, Claim_Processing_2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_FALSE(erm->GlobalRewardsAvailable(epoch_num - 1, txn));
-        ASSERT_FALSE(erm->HasRewards(rep, epoch_num - 1, txn));
-        ASSERT_FALSE(erm->HasRewards(rep + 1, epoch_num - 1, txn));
+        ASSERT_FALSE(erm->RewardsAvailable(rep, epoch_num - 1, txn));
+        ASSERT_FALSE(erm->RewardsAvailable(rep + 1, epoch_num - 1, txn));
     }
 }
 

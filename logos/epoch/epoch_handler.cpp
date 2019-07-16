@@ -25,8 +25,8 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 
     if (_store.epoch_get(previous_epoch_hash, previous_epoch))
     {
-        LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch: " <<
-            previous_epoch_hash.to_string();
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch: "
+                        << previous_epoch_hash.to_string();
         trace_and_halt();
     }
 
@@ -38,8 +38,8 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 
     if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
     {
-        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
-            previous_micro_block_hash.to_string();
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: "
+                        << previous_micro_block_hash.to_string();
         trace_and_halt();
     }
 

@@ -2897,9 +2897,9 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
                     // This rep participated in voting for the epoch and
                     // is therefore entitled to rewards.
-                    if(rewards_manager->HasRewards(rep_address(), epoch, transaction))
+                    if(rewards_manager->RewardsAvailable(rep_address(), epoch, transaction))
                     {
-                        auto rep_info = rewards_manager->GetEpochRewardsInfo(rep_address(), epoch, transaction);
+                        auto rep_info = rewards_manager->GetRewardsInfo(rep_address(), epoch, transaction);
 
                         // This rep's portion of global rewards hasn't
                         // yet been determined.
@@ -2910,8 +2910,8 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                             // to distribute to this rep.
                             if(rewards_manager->GlobalRewardsAvailable(epoch, transaction))
                             {
-                                auto global_info = rewards_manager->GetGlobalEpochRewardsInfo(epoch,
-                                                                                              transaction);
+                                auto global_info = rewards_manager->GetGlobalRewardsInfo(epoch,
+                                                                                         transaction);
 
                                 auto rep_pool = CalculatePortion(rep_info.total_stake.number(),
                                                                  global_info.total_stake.number(),

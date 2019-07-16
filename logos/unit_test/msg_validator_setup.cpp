@@ -68,8 +68,8 @@ void clear_dbs()
     store->clear(store->master_liabilities_db);
     store->clear(store->secondary_liabilities_db);
     store->clear(store->rep_liabilities_db);
-    store->clear(store->epoch_rewards_db);
-    store->clear(store->global_epoch_rewards_db);
+    store->clear(store->rewards_db);
+    store->clear(store->global_rewards_db);
     store->clear(store->account_db);
     store->leading_candidates_size = 0;
 }

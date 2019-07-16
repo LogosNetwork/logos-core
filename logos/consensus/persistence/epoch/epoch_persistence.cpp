@@ -514,8 +514,8 @@ void PersistenceManager<ECT>::UpdateGlobalRewards(const ApprovedEB & block, MDB_
 
         Amount new_logos = block.total_supply - previous.total_supply;
 
-        reward_manager->SetTotalGlobalReward(block.epoch_number,
-                                             new_logos,
-                                             txn);
+        reward_manager->SetGlobalReward(block.epoch_number,
+                                        new_logos,
+                                        txn);
     }
 }

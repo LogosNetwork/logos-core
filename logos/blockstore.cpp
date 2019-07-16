@@ -225,10 +225,10 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
 }
 
 //explicit instantiation of template functions
-template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo &, MDB_txn*);
-template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo const &, MDB_txn*);
-template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo &, MDB_txn*);
-template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, RewardsInfo &, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, RewardsInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, GlobalRewardsInfo &, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, GlobalRewardsInfo const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo&, MDB_txn*);
 template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, StakedFunds&, MDB_txn*);
@@ -409,8 +409,8 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "secondary_liabilities_db", MDB_CREATE | MDB_DUPSORT, &secondary_liabilities_db);
 
         //rewards
-        error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
-        error_a |= mdb_dbi_open (transaction, "global_epoch_rewards_db", MDB_CREATE, &global_epoch_rewards_db);
+        error_a |= mdb_dbi_open (transaction, "rewards_db", MDB_CREATE, &rewards_db);
+        error_a |= mdb_dbi_open (transaction, "global_rewards_db", MDB_CREATE, &global_rewards_db);
         EpochRewardsManager::SetInstance(*this);
 
 
@@ -2125,11 +2125,11 @@ logos::block_store::ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args
     return result;
 }
 
-bool logos::block_store::rep_rewards_exist(const mdb_val & key, MDB_txn* txn)
+bool logos::block_store::rewards_exist(const mdb_val & key, MDB_txn *txn)
 {
     logos::mdb_val junk;
 
-    auto status(mdb_get(txn, epoch_rewards_db, key, junk));
+    auto status(mdb_get(txn, rewards_db, key, junk));
     assert(status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
@@ -2139,10 +2139,40 @@ bool logos::block_store::global_rewards_exist(const mdb_val & key, MDB_txn* txn)
 {
     logos::mdb_val junk;
 
-    auto status(mdb_get(txn, global_epoch_rewards_db, key, junk));
+    auto status(mdb_get(txn, global_rewards_db, key, junk));
     assert(status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
+}
+
+bool logos::block_store::rewards_put(const mdb_val & key, const RewardsInfo & info, MDB_txn * txn)
+{
+    return put(rewards_db, key, info, txn);
+}
+
+bool logos::block_store::global_rewards_put(const mdb_val & key, const GlobalRewardsInfo & info, MDB_txn * txn)
+{
+    return put(global_rewards_db, key, info, txn);
+}
+
+bool logos::block_store::rewards_get(const mdb_val & key, RewardsInfo & info, MDB_txn * txn)
+{
+    return get(rewards_db, key, info, txn);
+}
+
+bool logos::block_store::global_rewards_get(const mdb_val & key, GlobalRewardsInfo & info, MDB_txn * txn)
+{
+    return get(global_rewards_db, key, info, txn);
+}
+
+bool logos::block_store::rewards_remove(const mdb_val & key, MDB_txn * txn)
+{
+    return del(rewards_db, key, txn);
+}
+
+bool logos::block_store::global_rewards_remove(const mdb_val & key, MDB_txn * txn)
+{
+    return del(global_rewards_db, key, txn);
 }
 
 bool logos::block_store::stake_put(

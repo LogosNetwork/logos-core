@@ -1,6 +1,6 @@
 #pragma once
 
-struct EpochRewardsInfo
+struct RewardsInfo
 {
     bool    initialized;
     uint8_t levy_percentage;
@@ -41,7 +41,7 @@ struct EpochRewardsInfo
     }
 };
 
-struct GlobalEpochRewardsInfo
+struct GlobalRewardsInfo
 {
     Amount total_stake;
     Amount remaining_reward;

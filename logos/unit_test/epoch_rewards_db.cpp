@@ -11,8 +11,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
 {
     logos::block_store* store = get_db();
     logos::transaction txn(store->environment, nullptr, true);
-    store->clear(store->epoch_rewards_db,txn);
-    store->clear(store->global_epoch_rewards_db,txn);
+    store->clear(store->rewards_db,txn);
+    store->clear(store->global_rewards_db,txn);
 
     EpochRewardsManager rewards_mgr(*store);
 
@@ -25,11 +25,11 @@ TEST(Epoch_Rewards_DB, RewardsManager)
 
     rewards_mgr.Init(rep, info, txn);
 
-    EpochRewardsInfo rewards_info 
-        = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
+    RewardsInfo rewards_info
+        = rewards_mgr.GetRewardsInfo(rep, epoch_num, txn);
 
-    GlobalEpochRewardsInfo global_info
-        = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);
+    GlobalRewardsInfo global_info
+        = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     
     ASSERT_EQ(rewards_info.levy_percentage, levy);
     ASSERT_EQ(rewards_info.total_stake, stake);
@@ -45,10 +45,10 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     rewards_info.remaining_reward = total_reward;
 
     rewards_mgr.HarvestReward(rep,epoch_num,0,rewards_info,txn);
-    rewards_mgr.SetTotalGlobalReward(epoch_num,total_reward,txn);
+    rewards_mgr.SetGlobalReward(epoch_num, total_reward, txn);
 
-    rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
-    global_info = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);
+    rewards_info = rewards_mgr.GetRewardsInfo(rep, epoch_num, txn);
+    global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward);
     ASSERT_EQ(global_info.total_reward, total_reward);
@@ -59,8 +59,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     rewards_mgr.HarvestGlobalReward(epoch_num,harvest_amount,global_info,txn);
     ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,rewards_info,txn));
 
-    rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
-    global_info = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);
+    rewards_info = rewards_mgr.GetRewardsInfo(rep, epoch_num, txn);
+    global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward-harvest_amount);
     ASSERT_EQ(global_info.total_reward, total_reward);
@@ -70,8 +70,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,rewards_info,txn));
 
 
-    rewards_info = rewards_mgr.GetEpochRewardsInfo(rep,epoch_num,txn);
-    global_info = rewards_mgr.GetGlobalEpochRewardsInfo(epoch_num,txn);
+    rewards_info = rewards_mgr.GetRewardsInfo(rep, epoch_num, txn);
+    global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward-(harvest_amount+harvest_amount));
     ASSERT_EQ(global_info.total_reward, total_reward);
@@ -86,7 +86,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_EQ(
             mdb_get(
                 txn,
-                store->epoch_rewards_db,
+                store->rewards_db,
                 logos::mdb_val(key.size(),key.data()),
                 val),
             MDB_NOTFOUND); 
@@ -94,7 +94,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_EQ(
             mdb_get(
                 txn,
-                store->global_epoch_rewards_db,
+                store->global_rewards_db,
                 logos::mdb_val(sizeof(epoch_num),const_cast<uint32_t *>(&epoch_num)),
                 val),
             MDB_NOTFOUND); 
@@ -129,8 +129,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
 
     for(auto rep : reps)
     {
-        EpochRewardsInfo rewards_info
-            = rewards_mgr.GetEpochRewardsInfo(rep.first,rep.second.epoch_number,txn);
+        RewardsInfo rewards_info
+            = rewards_mgr.GetRewardsInfo(rep.first, rep.second.epoch_number, txn);
 
         ASSERT_EQ(rewards_info.levy_percentage, rep.second.levy_percentage);
         ASSERT_EQ(rewards_info.total_stake, rep.second.total_stake);
@@ -141,8 +141,8 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     for(size_t e = 25; e < 50; ++e)
     {
         
-        GlobalEpochRewardsInfo global_info
-            = rewards_mgr.GetGlobalEpochRewardsInfo(e, txn);
+        GlobalRewardsInfo global_info
+            = rewards_mgr.GetGlobalRewardsInfo(e, txn);
         ASSERT_EQ(global_info.total_stake,global_total_stakes[e]);
     }
 }
