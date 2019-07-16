@@ -2,6 +2,7 @@
 /// This file contains implementation of the EpochHandler class, which is used
 /// in the Epoch processing
 #include <logos/identity_management/delegate_identity_manager.hpp>
+#include <logos/rewards/epoch_rewards_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/trace.hpp>
@@ -52,7 +53,14 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     epoch.micro_block_tip = micro_tip;//previous_micro_block_hash;
     //Note, we write epoch block with epoch number i at the beginning of epoch i+1
     epoch.is_extension = !_voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
-    epoch.transaction_fee_pool = _fee_pool;
+
+     if(EpochRewardsManager::GetInstance()->GetFeePool(epoch.epoch_number, epoch.transaction_fee_pool))
+     {
+         LOG_FATAL(_log) << "EpochHandler::Build failed to get fee pool for epoch: "
+                         << epoch.epoch_number;
+
+         trace_and_halt();
+     }
 
     auto total_supply = (logos::uint256_t(previous_epoch.total_supply.number()) *
                          logos::uint256_t(LOGOS_INFLATION_RATE * INFLATION_RATE_FACTOR)) / INFLATION_RATE_FACTOR;
@@ -73,12 +81,5 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
                    << " epoch_number " << epoch.epoch_number
                    << " micro_block_tip " << epoch.micro_block_tip.to_string();
 
-    _fee_pool = 0;
-
     return true;
-}
-
-void EpochHandler::OnFeeCollected(Amount fee)
-{
-    _fee_pool += fee;
 }

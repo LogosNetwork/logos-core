@@ -34,8 +34,6 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     {
         _sequence = block.sequence + 1;
     }
-
-    _persistence_manager.SetEpochHandler(epoch_handler);
 }
 
 void

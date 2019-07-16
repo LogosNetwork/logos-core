@@ -39,9 +39,20 @@ public:
               RepEpochInfo const & rep_epoch_info,
               MDB_txn * txn);
 
+    bool OnFeeCollected(uint32_t epoch_number,
+                        const Amount & value,
+                        MDB_txn * txn);
+
+    bool GetFeePool(uint32_t epoch_number,
+                    Amount & value,
+                    MDB_txn * txn = nullptr);
+
+    bool RemoveFeePool(uint32_t epoch_number,
+                       MDB_txn * txn);
+
     bool SetGlobalReward(uint32_t const & epoch_number,
                          Amount const & total_reward,
-                         MDB_txn *txn);
+                         MDB_txn * txn);
 
     bool HarvestReward(AccountAddress const & rep_address,
                        uint32_t const & epoch_number,
@@ -63,7 +74,7 @@ public:
     
     bool RewardsAvailable(AccountAddress const & rep_address,
                           uint32_t const & epoch_number,
-                          MDB_txn *txn);
+                          MDB_txn * txn);
 
     bool GlobalRewardsAvailable(uint32_t const & epoch_number,
                                 MDB_txn * txn);
@@ -74,7 +85,7 @@ public:
 private:
 
     RewardsInfo DoGetRewardsInfo(Key & key,
-                                 MDB_txn *txn);
+                                 MDB_txn * txn);
 
     // Need to keep track of the total stake that voted in an epoch
     // because rewards are distributed based on a reps percentage

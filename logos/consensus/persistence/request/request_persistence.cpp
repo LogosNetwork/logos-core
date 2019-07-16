@@ -37,7 +37,6 @@ PersistenceManager<R>::PersistenceManager(Store & store,
                                           Milliseconds clock_drift)
     : Persistence(store, clock_drift)
     , _reservations(reservations)
-    , _epoch_handler(nullptr)
 {
     if (_reservations == nullptr)
     {
@@ -924,22 +923,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     {
         info->SetBalance(info->GetBalance() - request->fee, cur_epoch_num, transaction);
 
-        if(_epoch_handler)
-        {
-            if(request->type != RequestType::Issuance)
-            {
-                _epoch_handler->OnFeeCollected(request->fee);
-            }
-            else
-            {
-                _epoch_handler->OnFeeCollected(MinTransactionFee(request->type));
-            }
-        }
-        else
-        {
-            LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - running persistence manager without "
-                           <<  "an _epoch_handler pointer. Fees are not tracked.";
-        }
+        auto fee = request->type != RequestType::Issuance ?
+                   request->fee :
+                   MinTransactionFee(request->type);
+
+        EpochRewardsManager::GetInstance()->OnFeeCollected(cur_epoch_num, fee, transaction);
     }
 
     // Performs the actions required by whitelisting

@@ -30,7 +30,6 @@ public:
     EpochHandler(BlockStore &store,
                  EpochVotingManager & voting_manager)
         : _voting_manager(voting_manager)
-        , _fee_pool(0)
         , _store(store)
     {}
 
@@ -40,12 +39,9 @@ public:
     /// @param block build the block [in|out]
     bool Build(DelegateMessage<ConsensusType::Epoch> &);
 
-    void OnFeeCollected(Amount fee);
-
 private:
 
     EpochVotingManager & _voting_manager;  ///< voting manager
-    Amount               _fee_pool;
     BlockStore &         _store;
     Log                  _log;
 };

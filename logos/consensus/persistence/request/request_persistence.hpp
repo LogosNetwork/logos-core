@@ -170,14 +170,9 @@ protected:
             uint32_t cur_epoch_num,
             MDB_txn * transaction);
 
-    void SetEpochHandler(EpochHandler & handler)
-    {
-        _epoch_handler = &handler;
-    }
-
     static uint128_t MinTransactionFee(RequestType type);
 
-    static constexpr uint32_t  RESERVATION_PERIOD = 2;
+    static constexpr uint32_t RESERVATION_PERIOD = 2;
 
 private:
 
@@ -234,6 +229,5 @@ private:
 
     Log               _log;
     ReservationsPtr   _reservations;
-    EpochHandler *    _epoch_handler;
     static std::mutex _write_mutex;
 };

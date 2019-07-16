@@ -70,6 +70,7 @@ void clear_dbs()
     store->clear(store->rep_liabilities_db);
     store->clear(store->rewards_db);
     store->clear(store->global_rewards_db);
+    store->clear(store->delegate_rewards_db);
     store->clear(store->account_db);
     store->leading_candidates_size = 0;
 }

@@ -366,6 +366,10 @@ public:
     bool rewards_remove(const mdb_val & key, MDB_txn * txn);
     bool global_rewards_remove(const mdb_val & key, MDB_txn * txn);
 
+    bool fee_pool_get(const mdb_val & key, Amount & value, MDB_txn * txn = nullptr);
+    bool fee_pool_put(const mdb_val & key, const Amount & value, MDB_txn * txn);
+    bool fee_pool_remove(const mdb_val & key, MDB_txn * txn);
+
     bool stake_put(
             AccountAddress const & account,
             StakedFunds const & funds,
@@ -679,6 +683,12 @@ public:
      * epoch_number -> GlobalRewardsInfo
      */
     MDB_dbi global_rewards_db;
+
+    /**
+     * Delegate transaction fee pool
+     * epoch_number -> amount
+     */
+    MDB_dbi delegate_rewards_db;
 
     /**
      * Voting Power Info per epoch

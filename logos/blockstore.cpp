@@ -411,6 +411,7 @@ checksum (0)
         //rewards
         error_a |= mdb_dbi_open (transaction, "rewards_db", MDB_CREATE, &rewards_db);
         error_a |= mdb_dbi_open (transaction, "global_rewards_db", MDB_CREATE, &global_rewards_db);
+        error_a |= mdb_dbi_open (transaction, "delegate_rewards_db", MDB_CREATE, &delegate_rewards_db);
         EpochRewardsManager::SetInstance(*this);
 
 
@@ -2173,6 +2174,21 @@ bool logos::block_store::rewards_remove(const mdb_val & key, MDB_txn * txn)
 bool logos::block_store::global_rewards_remove(const mdb_val & key, MDB_txn * txn)
 {
     return del(global_rewards_db, key, txn);
+}
+
+bool logos::block_store::fee_pool_get(const mdb_val & key, Amount & value, MDB_txn * txn)
+{
+    return get(delegate_rewards_db, key, value, txn);
+}
+
+bool logos::block_store::fee_pool_put(const mdb_val & key, const Amount & value, MDB_txn * txn)
+{
+    return put(delegate_rewards_db, key, value, txn);
+}
+
+bool logos::block_store::fee_pool_remove(const mdb_val & key, MDB_txn * txn)
+{
+    return del(delegate_rewards_db, key, txn);
 }
 
 bool logos::block_store::stake_put(

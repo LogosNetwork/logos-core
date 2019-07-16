@@ -48,7 +48,7 @@ void EpochRewardsManager::Init(AccountAddress const & rep_address,
         trace_and_halt();
     }
     
-    auto key = MakeKey(rep_address,rep_epoch_info.epoch_number);
+    auto key = MakeKey(rep_address, rep_epoch_info.epoch_number);
 
     RewardsInfo info
     {
@@ -60,19 +60,44 @@ void EpochRewardsManager::Init(AccountAddress const & rep_address,
         0
     };
 
-    _store.rewards_put(logos::mdb_val(key.size(),key.data()),
+    _store.rewards_put(logos::mdb_val(key.size(), key.data()),
                        info,
                        txn);
 
     AddGlobalStake(rep_epoch_info, txn);
 }
 
+bool EpochRewardsManager::OnFeeCollected(uint32_t epoch_number,
+                                         const Amount & value,
+                                         MDB_txn * txn)
+{
+    Amount fee = 0;
+
+    _store.fee_pool_get(logos::mdb_val(epoch_number), fee, txn);
+
+    fee += value;
+
+    return _store.fee_pool_put(logos::mdb_val(epoch_number), fee, txn);
+}
+
+bool EpochRewardsManager::GetFeePool(uint32_t epoch_number,
+                                     Amount & value,
+                                     MDB_txn * txn)
+{
+    return _store.fee_pool_get(logos::mdb_val(epoch_number), value, txn);
+}
+
+bool EpochRewardsManager::RemoveFeePool(uint32_t epoch_number,
+                                        MDB_txn * txn)
+{
+    return _store.fee_pool_remove(logos::mdb_val(epoch_number), txn);
+}
+
 bool EpochRewardsManager::SetGlobalReward(uint32_t const & epoch_number,
                                           Amount const & total_reward,
                                           MDB_txn *txn)
 {
-    auto key = logos::mdb_val(sizeof(epoch_number),
-                              const_cast<uint32_t *>(&epoch_number));
+    auto key = logos::mdb_val(epoch_number);
 
     auto info = GetGlobalRewardsInfo(epoch_number, txn);
 
@@ -127,8 +152,7 @@ void EpochRewardsManager::HarvestGlobalReward(uint32_t const & epoch,
                                               GlobalRewardsInfo global_info,
                                               MDB_txn* txn)
 {
-    auto key = logos::mdb_val(sizeof(epoch),
-                              const_cast<uint32_t *>(&epoch));
+    auto key = logos::mdb_val(epoch);
 
     if(to_subtract > global_info.remaining_reward)
     {
@@ -181,8 +205,7 @@ RewardsInfo EpochRewardsManager::DoGetRewardsInfo(Key & key,
 GlobalRewardsInfo EpochRewardsManager::GetGlobalRewardsInfo(uint32_t const & epoch_number,
                                                             MDB_txn *txn)
 {
-    auto key = logos::mdb_val(sizeof(epoch_number),
-                              const_cast<uint32_t *>(&epoch_number));
+    auto key = logos::mdb_val(epoch_number);
 
     GlobalRewardsInfo info;
 
@@ -209,18 +232,15 @@ bool EpochRewardsManager::RewardsAvailable(AccountAddress const & rep_address,
 bool EpochRewardsManager::GlobalRewardsAvailable(uint32_t const & epoch_number,
                                                  MDB_txn* txn)
 {
-    auto key = logos::mdb_val(sizeof(epoch_number),
-                              const_cast<uint32_t *>(&epoch_number));
+    auto key = logos::mdb_val(epoch_number);
 
-    return _store.global_rewards_exist(logos::mdb_val(key.size(), key.data()),
-                                       txn);
+    return _store.global_rewards_exist(key, txn);
 }
 
 void EpochRewardsManager::AddGlobalStake(RepEpochInfo const & info,
                                          MDB_txn * txn)
 {
-    auto key = logos::mdb_val(sizeof(info.epoch_number),
-                              const_cast<uint32_t *>(&info.epoch_number));
+    auto key = logos::mdb_val(info.epoch_number);
 
     auto global_info = GetGlobalRewardsInfo(info.epoch_number, txn);
     global_info.total_stake += info.total_stake;

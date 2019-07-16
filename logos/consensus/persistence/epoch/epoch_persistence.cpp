@@ -495,6 +495,8 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
 
         PlaceReceive(receive, block.timestamp, txn);
     }
+
+    EpochRewardsManager::GetInstance()->RemoveFeePool(block.epoch_number, txn);
 }
 
 void PersistenceManager<ECT>::UpdateGlobalRewards(const ApprovedEB & block, MDB_txn * txn)
