@@ -2820,6 +2820,8 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                         staked = proxy->lock_proxy;
                     }
 
+                    is_rep = false;
+
                     break;
                 }
                 case RequestType::AnnounceCandidacy:
