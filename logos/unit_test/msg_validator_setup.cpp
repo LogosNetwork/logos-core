@@ -48,6 +48,7 @@ logos::block_store * get_db()
         inited = true;
     }
 
+
     return store;
 }
 

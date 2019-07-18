@@ -72,8 +72,6 @@ public:
         return _delegate_ids.remote == delegate_id;
     }
 
-    virtual void CleanUp() {}
-
     /// set previous hash, microblock and epoch block have only one chain
     /// consequently in the override function have to set all backup's hash to previous
     /// @param hash to set

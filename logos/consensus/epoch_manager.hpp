@@ -30,6 +30,7 @@ public:
     virtual bool IsWaitingDisconnect() = 0;
     virtual uint8_t GetDelegateId() = 0;
     virtual DelegateIdentityManager & GetIdentityManager() = 0;
+    virtual uint8_t GetNumDelegates() = 0;
 };
 
 class EpochEventsNotifier
@@ -117,6 +118,8 @@ public:
 
     DelegateIdentityManager & GetIdentityManager() override;
 
+    uint8_t GetNumDelegates() override;
+
 private:
 
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
@@ -132,4 +135,5 @@ private:
     SPTR<ConsensusNetIOManager>             _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
     uint8_t                                 _delegate_id;       ///< Delegate id
+    uint8_t                                 _num_delegates;
 };

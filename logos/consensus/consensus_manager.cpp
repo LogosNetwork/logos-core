@@ -302,9 +302,36 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
-    auto connection = MakeBackupDelegate(iochannel, ids);
-    _connections.push_back(connection);
+    for(auto & backup : _connections)
+    {
+        if(backup->RemoteDelegateId() == ids.remote)
+        {
 
+            LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::"
+                << "BindIOChannel -  binding to " << unsigned(ids.remote);
+            backup->BindIOChannel(iochannel);
+            return backup;
+
+        } 
+    }
+
+    LOG_FATAL(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::"
+        << "BindIOChannel - could not find proper backup. ids = "
+        << unsigned(ids.remote);
+    trace_and_halt();
+
+    return nullptr;
+}
+
+template<ConsensusType CT>
+std::shared_ptr<MessageParser> ConsensusManager<CT>::AddBackupDelegate(const DelegateIdentities & ids)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    auto connection = MakeBackupDelegate(ids);
+    _connections.push_back(connection);
+    LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::"
+        << "AddBackupDelegate - adding backup for " << unsigned(ids.remote);
     return connection;
 }
 
@@ -318,11 +345,18 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
     {
         if ((*it)->IsRemoteDelegate(delegate_id))
         {
-            (*it)->CleanUp();
             _connections.erase(it);
             break;
         }
     }
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::DestroyAllBackups()
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+    _connections.clear();
 }
 
 template<ConsensusType CT>
@@ -377,7 +411,9 @@ void
 ConsensusManager<CT>::EnableP2p(bool enable)
 {
     ConsensusP2pBridge::EnableP2p(enable);
-
+    std::string enable_str = enable ? "enabling" : "disabling";
+    LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::"
+        << "EnableP2p - " << enable_str;
     if (enable)
     {
         std::weak_ptr<ConsensusManager<CT>> this_w =

@@ -29,6 +29,7 @@ enum class EpochDelegates {
     Current,
     Next
 };
+class PeerBinder;
 
 class DelegateIdentityManager
 {
@@ -263,7 +264,10 @@ public:
     /// @returns true if the message is valid
     bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
 
-    void ServerHandshake(std::shared_ptr<Socket> socket, std::function<void(std::shared_ptr<AddressAd>)>);
+    void ServerHandshake(
+            std::shared_ptr<Socket> socket,
+            PeerBinder & binder,
+            std::function<void(std::shared_ptr<AddressAd>)>);
 
     void ClientHandshake(std::shared_ptr<Socket> socket,
                          uint32_t epoch_number,

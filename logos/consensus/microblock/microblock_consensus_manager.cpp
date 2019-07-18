@@ -121,15 +121,14 @@ MicroBlockConsensusManager::GetSecondaryTimeout()
 
 std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>>
 MicroBlockConsensusManager::MakeBackupDelegate(
-        std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
     auto notifier = GetSharedPtr(_events_notifier,
             "MicroBlockConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
-    return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), _store, _block_cache,
-            _validator, ids, _microblock_handler, _scheduler, notifier, _persistence_manager,
-            GetP2p(), _service);
+    return std::make_shared<MicroBlockBackupDelegate>(nullptr, shared_from_this(),
+            _store, _block_cache, _validator, ids, _microblock_handler, _scheduler,
+            notifier, _persistence_manager, GetP2p(), _service);
 }
 
 bool MicroBlockConsensusManager::AlreadyPostCommitted()

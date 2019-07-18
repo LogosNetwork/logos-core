@@ -40,6 +40,7 @@ EpochManager::EpochManager(Service & service,
     {
         _key_store.OnPublicKey(del, eb->delegates[del].bls_pub);
     }
+    _num_delegates = sizeof(eb->delegates)/sizeof(eb->delegates[0]);
 }
 
 EpochManager::~EpochManager()
@@ -106,4 +107,9 @@ DelegateIdentityManager &
 EpochManager::GetIdentityManager()
 {
     return _new_epoch_handler.GetIdentityManager();
+}
+
+uint8_t EpochManager::GetNumDelegates()
+{
+    return _num_delegates;
 }

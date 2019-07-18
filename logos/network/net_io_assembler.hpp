@@ -29,6 +29,11 @@ public:
     void ReadPrequel(ReadCallback callback);
     void ReadBytes(ReadCallback callback, size_t bytes);
 
+    void ResetSocket(std::shared_ptr<Socket> socket)
+    {
+        _socket = socket;
+    }
+
 protected:
     virtual void OnError(const ErrorCode &ec) {}
     virtual void OnRead() {}

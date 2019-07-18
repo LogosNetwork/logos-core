@@ -129,13 +129,12 @@ EpochConsensusManager::GetSecondaryTimeout()
 
 std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
 EpochConsensusManager::MakeBackupDelegate(
-        std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
     auto notifier = _events_notifier.lock();
     assert(notifier);
-    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), _store, _block_cache,
-            _validator, ids, _scheduler, notifier, _persistence_manager,
+    return std::make_shared<EpochBackupDelegate>(nullptr, shared_from_this(), _store,
+            _block_cache, _validator, ids, _scheduler, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 

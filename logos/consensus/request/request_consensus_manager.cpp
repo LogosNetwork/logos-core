@@ -302,14 +302,13 @@ RequestConsensusManager::GetSecondaryTimeout()
 
 std::shared_ptr<BackupDelegate<ConsensusType::Request>>
 RequestConsensusManager::MakeBackupDelegate(
-    std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
     auto notifier = GetSharedPtr(_events_notifier,
             "RequestConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
-            iochannel, shared_from_this(), _store, _block_cache, _validator,
+            nullptr, shared_from_this(), _store ,_block_cache, _validator,
 	    ids, _service, _scheduler, notifier, _persistence_manager, GetP2p());
 }
 
@@ -625,18 +624,32 @@ RequestConsensusManager::OnPrePrepareRejected()
 }
 
 void
-RequestConsensusManager::OnDelegatesConnected()
+RequestConsensusManager::StartConsensusWithP2p()
 {
-    auto  notifier = GetSharedPtr(_events_notifier,
-            "RequestConsensusManager::OnDelegatesConnected, object destroyed");
+    StartConsensus(true);
+}
 
-    assert(notifier);
-    if(_delegates_connected)
+void
+RequestConsensusManager::StartConsensus(bool enable_p2p)
+{
+
+    if(_started_consensus)
     {
         return;
     }
+    _started_consensus = true;
+    LOG_INFO(_log) << "RequestConsensusManager::StartConsensus";
+    auto  notifier = GetSharedPtr(_events_notifier,
+            "RequestConsensusManager::StartConsensus, object destroyed");
 
-    _delegates_connected = true;
+    assert(notifier);
+    if(enable_p2p)
+    {
+        LOG_INFO(_log) << "RequestConsensusManager::StartConsensus"
+            << "- enabling p2p";
+        EnableP2p(true);
+    }
+
 
     if (notifier->GetState() == EpochTransitionState::None)
     {
@@ -654,6 +667,7 @@ RequestConsensusManager::OnDelegatesConnected()
             this_s->_request_queue.PushBack(std::shared_ptr<Request>(new Request()));
             this_s->_state = ConsensusState::VOID;
             this_s->_ongoing = true;
+
             this_s->InitiateConsensus();
         });
     }
@@ -661,6 +675,22 @@ RequestConsensusManager::OnDelegatesConnected()
     {
         _state = ConsensusState::VOID;
     }
+
+}
+
+void
+RequestConsensusManager::OnDelegatesConnected()
+{
+
+    if(_delegates_connected)
+    {
+        LOG_INFO(_log) << "RequestConsensusManager::OnDelegatesConnected - "
+            << "delegates already connected, returning";
+        return;
+    }
+
+    _delegates_connected = true;
+    StartConsensus(false);
 }
 
 bool
