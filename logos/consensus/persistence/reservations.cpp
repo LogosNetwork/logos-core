@@ -17,8 +17,8 @@ Reservations::Release(const AccountAddress & account)
 //  otherwise we suffer from  a major performance hit
 bool
 ConsensusReservations::CanAcquire(const AccountAddress & account,
-                         const BlockHash & hash,
-                         bool allow_duplicates)
+                                  const BlockHash & hash,
+                                  bool allow_duplicates)
 {
     logos::reservation_info info;
 
@@ -67,8 +67,7 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
 
 void
 ConsensusReservations::UpdateReservation(const BlockHash & hash,
-
-                                const AccountAddress & account)
+                                         const AccountAddress & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
 
