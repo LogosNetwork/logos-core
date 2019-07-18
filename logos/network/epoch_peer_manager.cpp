@@ -23,7 +23,7 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
                                        std::shared_ptr<EpochPeerManager::Socket> socket)
 {
     auto port = endpoint.port();
-    _peer_binder.GetIdentityManager().ServerHandshake(socket, [this, socket, port](std::shared_ptr<AddressAd> ad) {
+    _peer_binder.GetIdentityManager().ServerHandshake(socket, _peer_binder, [this, socket, port](std::shared_ptr<AddressAd> ad) {
         if (!ad)
         {
             LOG_DEBUG(_log) << "EpochPeerManager::OnConnectionAccepted, failed to read client's ad";

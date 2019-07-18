@@ -925,13 +925,22 @@ DelegateIdentityManager::UpdateTxAcceptorAdDB(const AddressAdTxAcceptor &ad, uin
 /// has not transitioned to Connect state yet. In this case the server closes the connection
 /// and client will attempt reconnecting five seconds later.
 void
-DelegateIdentityManager::ServerHandshake(std::shared_ptr<Socket> socket,
-                                         std::function<void(std::shared_ptr<AddressAd>)> cb)
+DelegateIdentityManager::ServerHandshake(
+        std::shared_ptr<Socket> socket,
+        PeerBinder & binder,
+        std::function<void(std::shared_ptr<AddressAd>)> cb)
 {
-    ReadAddressAd(socket, [this, socket, cb](std::shared_ptr<AddressAd> ad){
+    ReadAddressAd(socket, [this, socket, cb, &binder](std::shared_ptr<AddressAd> ad){
         if (!ad)
         {
             LOG_DEBUG(_log) << "DelegateIdentityManager::ServerHandshake failed to read client's ad";
+            cb(nullptr);
+            return;
+        }
+        if(!binder.CanBind(ad->epoch_number))
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManager::ServerHandshake - "
+                << "cannot bind for epoch_number=" << ad->epoch_number;
             cb(nullptr);
             return;
         }
@@ -989,15 +998,19 @@ DelegateIdentityManager::WriteAddressAd(std::shared_ptr<Socket> socket,
                                        config.peer_port);
     boost::asio::async_write(*socket,
                              boost::asio::buffer(buf->data(), buf->size()),
-                             [this, socket, buf, cb](const ErrorCode &ec, size_t size){
+                             [this, socket, buf, cb, remote_delegate_id, epoch_number](const ErrorCode &ec, size_t size){
         if (ec)
         {
-            LOG_ERROR(_log) << "DelegateIdentityManager::WriteAddressAd write error " << ec.message();
+            LOG_ERROR(_log) << "DelegateIdentityManager::WriteAddressAd write error " << ec.message()
+            << ",remote_delegate_id=" << (int) remote_delegate_id
+            << ",epoch_number=" << epoch_number;
             cb(false);
         }
         else
         {
-            LOG_DEBUG(_log) << "DelegateIdentityManager::WriteAddressAd wrote ad, size " << buf->size();
+            LOG_DEBUG(_log) << "DelegateIdentityManager::WriteAddressAd wrote ad, size " << buf->size()
+            << ",remote_delegate_id=" << (int) remote_delegate_id
+            << ",epoch_number=" << epoch_number;
             cb(true);
         }
     });
@@ -1018,6 +1031,10 @@ DelegateIdentityManager::ReadAddressAd(std::shared_ptr<Socket> socket,
             LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd prequel read error: " << ec.message();
             cb(nullptr);
             return;
+        }
+        else
+        {
+            LOG_INFO(_log) << "DelegateIdentityManager::ReadAddressAd successful";
         }
 
         bool error = false;

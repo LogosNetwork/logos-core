@@ -103,8 +103,7 @@ protected:
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
     std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
-    MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                       const DelegateIdentities& ids) override;
+    MakeBackupDelegate(const DelegateIdentities& ids) override;
 
     /// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
     /// @param message request

@@ -19,7 +19,7 @@ protected:
 public:
     NetIOErrorHandler() = default;
     ~NetIOErrorHandler() = default;
-    virtual void OnNetIOError(const Error &error, uint8_t delegate_id, bool reconnect = true) = 0;
+    virtual void EnableP2p(bool enable) = 0;
 };
 
 /// ConsensusNetIOManager manages connections to peers.
@@ -94,20 +94,17 @@ public:
     void Start(std::shared_ptr<EpochInfo> epoch_info);
 
     void AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port);
+    static const uint64_t MESSAGE_AGE;
+    static const uint64_t MESSAGE_AGE_LIMIT;
 
 protected:
 
-    /// Handle netio error
-    /// @param ec error code
-    /// @param delegate_id remote delegate id
-    void OnNetIOError(const Error &ec, uint8_t delegate_id, bool reconnect = true) override;
 
     /// Create netio instance and add to connecitons
     /// @param t either service or shared_ptr<Socket>
     /// @param remote_delegate_id remote delegate id
     /// @param endpoint remote peer's endpoint
-    template<typename T>
-    void AddNetIOConnection(T &t, uint8_t remote_delegate_id, const Endpoint &endpoint);
+    std::shared_ptr<ConsensusNetIO> AddNetIOConnection(uint8_t remote_delegate_id);
 
     /// Schedule heartbeat/garbage colleciton timer
     /// @param seconds timer's timeout value
@@ -117,10 +114,14 @@ protected:
     /// @param error error code
     void OnTimeout(const Error &error);
 
+    /// Enable p2p on all consensus managers
+    void EnableP2p(bool enable) override;
+
+    uint32_t GetEpochNumber();
+
 private:
     static const boost::posix_time::seconds HEARTBEAT;
-    static const uint64_t MESSAGE_AGE;
-    static const uint64_t MESSAGE_AGE_LIMIT;
+
 
     Service &                      _service;            ///< Boost asio service reference
     Delegates                      _delegates;          ///< List of all delegates
@@ -136,4 +137,5 @@ private:
     std::mutex                     _gb_mutex;           ///< Garbage mutex
     Config                         _config;
     PeerAcceptorStarter &          _acceptor;
+    Timer                          _startup_timer;
 };

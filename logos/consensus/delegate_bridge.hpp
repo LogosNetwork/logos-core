@@ -46,6 +46,8 @@ public:
 
     bool PrimaryDirectlyConnected();
 
+    void BindIOChannel(std::shared_ptr<IOChannel> io_channel);
+
 protected:
     // Messages received by backup delegates
     virtual void OnConsensusMessage(const PrePrepare & message) = 0;

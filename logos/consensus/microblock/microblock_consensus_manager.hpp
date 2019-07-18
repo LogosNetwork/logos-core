@@ -108,8 +108,7 @@ protected:
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
     std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>>
-    MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                       const DelegateIdentities& ids) override;
+    MakeBackupDelegate(const DelegateIdentities& ids) override;
 
     ///  Check if backup already cleared primary's preprepare from main message handler
     ///     @returns true if message is already cleared

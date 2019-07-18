@@ -31,22 +31,73 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
     , _config(config)
     , _acceptor(starter)
     , _delegates(config.delegates)
+    , _startup_timer(service)
 {
+
 }
 
 void
 ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 {
+
+    uint8_t num_delegates = epoch_info->GetNumDelegates();
     _epoch_info = epoch_info;
 
+    LOG_INFO(_log) << "ConsensusNetIOManager::Start - "
+        << "epoch num = " << epoch_info->GetEpochNumber()
+        << ", _delegate_id = " << unsigned(_delegate_id)
+        << ",num_delegates = " << unsigned(num_delegates);
+
+    std::vector<bool> created_backup(num_delegates,false);
+
+    //for delegates in config, we know their ip, so connect now if their id
+    //is greater than our own
     for(auto & delegate : _delegates)
     {
         if(_delegate_id < delegate.id)
         {
-            auto endpoint = Endpoint(make_address_v4(delegate.ip), _config.peer_port);
-            AddNetIOConnection(_service, delegate.id, endpoint);
+            LOG_INFO(_log) << "ConsensusNetIOManager::Start - delegate = "
+                << unsigned(delegate.id) << " present in config." 
+                << "Connecting now."
+                << " epoch_number = " << epoch_info->GetEpochNumber();
+            created_backup[delegate.id] = true;
+            auto netio = AddNetIOConnection(delegate.id);
+
+            DelegateIdentities ids{_delegate_id, delegate.id};
+            for(auto & entry : _consensus_managers)
+            {
+                auto backup = entry.second->AddBackupDelegate(ids);
+                netio->AddConsensusConnection(entry.first,backup);
+            }
+
+            Endpoint endpoint(make_address_v4(delegate.ip), _config.peer_port);
+            netio->BindEndpoint(endpoint);
+            netio->Connect();
         }
     }
+
+    //for delegates not present in config, we need to wait until we receive
+    //their addressAd over p2p, to learn their ip
+    //also, delegates in config with id less than our own, we wait for them to
+    //connect to us
+    for(uint8_t i = 0; i < num_delegates; ++i)
+    {
+        if(i == _delegate_id || created_backup[i]) continue;
+        LOG_INFO(_log) << "ConsensusNetIOManager::Start - "
+            << "delegate = " << unsigned(i) << " creating backup but "
+            << "connecting later"
+            << " epoch_number = " << epoch_info->GetEpochNumber();
+
+        DelegateIdentities ids{_delegate_id, i};
+
+        auto netio = AddNetIOConnection(i);
+        for(auto & entry : _consensus_managers)
+        {
+            auto backup = entry.second->AddBackupDelegate(ids);
+            netio->AddConsensusConnection(entry.first,backup);
+        }
+    }
+
 
     if(_delegate_id != 0)
     {
@@ -54,25 +105,108 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
     }
 
     ScheduleTimer(HEARTBEAT);
+
+    boost::posix_time::seconds startup_timeout{60};
+    _startup_timer.expires_from_now(startup_timeout);
+
+
+    std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
+    auto this_s = GetSharedPtr(this_w,
+            "ConsensusNetIOManager::_startup_timer, object destroyed");
+
+    _startup_timer.async_wait([this_s](const Error &ec) {
+
+        if (ec)
+        {
+            LOG_ERROR(this_s->_log) 
+                << "ConsensusNetIOManager::_startup_timer, error: "
+                << ec.message();
+            if (ec == boost::asio::error::operation_aborted)
+            {
+                return;
+            }
+        }
+        for(auto & entry : this_s->_consensus_managers)
+        {
+            if(entry.first == ConsensusType::Request)
+            {
+                std::shared_ptr<RequestConsensusManager> mgr =
+                    static_pointer_cast<RequestConsensusManager>(entry.second);
+                //StartConsensusWithP2p calls OnDelegatesConnected(), which
+                //must execute serially. OnDelegatesConnected() is always
+                //called while holding _bind_mutex.
+                //Furthermore, DelegatesConnected() reads a variable that is
+                //updated by multiple threads
+                std::lock_guard<std::recursive_mutex> lock(this_s->_bind_mutex);
+                if(!mgr->DelegatesConnected())
+                {
+                    LOG_INFO(this_s->_log)
+                        << "ConsensusNetIOManager::_startup_timer - "
+                        << "Delegates not connected, starting p2p consensus";
+                    if(this_s->GetEpochNumber() == GENESIS_EPOCH+1)
+                    {
+                        mgr->StartConsensusWithP2p();
+                    }
+                    else
+                    {
+                        mgr->EnableP2p(true);
+                    }
+                }
+            }
+        }
+
+    });
+
+
 }
 
 void
 ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port)
 {
+    LOG_INFO(_log) << "ConsensusNetIOManager::AddDelegate - "
+        << "delegate.id = " << unsigned(delegate_id) << " _delegate_id ="
+        << unsigned(_delegate_id)
+        << ",epoch_number=" << GetEpochNumber();
     if (std::find_if(_delegates.begin(), _delegates.end(), [&](auto delegate){
-            return delegate.id == delegate_id;}) != _delegates.end())
+                return delegate.id == delegate_id;}) != _delegates.end())
     {
         LOG_DEBUG(_log) << "ConsensusNetIOManager::AddDelegate, delegate id " << (int) delegate_id
-                        << " is already connected ";
+            << " is already connected "
+            << ", epoch_number=" << GetEpochNumber();
         return;
     }
+
 
     _delegates.emplace_back(ip, delegate_id);
 
     if (_delegate_id < delegate_id)
     {
         auto endpoint = Endpoint(make_address_v4(ip), port);
-        AddNetIOConnection(_service, delegate_id, endpoint);
+        for(auto & connection : _connections)
+        {
+            if(connection->GetRemoteDelegateId() == delegate_id)
+            {
+                connection->BindEndpoint(endpoint);
+                connection->Connect();
+                LOG_INFO(_log) << "ConsensusNetIOManager::AddDelegate - "
+                    << "added endpoint for delegate " << unsigned(delegate_id)
+                    << ", _delegate_id=" << unsigned(_delegate_id)
+                    << ", epoch_number=" << GetEpochNumber();
+                return;
+            }
+        }
+        LOG_FATAL(_log) << "ConsensusNetIOManager::AddDelegate - "
+            << "failed to find proper connection to bind endpoint - "
+            << "delegate = " << unsigned(delegate_id);
+        trace_and_halt();
+    }
+    else
+    {
+        LOG_WARN(_log) << "ConsensusNetIOManager::AddDelegate - "
+            << "AddDelegate called for delegate with id less than our own"
+            << " delegate = " << unsigned(delegate_id)
+            << ", _delegate_id = " << unsigned(_delegate_id)
+            << ", epoch_number="<< GetEpochNumber();
     }
 }
 
@@ -94,8 +228,40 @@ ConsensusNetIOManager::OnConnectionAccepted(
     std::shared_ptr<Socket> socket,
     uint8_t delegate_id)
 {
-    AddNetIOConnection(socket, delegate_id, endpoint);
+    LOG_INFO(_log) << "ConsensusNetIOManager::OnConnectionAccepted - "
+        << "accepted connection from delegate " << unsigned(delegate_id)
+        << ",epoch_number=" << GetEpochNumber();
+    for(auto & connection : _connections)
+    {
+        if(connection->GetRemoteDelegateId() == delegate_id)
+        {
+            LOG_INFO(_log) << "ConsensusNetIOManager::OnConnectionAccepted -"
+                << "found proper netio for delegate = " << unsigned(delegate_id);
+
+            //Bind the socket to existing net io
+            connection->BindEndpoint(endpoint);
+            connection->BindSocket(socket);
+            connection->OnConnect();
+            return;
+        }
+    }
+    LOG_FATAL(_log) << "ConsensusNetIOManager::OnConnectionAccepted - "
+        << "failed to find proper ConsensusNetIO to bind socket - "
+        << "delegate_id = " << unsigned(delegate_id);
+    trace_and_halt();
 }
+
+uint32_t ConsensusNetIOManager::GetEpochNumber()
+{
+    auto epoch_info = _epoch_info.lock();
+    uint32_t epoch_number = 0;
+    if(epoch_info)
+    {
+        epoch_number = epoch_info->GetEpochNumber();
+    }
+    return epoch_number;
+}
+
 
 void
 ConsensusNetIOManager::BindIOChannel(
@@ -108,77 +274,51 @@ ConsensusNetIOManager::BindIOChannel(
 
     for (auto & entry : _consensus_managers)
     {
-        netio->AddConsensusConnection(entry.first,
-                                      entry.second->BindIOChannel(netio, ids));
+        LOG_INFO(_log) << "ConsensusNetIOManager::BindIOChannel - "
+            << "Binding io channel for " << ConsensusToName(entry.first)
+            << " for remote delegate " << unsigned(remote_delegate_id);
+        entry.second->BindIOChannel(netio,ids);
     }
 }
 
 void
-ConsensusNetIOManager::OnNetIOError(
-    const Error &ec,
-    uint8_t delegate_id,
-    bool reconnect)
+ConsensusNetIOManager::EnableP2p(bool enable)
 {
-    // destruct delegate's ConsensusConnection for each consensus type
+    //When connection fails, enable p2p for the time being
+    //this enables p2p for the primary
+    for(auto & netio_handler : _consensus_managers)
     {
-        std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
-
-        for (auto &entry : _consensus_managers)
+        auto CT = netio_handler.first;
+        if(CT == ConsensusType::Request)
         {
-            entry.second->OnNetIOError(delegate_id);
+
+            auto mgr = static_pointer_cast<ConsensusManager<ConsensusType::Request>>(netio_handler.second);
+
+            mgr->EnableP2p(enable);
+        }
+        else if (CT == ConsensusType::MicroBlock)
+        {
+            auto mgr = static_pointer_cast<ConsensusManager<ConsensusType::MicroBlock>>(netio_handler.second);
+
+            mgr->EnableP2p(enable);
+        }
+        else
+        {
+            auto mgr = static_pointer_cast<ConsensusManager<ConsensusType::Epoch>>(netio_handler.second);
+
+            mgr->EnableP2p(enable);
+
         }
     }
 
-    // destruct/create delegate's netio instance
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    bool found = false;
-
-    for (auto it = _connections.begin(); it != _connections.end(); ++it)
-    {
-        if ((*it)->IsRemoteDelegate(delegate_id))
-        {
-            LOG_ERROR(_log) << "ConsensusNetIOManager::OnNetIOError " << ec.message() << " " << (int)delegate_id
-                            << " " << (*it)->GetEndpoint();
-
-            auto endpoint = (*it)->GetEndpoint();
-            (*it)->UnbindIOChannel();
-            (*it).reset();
-
-            _connections.erase(it);
-
-            // if delegate is TCP/IP client then instantiate netio,
-            // otherwise TCP/IP server is already accepting connections
-            if (reconnect && _delegate_id < delegate_id)
-            {
-                std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
-                _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this_w, delegate_id, endpoint]() {
-                    auto this_s = GetSharedPtr(this_w, "ConsensusNetIOManager::OnNetIOError, object destroyed");
-                    if (!this_s)
-                    {
-                        return;
-                    }
-                    this_s->AddNetIOConnection(this_s->_service, delegate_id, endpoint);
-                });
-            }
-
-            found = true;
-            break;
-        }
-    }
-
-    if (!found)
-    {
-        LOG_ERROR(_log) << "ConsensusNetIOManager::OnNetIOError, delegate not found " << (int)delegate_id;
-    }
 }
 
-template<typename T>
-void
+std::shared_ptr<ConsensusNetIO>
 ConsensusNetIOManager::AddNetIOConnection(
-    T &t,
-    uint8_t remote_delegate_id,
-    const Endpoint &endpoint)
+    uint8_t remote_delegate_id)
 {
+    LOG_INFO(_log) << "ConsensusNetIOManager::AddNetIOConnection - "
+        << "adding connection for delegate = " << unsigned(remote_delegate_id);
 
     auto bc = [this](std::shared_ptr<ConsensusNetIO> netio,
                      uint8_t id)
@@ -192,17 +332,24 @@ ConsensusNetIOManager::AddNetIOConnection(
     auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::AddNetIOConnection, object destroyed");
     if (!info)
     {
-        return;
+        return nullptr;
     }
+
+   bool pending = remote_delegate_id < _delegate_id; 
     auto netio = std::make_shared<ConsensusNetIO>(
-            t, endpoint, _alarm, remote_delegate_id,
-            _delegate_id, bc, info, *this, cb);
+            _service, _alarm, remote_delegate_id,
+            _delegate_id, bc, info, *this, pending);
+    //TODO - uncomment this when DelegateMap gets merged into development
+    //DelegateMap is used to treat a Post_Committed block as a post-commit
+    //DelegateMap::GetInstance()->AddSink(info->GetEpochNumber(), remote_delegate_id, netio);
+
     {
         std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
         _connections.push_back(netio);
     }
-    ((*netio).*cb)();
 
+
+    return netio;
 }
 
 void
@@ -225,6 +372,7 @@ void
 ConsensusNetIOManager::OnTimeout(
     const Error &ec)
 {
+    LOG_INFO(_log) << "ConsensusNetIOManager::OnTimeout";
     if (ec)
     {
         LOG_ERROR(_log) << "ConsensusNetIOManager::OnTimeout, error: " << ec.message();
@@ -234,38 +382,15 @@ ConsensusNetIOManager::OnTimeout(
         }
     }
 
-    using namespace boost::system::errc;
-    HeartBeat heartbeat;
-    vector<std::shared_ptr<ConsensusNetIO>> garbage;
     if (_config.heartbeat)
     {
+        LOG_INFO(_log) << "ConsensusNetIOManager::OnTimeout-"
+            << "sending heartbeats";
         std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-        for (auto it : _connections) {
-            if (it->Connected())
-            {
-                auto stamp = it->GetTimestamp();
-                auto now = GetStamp();
-                auto diff = now - stamp;
-                if (diff > MESSAGE_AGE_LIMIT) {
-                    LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, scheduled for destruction "
-                                    << (int) it->GetRemoteDelegateId() << " time diff " << diff;
-                    garbage.push_back(it);
-                } else if (diff > MESSAGE_AGE) {
-                    LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, sending heartbeat to "
-                                    << (int) it->GetRemoteDelegateId();
-
-                    std::vector<uint8_t> buf;
-                    heartbeat.Serialize(buf);
-                    it->Send(buf.data(), buf.size());
-                }
-            }
+        for (auto it : _connections)
+        {
+            it->CheckHeartbeat();
         }
-    }
-
-    Error error(make_error_code(errc_t::io_error));
-    for (auto it : garbage)
-    {
-        it->OnNetIOError(error, true);
     }
 
     ScheduleTimer(HEARTBEAT);
@@ -274,18 +399,29 @@ ConsensusNetIOManager::OnTimeout(
 void
 ConsensusNetIOManager::CleanUp()
 {
+
+    //TODO - do we need to lock both mutexs here?
+    std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
     using namespace boost::system::errc;
     _heartbeat_timer.cancel();
+    LOG_INFO(_log) << "ConsensusNetIOManager::CleanUp()";
 
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+    std::lock_guard<std::recursive_mutex> lock2(_connection_mutex);
 
     Error error(make_error_code(errc_t::io_error));
-    Connections connections = _connections;
-    for (auto it : connections)
+    for (auto it : _connections)
     {
         it->OnNetIOError(error, false);
+        it->UnbindIOChannel();
     }
-    connections.clear();
+    _connections.clear();
+
+    // destruct delegate's ConsensusConnection for each consensus type
+    for (auto &entry : _consensus_managers)
+    {
+        entry.second->DestroyAllBackups();
+    }
+
 }
 
 bool
@@ -297,11 +433,17 @@ ConsensusNetIOManager::AddToConsensusQueue(const uint8_t * data,
                                            uint8_t delegate_id)
 {
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+    LOG_INFO(_log) << "ConsensusNetIOManager::AddToConsensusQueue - "
+        << "Receivied msg_type = " << MessageToName(message_type)
+        << " - consensus_type = " << ConsensusToName(consensus_type)
+        << " - delegate_id = " << unsigned(delegate_id);
 
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
         if ((*it)->GetRemoteDelegateId() == delegate_id)
         {
+            LOG_INFO(_log) << "ConsensusNetIOManager::AddToConsensusQueue - "
+                << "found correct backup!";
             (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
             break;
         }
