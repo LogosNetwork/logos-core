@@ -2124,4 +2124,56 @@ TEST (Request_Serialization, json_serialization)
     ASSERT_EQ(claim_a, claim_b);
 }
 
+TEST (Election_Request_Hash, hash_methods)
+{
+    BlockHash zero_hash;
+    // AnnounceCandidacy
+    {
+        auto announce_a(GenerateAnnounce());
+        auto hash(announce_a.Hash());
+        ASSERT_NE(zero_hash, hash);
+        announce_a.set_stake = false;
+        auto hash_2(announce_a.Hash());
+        ASSERT_NE(hash, hash_2);
+        auto hash_3(announce_a.Hash());
+        ASSERT_EQ(hash_3, hash_2);
+    }
+
+    // RenounceCandidacy
+    {
+        auto renounce_a(GenerateRenounce());
+        auto hash(renounce_a.Hash());
+        ASSERT_NE(zero_hash, hash);
+        renounce_a.set_stake = false;
+        auto hash_2(renounce_a.Hash());
+        ASSERT_NE(hash, hash_2);
+        auto hash_3(renounce_a.Hash());
+        ASSERT_EQ(hash_3, hash_2);
+    }
+
+    // StartRepresenting
+    {
+        auto start_a(GenerateStart());
+        auto hash(start_a.Hash());
+        ASSERT_NE(zero_hash, hash);
+        start_a.set_stake = false;
+        auto hash_2(start_a.Hash());
+        ASSERT_NE(hash, hash_2);
+        auto hash_3(start_a.Hash());
+        ASSERT_EQ(hash_3, hash_2);
+    }
+
+    // StopRepresenting
+    {
+        auto stop_a(GenerateStop());
+        auto hash(stop_a.Hash());
+        ASSERT_NE(zero_hash, hash);
+        stop_a.set_stake = false;
+        auto hash_2(stop_a.Hash());
+        ASSERT_NE(hash, hash_2);
+        auto hash_3(stop_a.Hash());
+        ASSERT_EQ(hash_3, hash_2);
+    }
+}
+
 #endif // #ifdef Unit_Test_Request_Serialization
