@@ -47,7 +47,38 @@ bool
 MicroBlockBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
-    return _persistence_manager.Validate(message);
+    ValidationStatus status;
+    bool res = _persistence_manager.Validate(message, &status);
+    if(!res)
+    {
+        bool need_bootstrap = false;
+        if(logos::MissingBlock(status.reason))
+        {
+            need_bootstrap = true;
+        }
+        else
+        {
+            if(status.reason == logos::process_result::invalid_request)
+            {
+                for (int del = 0; del < NUM_DELEGATES; ++del)
+                {
+                    if(status.requests[del] == logos::process_result::gap_previous)
+                    {
+                        need_bootstrap = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if(need_bootstrap)
+        {
+            // TODO: high speed Bootstrapping
+            LOG_DEBUG(_log) << " MicroBlockBackupDelegate::DoValidate"
+                        << " Try Bootstrap...";
+            logos_global::Bootstrap();
+        }
+    }
+    return res;
 }
 
 void

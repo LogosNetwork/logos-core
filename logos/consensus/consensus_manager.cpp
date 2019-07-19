@@ -70,6 +70,17 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                        << " Result code: "
                        << logos::ProcessResultToString(result.code)
                        << " hash: " << hash.to_string();
+
+        if(logos::MissingBlock(result.code))
+        {
+        	LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::HandleRequest - message validation failed."
+                       << " Result code: "
+                       << logos::ProcessResultToString(result.code)
+                       << " hash: " << hash.to_string()
+                       << " Try Bootstrap...";
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
+        }
         return;
     }
 

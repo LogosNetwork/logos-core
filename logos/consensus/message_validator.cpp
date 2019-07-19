@@ -2,10 +2,6 @@
 #include <logos/consensus/message_validator.hpp>
 #include <string>
 
-MessageValidator::MessageValidator(DelegateKeyStore & key_store)
-    : _keys(key_store)
-{
-}
 
 DelegatePubKey MessageValidator::GetPublicKey()
 {

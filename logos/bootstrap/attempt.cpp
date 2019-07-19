@@ -81,7 +81,10 @@ namespace Bootstrap
 #ifdef BOOTSTRAP_PROGRESS
                 block_progressed();
 #endif
-                puller.Init(client->request, client->response);
+                /*
+                 * do not use the TipSet stored in the tip request, since it could be stale as saw in tests.
+                 */
+                puller.Init(TipSet::CreateTipSet(store), client->response);
             }
         }
         return failed;

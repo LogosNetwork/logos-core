@@ -39,7 +39,7 @@ namespace Bootstrap
          * @param my_tips my tips
          * @param others_tips peer's tips
          */
-        void Init(TipSet &my_tips, TipSet &others_tips);
+        void Init(const TipSet &my_tipset, const TipSet &others_tipset);
 
         /**
          * get a pull request

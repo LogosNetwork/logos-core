@@ -229,14 +229,16 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
         return false;
     }
 
-     // TODO: potentially need to bootstrap here as we might be behind!
     if(message.previous != _prev_pre_prepare_hash)
     {
         LOG_DEBUG(_log) << " BackupDelegate<"<< ConsensusToName(CT)
                         << ">::Validate Invalid_Previous_Hash "
                         << message.previous.to_string() << " "
-                        << _prev_pre_prepare_hash.to_string();
+                        << _prev_pre_prepare_hash.to_string()
+                        << " Try Bootstrap...";
         _reason = RejectionReason::Invalid_Previous_Hash;
+        // TODO: high speed Bootstrapping
+        logos_global::Bootstrap();
         return false;
     }
 
@@ -267,7 +269,8 @@ bool BackupDelegate<CT>::Validate(const M & message)
             LOG_WARN(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
                            << " invalid Post_Prepare, pre_prepare hash " << _pre_prepare_hash.to_string()
                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
-            // TODO: bootstrap here
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
             return false;
         }
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
@@ -292,6 +295,8 @@ bool BackupDelegate<CT>::Validate(const M & message)
             LOG_WARN(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
                            << " invalid Post_Commit, pre_prepare hash " << _pre_prepare_hash.to_string()
                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
             return false;
         }
         return _validator.Validate(_post_prepare_hash, message.signature);
@@ -371,6 +376,9 @@ bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
     {
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Received " << MessageToName(message)
                        << " message while in " << StateToString(_state);
+
+        // TODO: high speed Bootstrapping
+        logos_global::Bootstrap();
         return false;  // TODO: bootstrap here
     }
 
@@ -401,6 +409,9 @@ bool BackupDelegate<CT>::ProceedWithMessage(const PostCommit & message)
     {
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Proceeding with PostCommit"
                        << " message received while in " << StateToString(_state);
+
+        // TODO: high speed Bootstrapping
+        logos_global::Bootstrap();
         return false;
     }
 

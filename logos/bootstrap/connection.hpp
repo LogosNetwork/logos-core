@@ -9,7 +9,7 @@
 
 namespace Bootstrap
 {
-    constexpr uint16_t BOOTSTRAP_PORT = 7000;
+    constexpr uint16_t BOOTSTRAP_PORT = 17000;
     constexpr uint16_t CONNECT_TIMEOUT_MS = 5000; // 5 seconds
     constexpr uint32_t timeout_disabled = 0;
 

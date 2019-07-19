@@ -12,7 +12,7 @@ template<>
 class NonDelPersistenceManager<R> : public PersistenceManager<R>, public NonDelegatePersistence<R>
 {
 public:
-    using PersistenceManager<R>::Validate;
+    using NonDelegatePersistence<R>::Validate;
 
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
@@ -52,7 +52,7 @@ public:
             if(previous.epoch_number > 0)
             {
                 if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
-                        ! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
+                        ! ((previous.epoch_number < message.epoch_number) && (message.sequence == 0)))
                 {
                     LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":wrong_sequence_number:"
                             << " previous=" << previous.epoch_number << ":" << previous.sequence
