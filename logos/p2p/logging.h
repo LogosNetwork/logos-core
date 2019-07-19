@@ -112,6 +112,7 @@ while(0)
 #define LogError(category, ...)   LogPrintSeverity(boost::log::trivial::error,   category, __VA_ARGS__)
 
 #define LogPrintf(...)            LogPrintfSeverity(boost::log::trivial::info, __VA_ARGS__)
+//TODO Peng to CJ, too many info level p2p logs. Logs for every p2p message should probably be trace level
 #define LogPrint                  LogInfo
 
 #endif // BITCOIN_LOGGING_H

@@ -20,7 +20,7 @@ BLS_Nodes & setup_nodes()
         // everyone gets everyone's public key, including itself's
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
-            auto & ks = bls_nodes[i]->key_store;
+            auto & ks = bls_nodes[i]->validator.keyStore;
             for(int k = 0; k < NUM_DELEGATES; ++k)
             {
                 ks.OnPublicKey(k, pkeys[k]);

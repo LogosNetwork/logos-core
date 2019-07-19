@@ -5,7 +5,7 @@
 #include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
 
-std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
+std::unordered_map<uint32_t, std::shared_ptr<MessageValidator>> ValidatorBuilder::_epoch_pki;
 uint32_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
 std::mutex ValidatorBuilder::_mutex;
@@ -24,6 +24,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
     // delegate's epoch block for requested epoch
     epoch_number -= 2;
+    LOG_TRACE(_log) << "ValidatorBuilder::GetValidator epoch " << epoch_number + 2 << " epoch_block number " << epoch_number;
 
     if (_cached_validator != nullptr && _cached_epoch == epoch_number)
     {
@@ -40,6 +41,13 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
         {
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch tip";
             trace_and_halt();
+        }
+
+        if(tip.epoch < epoch_number)
+        {
+        	LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator don't have the epoch block, my latest epoch# "
+        			<< tip.epoch << " need epoch# " << epoch_number;
+        	return nullptr;
         }
         hash = tip.digest;
 
@@ -58,14 +66,14 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
         if (epoch_number == epoch.epoch_number)
         {
-            auto key_store = std::make_shared<DelegateKeyStore>();
-            validator = std::make_shared<MessageValidator>(*key_store);
+            //auto key_store = std::make_shared<DelegateKeyStore>();
+            validator = std::make_shared<MessageValidator>();
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {
-                key_store->OnPublicKey(id++, delegate.bls_pub);
+                validator->keyStore.OnPublicKey(id++, delegate.bls_pub);
             }
-            _epoch_pki[epoch_number] = {key_store, validator};
+            _epoch_pki[epoch_number] = validator;
             if (_epoch_pki.size() > MAX_CACHED)
             {
                 uint16_t min = UINT16_MAX;
@@ -88,7 +96,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
     }
     else
     {
-        validator = k->second.validator;
+        validator = k->second;
     }
 
     LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator cached validator for epoch block " << epoch_number;

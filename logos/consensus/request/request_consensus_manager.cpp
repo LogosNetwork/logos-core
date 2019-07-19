@@ -6,7 +6,7 @@
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
 
-const RequestConsensusManager::Seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
+const RequestConsensusManager::Seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{60};
 const RequestConsensusManager::Seconds RequestConsensusManager::REQUEST_TIMEOUT{5};
 
 RequestConsensusManager::RequestConsensusManager(Service & service,
@@ -33,7 +33,9 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     ApprovedRB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.request_block_get(_prev_pre_prepare_hash, block))
     {
-        _sequence = block.sequence + 1;
+        //the tip could from previous epoch, so does the block as a result
+        if(block.epoch_number == epoch_number)
+            _sequence = block.sequence + 1;
     }
 }
 

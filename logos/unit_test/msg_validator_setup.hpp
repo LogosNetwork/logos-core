@@ -10,7 +10,8 @@
 class MessageValidatorTest : public MessageValidator
 {
 public:
-    MessageValidatorTest(DelegateKeyStore &key_store) : MessageValidator(key_store) {}
+    MessageValidatorTest() = default;
+    //std::shared_ptr<DelegateKeyStore> key_store) : MessageValidator(key_store) {}
     ~MessageValidatorTest() = default;
 
     void Sign(const BlockHash & hash, DelegateSig & sig) override
@@ -31,14 +32,14 @@ private:
 
 struct BLS_Node
 {
-    DelegateKeyStore key_store;
+//    std::shared_ptr<DelegateKeyStore> key_store;
     bls::KeyPair key_pair;
     MessageValidatorTest validator;
 
     BLS_Node()
-    : key_store()
-    , key_pair()
-    , validator(key_store)
+//    : key_store(std::make_shared<DelegateKeyStore>())
+    : key_pair()
+    , validator()
     {}
 };
 

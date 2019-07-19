@@ -286,7 +286,7 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom,
                                                   const std::atomic<bool>& interruptMsgProc,
                                                   bool enable_bip61)
 {
-    LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
+    LogTrace(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
     if (connman->Args.IsArgSet("-dropmessagestest") && connman->random_.GetRand(connman->Args.GetArg("-dropmessagestest", 0)) == 0)
     {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");

@@ -12,7 +12,7 @@ template<>
 class NonDelPersistenceManager<ECT> : public PersistenceManager<ECT>, public NonDelegatePersistence<ECT>
 {
 public:
-    using PersistenceManager<ECT>::Validate;
+    using NonDelegatePersistence<ECT>::Validate;
 
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
