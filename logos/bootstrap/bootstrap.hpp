@@ -18,8 +18,8 @@ namespace logos
 }
 namespace Bootstrap
 {
-    constexpr uint8_t max_out_connection = 8;
-    constexpr uint8_t max_accept_connection = 16;
+    constexpr uint8_t max_out_connection = 32;
+    constexpr uint8_t max_accept_connection = 64;
 
     using Service = boost::asio::io_service;
 

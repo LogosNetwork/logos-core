@@ -28,7 +28,7 @@ EpochManager::EpochManager(Service & service,
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
-    , _validator(_key_store)
+    //, _validator(_key_store)
     , _request_manager(std::make_shared<RequestConsensusManager>(service, store, block_cache, config, scheduler, _validator, p2p, epoch_number, archiver.GetEpochHandler()))
     , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, block_cache, config, scheduler, _validator, archiver, p2p, epoch_number))
     , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, block_cache, config, scheduler, _validator, p2p, epoch_number))
@@ -38,7 +38,7 @@ EpochManager::EpochManager(Service & service,
 {
     for (int del = 0; del < NUM_DELEGATES; del++)
     {
-        _key_store.OnPublicKey(del, eb->delegates[del].bls_pub);
+        _validator.keyStore.OnPublicKey(del, eb->delegates[del].bls_pub);
     }
     _num_delegates = sizeof(eb->delegates)/sizeof(eb->delegates[0]);
 }

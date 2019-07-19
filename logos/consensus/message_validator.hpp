@@ -24,14 +24,12 @@ public:
         DelegateSig signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store);
-
     //single
     virtual void Sign(const BlockHash & hash, DelegateSig & sig);
 
     bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
     {
-        auto pub_key = _keys.GetPublicKey(delegate_id);
+        auto pub_key = keyStore.GetPublicKey(delegate_id);
         return Validate(hash, sig, pub_key);
     }
 
@@ -91,7 +89,7 @@ public:
             }
             sigvec.push_back(sigReal);
 
-            keyvec.push_back(_keys.GetPublicKey(sig.delegate_id));
+            keyvec.push_back(keyStore.GetPublicKey(sig.delegate_id));
         }
 
         // Now aggregate sig
@@ -108,7 +106,7 @@ public:
     bool Validate(const BlockHash & hash, const AggSignature & sig)
     {
         //public key agg
-        auto apk = _keys.GetAggregatedPublicKey(sig.map);
+        auto apk = keyStore.GetAggregatedPublicKey(sig.map);
 
         //hash
         string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
@@ -158,8 +156,9 @@ public:
         memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
     }
 
+    DelegateKeyStore    keyStore;
+
 private:
 
     Log                 _log;
-    DelegateKeyStore &  _keys;
 };
