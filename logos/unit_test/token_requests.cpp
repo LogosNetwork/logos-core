@@ -45,6 +45,7 @@ TEST (Token_Requests, Request_Flow_1)
                   << "----------------------------------------------------------"
                   << std::endl
                   << message
+                  << std::endl
                   << std::endl;
 
         logos::process_return result;
@@ -176,7 +177,7 @@ TEST (Token_Requests, Request_Flow_1)
         store->account_put(user_2, blank, transaction);
     }
 
-    // Create accounts
+    // Initialize account balances
     //
     //
     send_request(std::make_shared<Send>(send),
@@ -184,6 +185,13 @@ TEST (Token_Requests, Request_Flow_1)
                  process_result::progress);
 
     std::cout << "Waiting for accounts to be created..." << std::endl;
+
+    //
+    // The while loops in this code that poll the database
+    // for updates were created because these tests initially
+    // relied on consensus being reached and remain here so
+    // they can potentially be reused at some point.
+    //
     while(!store->account_exists(issuer))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -300,6 +308,9 @@ TEST (Token_Requests, Request_Flow_1)
 
     issue_adtl.Sign(controller_1_key.data);
 
+    // Issue additional tokens
+    //
+    //
     send_request(std::make_shared<IssueAdditional>(issue_adtl),
                  "Issueing additional tokens",
                  process_result::progress);
@@ -341,6 +352,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.previous = issue_adtl.GetHash();
     change_setting.Sign(controller_1_key.data);
 
+    // Change fee without authorization
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Changing fee setting without authorization",
                  process_result::unauthorized_request);
@@ -348,6 +362,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.origin = controller_2;
     change_setting.Sign(controller_2_key.data);
 
+    // Change fee
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Changing fee",
                  process_result::progress);
@@ -386,6 +403,9 @@ TEST (Token_Requests, Request_Flow_1)
     immute.previous = change_setting.GetHash();
     immute.Sign(controller_1_key.data);
 
+    // Immute setting without authorization
+    //
+    //
     send_request(std::make_shared<ImmuteSetting>(immute),
                  "Making adjust fee setting immutable without authorization",
                  process_result::unauthorized_request);
@@ -412,6 +432,10 @@ TEST (Token_Requests, Request_Flow_1)
     controller.previous = change_setting.GetHash();
     controller.Sign(controller_2_key.data);
 
+    // Give controller insufficient authorization for
+    // immuting fee adjustment.
+    //
+    //
     send_request(std::make_shared<UpdateController>(controller),
                  "Giving controller insufficient authorization",
                  process_result::progress);
@@ -442,6 +466,9 @@ TEST (Token_Requests, Request_Flow_1)
     immute.sequence++;
     immute.Sign(controller_1_key.data);
 
+    // Immute setting without authorization
+    //
+    //
     send_request(std::make_shared<ImmuteSetting>(immute),
                  "Making adjust fee setting immutable without authorization",
                  process_result::unauthorized_request);
@@ -451,6 +478,10 @@ TEST (Token_Requests, Request_Flow_1)
     controller.sequence++;
     controller.Sign(controller_2_key.data);
 
+    // Give controller sufficient authorization for
+    // immuting fee adjustment.
+    //
+    //
     send_request(std::make_shared<UpdateController>(controller),
                  "Giving controller sufficient authorization",
                  process_result::progress);
@@ -481,6 +512,9 @@ TEST (Token_Requests, Request_Flow_1)
     immute.sequence++;
     immute.Sign(controller_1_key.data);
 
+    // Immute adjust fee setting
+    //
+    //
     send_request(std::make_shared<ImmuteSetting>(immute),
                  "Making adjust fee setting immutable",
                  process_result::progress);
@@ -507,6 +541,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.value = SettingValue::Disabled;
     change_setting.Sign(controller_2_key.data);
 
+    // Change immutable setting
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Modifying immutable setting",
                  process_result::prohibitted_request);
@@ -532,6 +569,9 @@ TEST (Token_Requests, Request_Flow_1)
     freeze.previous = change_setting.previous;
     freeze.Sign(controller_1_key.data);
 
+    // Make unauthorized user status request
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(freeze),
                  "Freezing without sufficient privileges",
                  process_result::unauthorized_request);
@@ -541,6 +581,10 @@ TEST (Token_Requests, Request_Flow_1)
     controller.previous = freeze.previous;
     controller.Sign(controller_2_key.data);
 
+    // Give controller sufficient privelages for
+    // freezing
+    //
+    //
     send_request(std::make_shared<UpdateController>(controller),
                  "Giving controller sufficient authorization for freezing",
                  process_result::progress);
@@ -572,6 +616,9 @@ TEST (Token_Requests, Request_Flow_1)
     freeze.previous = controller.GetHash();
     freeze.Sign(controller_1_key.data);
 
+    // Make prohibitted freeze request
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(freeze),
                  "Freezing account with sufficient privileges but freezing disabled",
                  process_result::prohibitted_request);
@@ -582,6 +629,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.value = SettingValue::Enabled;
     change_setting.Sign(controller_2_key.data);
 
+    // Enable freezing
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Modifying freeze setting",
                  process_result::progress);
@@ -607,6 +657,9 @@ TEST (Token_Requests, Request_Flow_1)
     freeze.previous = change_setting.GetHash();
     freeze.Sign(controller_1_key.data);
 
+    // Freeze account
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(freeze),
                  "Freezing untethered account with sufficient privileges",
                  process_result::progress);
@@ -638,6 +691,9 @@ TEST (Token_Requests, Request_Flow_1)
     controller.controller.privileges.Set(size_t(ControllerPrivilege::ChangeWhitelist), true);
     controller.Sign(controller_2_key.data);
 
+    // Update controller privileges
+    //
+    //
     send_request(std::make_shared<UpdateController>(controller),
                  "Giving controller sufficient authorization for modifying whitelisting",
                  process_result::progress);
@@ -671,6 +727,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.value = SettingValue::Disabled;
     change_setting.Sign(controller_1_key.data);
 
+    // Change setting
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Disabling whitelisting",
                  process_result::progress);
@@ -714,6 +773,9 @@ TEST (Token_Requests, Request_Flow_1)
     distribute.previous = change_setting.GetHash();
     distribute.Sign(controller_1_key.data);
 
+    // Disallowed send
+    //
+    //
     send_request(std::make_shared<Distribute>(distribute),
                  "Send to frozen account",
                  process_result::frozen);
@@ -721,6 +783,9 @@ TEST (Token_Requests, Request_Flow_1)
     distribute.transaction.destination.decode_account("lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     distribute.Sign(controller_1_key.data);
 
+    // Allowed send
+    //
+    //
     send_request(std::make_shared<Distribute>(distribute),
                  "Send to unfrozen account",
                  process_result::progress);
@@ -770,6 +835,9 @@ TEST (Token_Requests, Request_Flow_1)
 
     tokensend.Sign(user_2_key.data);
 
+    // Disallowed send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send to frozen account",
                  process_result::frozen);
@@ -779,6 +847,9 @@ TEST (Token_Requests, Request_Flow_1)
     freeze.status = UserStatus::Unfrozen;
     freeze.Sign(controller_1_key.data);
 
+    // AdjustUserSatus
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(freeze),
                  "Unfreezing user account",
                  process_result::progress);
@@ -805,6 +876,9 @@ TEST (Token_Requests, Request_Flow_1)
         }
     }
 
+    // Invalid send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send with insufficient token fee",
                  process_result::insufficient_token_fee);
@@ -812,6 +886,9 @@ TEST (Token_Requests, Request_Flow_1)
     tokensend.token_fee = 50000;
     tokensend.Sign(user_2_key.data);
 
+    // Valid send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send",
                  process_result::progress);
@@ -870,6 +947,9 @@ TEST (Token_Requests, Request_Flow_1)
     burn.previous = freeze.GetHash();
     burn.Sign(controller_1_key.data);
 
+    // Burn
+    //
+    //
     send_request(std::make_shared<Burn>(burn),
                  "Burning 20000 tokens",
                  process_result::progress);
@@ -919,6 +999,9 @@ TEST (Token_Requests, Request_Flow_1)
     withdraw_fee.previous = burn.GetHash();
     withdraw_fee.Sign(controller_2_key.data);
 
+    // Invalid withdrawal
+    //
+    //
     send_request(std::make_shared<WithdrawFee>(withdraw_fee),
                  "Withdrawing too much",
                  process_result::insufficient_token_balance);
@@ -926,6 +1009,9 @@ TEST (Token_Requests, Request_Flow_1)
     withdraw_fee.transaction.amount = 50000;
     withdraw_fee.Sign(controller_2_key.data);
 
+    // Withdraw
+    //
+    //
     send_request(std::make_shared<WithdrawFee>(withdraw_fee),
                  "Withdrawing fee",
                  process_result::progress);
@@ -975,6 +1061,9 @@ TEST (Token_Requests, Request_Flow_1)
     issuer_info.previous = withdraw_fee.GetHash();
     issuer_info.Sign(controller_2_key.data);
 
+    // UpdateIssuerInfo
+    //
+    //
     send_request(std::make_shared<UpdateIssuerInfo>(issuer_info),
                  "Updating issuer info",
                  process_result::progress);
@@ -1004,6 +1093,9 @@ TEST (Token_Requests, Request_Flow_1)
     change_setting.value = SettingValue::Enabled;
     change_setting.Sign(controller_1_key.data);
 
+    // Enable whitelisting
+    //
+    //
     send_request(std::make_shared<ChangeSetting>(change_setting),
                  "Enabling whitelisting",
                  process_result::progress);
@@ -1047,6 +1139,9 @@ TEST (Token_Requests, Request_Flow_1)
     adjust_status.previous = change_setting.GetHash();
     adjust_status.Sign(controller_1_key.data);
 
+    // Whitelist user
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(adjust_status),
                  "Whitelisting user",
                  process_result::progress);
@@ -1081,6 +1176,9 @@ TEST (Token_Requests, Request_Flow_1)
     tokensend.sequence++;
     tokensend.Sign(user_2_key.data);
 
+    // Disallowed send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send to unwhitelisted account",
                  process_result::not_whitelisted);
@@ -1090,6 +1188,9 @@ TEST (Token_Requests, Request_Flow_1)
     adjust_status.account.decode_account("lgs_1gwfynd84gan8i4rpzzxkikbz7158wha96qpni38rj31hd3dcbrwscey8ahy");
     adjust_status.Sign(controller_1_key.data);
 
+    // Whitelist user
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(adjust_status),
                  "Whitelisting recipient",
                  process_result::progress);
@@ -1120,6 +1221,9 @@ TEST (Token_Requests, Request_Flow_1)
         }
     }
 
+    // Allowed send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send to whitelisted account",
                  process_result::progress);
@@ -1163,6 +1267,9 @@ TEST (Token_Requests, Request_Flow_1)
     tokensend.sequence++;
     tokensend.Sign(user_2_key.data);
 
+    // Allowed send
+    //
+    //
     send_request(std::make_shared<TokenSend>(tokensend),
                  "User send to again",
                  process_result::progress);
@@ -1210,6 +1317,9 @@ TEST (Token_Requests, Request_Flow_1)
     issue_adtl.previous = adjust_status.GetHash();
     issue_adtl.Sign(controller_1_key.data);
 
+    // Disallowed additional issuance
+    //
+    //
     send_request(std::make_shared<IssueAdditional>(issue_adtl),
                  "Issueing too many additional tokens",
                  process_result::total_supply_overflow);
@@ -1219,6 +1329,9 @@ TEST (Token_Requests, Request_Flow_1)
     burn.previous = issue_adtl.previous;
     burn.Sign(controller_1_key.data);
 
+    // Invalid burn
+    //
+    //
     send_request(std::make_shared<Burn>(burn),
                  "Burning too many tokens",
                  process_result::insufficient_token_balance);
@@ -1226,6 +1339,9 @@ TEST (Token_Requests, Request_Flow_1)
     burn.amount = account.token_balance;
     burn.Sign(controller_1_key.data);
 
+    // Extreme burn
+    //
+    //
     send_request(std::make_shared<Burn>(burn),
                  "Burning all central tokens",
                  process_result::progress);
@@ -1255,6 +1371,9 @@ TEST (Token_Requests, Request_Flow_1)
     issue_adtl.previous = burn.GetHash();
     issue_adtl.Sign(controller_1_key.data);
 
+    // Extreme additional issuance
+    //
+    //
     send_request(std::make_shared<IssueAdditional>(issue_adtl),
                  "Issueing max additional tokens",
                  process_result::progress);
@@ -1294,6 +1413,9 @@ TEST (Token_Requests, Request_Flow_1)
 
     auto talb = account.GetBalance();
 
+    // Send to token account
+    //
+    //
     send_request(std::make_shared<Send>(send),
                  "Sending logos to token",
                  process_result::progress);
@@ -1340,6 +1462,9 @@ TEST (Token_Requests, Request_Flow_1)
     wl.previous = issue_adtl.GetHash();
     wl.Sign(controller_2_key.data);
 
+    // Withdraw
+    //
+    //
     send_request(std::make_shared<WithdrawLogos>(wl),
                  "Withdrawing Logos",
                  process_result::progress);
@@ -1373,6 +1498,9 @@ TEST (Token_Requests, Request_Flow_1)
     freeze.status = UserStatus::Whitelisted;
     freeze.Sign(controller_2_key.data);
 
+    // Whitelist
+    //
+    //
     send_request(std::make_shared<AdjustUserStatus>(freeze),
                  "Whitelisting Controller",
                  process_result::progress);
@@ -1428,6 +1556,9 @@ TEST (Token_Requests, Request_Flow_1)
     revoke.previous = freeze.GetHash();
     revoke.Sign(controller_2_key.data);
 
+    // Revoke
+    //
+    //
     send_request(std::make_shared<Revoke>(revoke),
                  "Revoking tokens",
                  process_result::progress);
@@ -1459,6 +1590,10 @@ TEST (Token_Requests, Request_Flow_1)
     revoke.previous = revoke.GetHash();
     revoke.Sign(controller_2_key.data);
 
+    // Acquire TokenUserID reservation with a
+    // Revoke request
+    //
+    //
     logos::process_return result;
     persistence.ValidateAndUpdate(std::make_shared<Revoke>(revoke),
                                   0,
@@ -1472,6 +1607,9 @@ TEST (Token_Requests, Request_Flow_1)
     tokensend.sequence++;
     tokensend.Sign(user_2_key.data);
 
+    // Attempt to violate TokenUserID reservation
+    //
+    //
     persistence.ValidateAndUpdate(std::make_shared<TokenSend>(tokensend),
                                   0,
                                   result,
@@ -1480,8 +1618,15 @@ TEST (Token_Requests, Request_Flow_1)
     ASSERT_EQ(ProcessResultToString(process_result::already_reserved),
               ProcessResultToString(result.code));
 
+    // Complete revoke
+    //
+    //
     apply_request(std::make_shared<Revoke>(revoke));
 
+    // Acquire TokenUserID reservation with a
+    // TokenSend request
+    //
+    //
     persistence.ValidateAndUpdate(std::make_shared<TokenSend>(tokensend),
                                   0,
                                   result,
@@ -1494,6 +1639,9 @@ TEST (Token_Requests, Request_Flow_1)
     revoke.previous = revoke.GetHash();
     revoke.Sign(controller_2_key.data);
 
+    // Attempt to violate TokenUserID reservation
+    //
+    //
     persistence.ValidateAndUpdate(std::make_shared<Revoke>(revoke),
                                   0,
                                   result,
@@ -1502,6 +1650,9 @@ TEST (Token_Requests, Request_Flow_1)
     ASSERT_EQ(ProcessResultToString(process_result::already_reserved),
               ProcessResultToString(result.code));
 
+    // Complete token send
+    //
+    //
     apply_request(std::make_shared<TokenSend>(tokensend));
 }
 
