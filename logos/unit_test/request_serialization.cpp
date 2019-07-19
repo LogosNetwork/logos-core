@@ -8,8 +8,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #define Unit_Test_Request_Serialization
-
-#ifdef Unit_Test_Request_Serialization
+#ifdef  Unit_Test_Request_Serialization
 
 TEST (Request_Serialization, json_deserialization)
 {

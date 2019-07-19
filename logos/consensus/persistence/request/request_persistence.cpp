@@ -91,20 +91,24 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         auto request = message.requests[i];
+        Release(request);
+    }
+}
 
-        _reservations->Release(request->GetAccount());
+void PersistenceManager<R>::Release(RequestPtr request)
+{
+    _reservations->Release(request->GetAccount());
 
-        if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
-        {
-            auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
-            assert(token_request);
+    if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
+    {
+        auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+        assert(token_request);
 
-            auto token_user_id = GetTokenUserID(token_request->token_id,
-                                                token_request->GetSource());
+        auto token_user_id = GetTokenUserID(token_request->token_id,
+                                            token_request->GetSource());
 
-            // Release the secondary TokenUserID reservation.
-            _reservations->Release(token_user_id);
-        }
+        // Also release the TokenUserID reservation.
+        _reservations->Release(token_user_id);
     }
 }
 
@@ -508,6 +512,18 @@ bool PersistenceManager<R>::ValidateAndUpdate(
     if (success)
     {
         _reservations->UpdateReservation(request->GetHash(), request->GetAccount());
+
+        if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
+        {
+            auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+            assert(token_request);
+
+            auto token_user_id = GetTokenUserID(token_request->token_id,
+                                                token_request->GetSource());
+
+            // Also update the TokenUserID reservation.
+            _reservations->UpdateReservation(request->GetHash(), token_user_id);
+        }
     }
 
     return success;
