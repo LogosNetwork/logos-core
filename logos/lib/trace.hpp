@@ -22,6 +22,7 @@ inline void trace_and_halt()
             LOG_FATAL(log) << strings[i];
         }
         free(strings);
+        assert(false);
         std::exit(EXIT_FAILURE);
     }
 }

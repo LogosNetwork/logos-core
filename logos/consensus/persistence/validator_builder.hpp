@@ -36,13 +36,13 @@ private:
 
     uint16_t const MAX_CACHED = 3;
 
-    struct pki {
-        std::shared_ptr<DelegateKeyStore> key_store;
-        std::shared_ptr<MessageValidator> validator;
-    };
+//    struct pki {
+//        std::shared_ptr<DelegateKeyStore> key_store;
+//        std::shared_ptr<MessageValidator> validator;
+//    };
 
     Store &                                     _store;
-    static std::unordered_map<uint32_t, pki>    _epoch_pki;
+    static std::unordered_map<uint32_t, std::shared_ptr<MessageValidator>>    _epoch_pki;
     Log                                         _log;
     static std::shared_ptr<MessageValidator>    _cached_validator;
     static uint32_t                             _cached_epoch;

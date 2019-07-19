@@ -165,38 +165,61 @@ int ContainerP2p::get_peers(int session_id, vector<logos::endpoint> & nodes, uin
     if (session_id == P2P_GET_PEER_NEW_SESSION)
     {
         session_id = _session_id++;
-        _sessions[session_id] = 0;
+        _sessions.emplace(session_id, GetEndpointSession(session_id));
     }
 
-    int next = _sessions[session_id];
+    //int next = _sessions[session_id].next;
     char *str_nodes[256];
+    int need = count;
 
-    count = _p2p.get_peers(&next, str_nodes, count);
-    _sessions[session_id] = next;
-
-    for (uint8_t i = 0; i < count; ++i)
+    while(need > 0)
     {
-        char *str = str_nodes[i];
-        char *ptr = strrchr(str, ':');
-        unsigned short port = 0;
+        int got = _p2p.get_peers(&_sessions[session_id].next, str_nodes, need);
+        //_sessions[session_id].next = next;
 
-        if (ptr)
+        for (uint8_t i = 0; i < got; ++i)
         {
-            sscanf(ptr + 1, "%hu", &port);
-            *ptr = 0;
-        }
+            char *str = str_nodes[i];
+            char *ptr = strrchr(str, ':');
+            unsigned short port = 0;
 
-        ptr = str;
-        if (*ptr == '[')
-        {
-            ptr++;
-            ptr[strlen(ptr) - 1] = 0;
-        }
+            if (ptr)
+            {
+                sscanf(ptr + 1, "%hu", &port);
+                *ptr = 0;
+            }
 
+            ptr = str;
+            if (*ptr == '[')
+            {
+                ptr++;
+                ptr[strlen(ptr) - 1] = 0;
+            }
+
+            boost::asio::ip::address addr = boost::asio::ip::address::from_string(ptr);
+            logos::endpoint point(addr, port);
+            free(str);
+
+            if(_sessions[session_id].seen.find(point) == _sessions[session_id].seen.end())
+            {
+                nodes.push_back(point);
+                _sessions[session_id].seen.insert(point);
+                if(--need == 0)
+                {
+                    return session_id;
+                }
+            }
+            else
+            {
+                return session_id;
+            }
+        }
+/*TODO
         boost::asio::ip::address addr = boost::asio::ip::address::from_string(ptr);
         logos::endpoint point(addr, port);
         nodes.push_back(point);
         free(str);
+*/
     }
 
     return session_id;

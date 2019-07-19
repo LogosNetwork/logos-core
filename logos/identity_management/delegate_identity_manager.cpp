@@ -609,6 +609,8 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
 {
     auto hash = ad.Hash();
     auto validator = _validator_builder.GetValidator(epoch_number);
+    if(validator == nullptr)
+    	return false;
     return validator->Validate(hash, ad.signature, ad.delegate_id);
 }
 
@@ -1276,6 +1278,8 @@ DelegateIdentityManager::ScheduleAd()
     {
         msec = tomsec(lapse - r2);
     }
+    //TODO Peng: at least 5 minutes
+    msec = std::max(msec, boost::posix_time::milliseconds(1000*60*5));
 
     auto t = boost::posix_time::microsec_clock::local_time() + msec;
     LOG_DEBUG(_log) << "DelegateIdentityManager::ScheduleAd scheduling at "

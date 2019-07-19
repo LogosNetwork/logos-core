@@ -12,7 +12,7 @@ template<>
 class NonDelPersistenceManager<MBCT> : public PersistenceManager<MBCT>, public NonDelegatePersistence<MBCT>
 {
 public:
-    using PersistenceManager<MBCT>::Validate;
+    using NonDelegatePersistence<MBCT>::Validate;
 
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)

@@ -419,6 +419,7 @@ enum class process_result_dependency
 };
 
 std::string ProcessResultToString(process_result result);
+bool MissingBlock(process_result result);
 
 process_result_dependency ProcessResultToDependency(process_result result);
 

@@ -27,7 +27,7 @@ namespace Bootstrap
     , one_more(false)
     , max_connected(max_connected)
     {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__;
         thread = std::thread([this]() { run_bootstrap(); });
     }
 
@@ -40,7 +40,7 @@ namespace Bootstrap
 
     void BootstrapInitiator::bootstrap()
     {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
         if (stopped)
         {
@@ -64,7 +64,7 @@ namespace Bootstrap
 
     void BootstrapInitiator::bootstrap(logos::endpoint const &peer)
     {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__;
         //cannot add endpoint_a to peer list, since it could be
         //one of the delegate
         for(;;)
@@ -100,7 +100,7 @@ namespace Bootstrap
 
     void BootstrapInitiator::run_bootstrap()
     {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
         while (!stopped)
         {
@@ -170,8 +170,7 @@ namespace Bootstrap
 
     boost::asio::ip::tcp::endpoint get_endpoint(std::string & address)
     {
-        return boost::asio::ip::tcp::endpoint
-                (boost::asio::ip::address_v6::from_string(std::string("::ffff:") + address),
+        return boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(address),
                         BOOTSTRAP_PORT);
     }
 
@@ -187,7 +186,9 @@ namespace Bootstrap
     , store(store)
     , max_accepted(max_accepted)
     {
-        LOG_TRACE(log) << "bootstrap_listener::"<<__func__ << " " << local_address;
+        LOG_DEBUG(log) << "bootstrap_listener::"<<__func__
+                       << " " << local.address().to_string()
+                       << ":" << local.port();
     }
 
     BootstrapListener::~BootstrapListener()
@@ -198,7 +199,7 @@ namespace Bootstrap
 
     void BootstrapListener::start()
     {
-        LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_listener::"<<__func__;
         acceptor.open (local.protocol ());
         acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
@@ -244,7 +245,7 @@ namespace Bootstrap
     void BootstrapListener::accept_action(boost::system::error_code const &ec,
                                            std::shared_ptr<BoostSocket> socket_a)
     {
-        LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_listener::"<<__func__;
         accept_connection();
         if (!ec)
         {
@@ -270,7 +271,7 @@ namespace Bootstrap
 
     void BootstrapListener::remove_connection(std::shared_ptr<BootstrapServer> server)
     {
-        LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
+        LOG_DEBUG(log) << "bootstrap_listener::"<<__func__;
         std::lock_guard <std::mutex> lock(mtx);
         connections.erase(server);
         condition.notify_all();

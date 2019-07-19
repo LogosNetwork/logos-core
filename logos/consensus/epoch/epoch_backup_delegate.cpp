@@ -45,7 +45,19 @@ bool
 EpochBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
-    return _persistence_manager.Validate(message);
+    ValidationStatus status;
+    bool res = _persistence_manager.Validate(message, &status);
+    if(!res)
+    {
+        if(logos::MissingBlock(status.reason))
+        {
+            // TODO: high speed Bootstrapping
+            LOG_DEBUG(_log) << " EpochBackupDelegate::DoValidate"
+                        << " Try Bootstrap...";
+            logos_global::Bootstrap();
+        }
+    }
+    return res;
 }
 
 void
