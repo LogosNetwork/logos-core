@@ -104,7 +104,7 @@ bool EpochRewardsManager::SetGlobalReward(uint32_t const & epoch_number,
     info.total_reward = total_reward;
     info.remaining_reward = total_reward;
 
-    _store.global_rewards_put(key, info, txn);
+    return _store.global_rewards_put(key, info, txn);
 }
 
 bool EpochRewardsManager::HarvestReward(AccountAddress const & rep_address,
