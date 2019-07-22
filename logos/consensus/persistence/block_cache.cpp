@@ -31,9 +31,6 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         Validate();//TODO optimize: Validate eb first
     }
 
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
-
     return true;
 }
 
@@ -58,9 +55,6 @@ bool BlockCache::AddMicroBlock(MBPtr block)
     {
         Validate();//TODO optimize: Validate mb first
     }
-
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
 
     return true;
 }
@@ -87,9 +81,6 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         Validate(block->primary_delegate);
     }
 
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
-
     return true;
 }
 
@@ -105,9 +96,6 @@ void BlockCache::StoreEpochBlock(EBPtr block)
 
     _write_q.StoreBlock(block);
     _block_container.BlockDelete(block->Hash());
-
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
@@ -122,9 +110,6 @@ void BlockCache::StoreMicroBlock(MBPtr block)
 
     _write_q.StoreBlock(block);
     _block_container.BlockDelete(block->Hash());
-
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
@@ -139,9 +124,6 @@ void BlockCache::StoreRequestBlock(RBPtr block)
 
     _write_q.StoreBlock(block);
     _block_container.BlockDelete(block->Hash());
-
-    //TODO remove after integration tests
-    _block_container.DumpCachedBlocks();
 }
 
 void BlockCache::ProcessDependencies(EBPtr block)

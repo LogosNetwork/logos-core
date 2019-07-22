@@ -42,8 +42,8 @@ public:
 
         RBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;
-        bool                lock;
+        bool                continue_validate;  /* true if marked for revalidation */
+        bool                lock;               /* true if some thread validates it now */
     };
 
     struct PendingMB {
@@ -63,8 +63,8 @@ public:
 
         MBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;
-        bool                lock;
+        bool                continue_validate;  /* true if marked for revalidation */
+        bool                lock;               /* true if some thread validates it now */
     };
 
     struct PendingEB {
@@ -84,8 +84,8 @@ public:
 
         EBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;
-        bool                lock;
+        bool                continue_validate;  /* true if marked for revalidation */
+        bool                lock;               /* true if some thread validates it now */
     };
 
     using RPtr = std::shared_ptr<PendingRB>;
@@ -131,7 +131,7 @@ public:
 
     struct ChainPtr
     {
-        /* This is actually an union. Only one of these pointers is non-empty.
+        /* This is an union by design. Only one of these pointers is non-empty.
          * But union is not applicable here because of non-trivial destructor of shared_ptr type.
          */
         RPtr rptr;
@@ -179,7 +179,14 @@ public:
     bool MarkAsValidated(MBPtr block);
     bool MarkAsValidated(RBPtr block);
 
+    /*
+     * Returns true if next block for validation exists in queues; it returned via ptr pointer.
+     * Returns false if no blocks avaliable for validation.
+     * The performing the next call, values of ptr and rb_idx must be the same as returned by previous call.
+     * The success parameter must contain the result of validation of the returned block in the previous step.
+     */
     bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
+
     void DumpCachedBlocks();
 
 private:
