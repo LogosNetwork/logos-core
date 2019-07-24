@@ -413,7 +413,10 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
     while (e != _epochs.end())
     {
         if (epoch_number != -1u && e->epoch_num != epoch_number)
+        {
+            ++e;
             continue;
+        }
 
         epoch_number = -1u;
 
@@ -511,11 +514,12 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             }
         }
 
-        if ((last_mb || mbs_empty) &&
-                e->eb &&
-                e->eb->continue_validate &&
-                !e->eb->lock)
-        {
+        if ((last_mb			    /* if last microblock in this epoch is validated */
+                    || mbs_empty) &&        /*     or there was no unvalidated microblocks in the queue */
+                e->eb &&                    /* and unvalidated epoch block is present */
+                e->eb->continue_validate && /* and epoch block is marked for validation */
+                !e->eb->lock)               /* and it is not located by another validation thread */
+        {                                   /* then return this epoch block and next for validation */
             ptr.eptr = e->eb;
             ptr.eptr->continue_validate = false;
             ptr.eptr->lock = true;
@@ -524,16 +528,16 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             return true;
         }
 
-        /* first 10 minutes of new epoch */
-        if (_epochs.size() == 2 &&
-                e->eb == nullptr &&
-                e->mbs.empty() &&
-                ++e != _epochs.end() &&
-                e->mbs.empty())
-        {
+                                            /* first 10 minutes of new epoch: */
+        if (_epochs.size() == 2 &&          /* if there are two unvalidated epochs in the queue */
+                e->eb == nullptr &&         /* and unvalidated epoch block for previous epoch is not present */
+                e->mbs.empty() &&           /* and there are no unvalidated microblocks for previous epoch */
+                ++e != _epochs.end() &&     /* and the next epoch is the last of these two epochs */
+                e->mbs.empty())             /* and there are no unvalidated microblocks for next epoch */
+        {                                   /* then continue searching blocks for validation in the next epoch */
             continue;
         }
-        else
+        else                                /* else stop searching blocks for validation */
         {
             break;
         }

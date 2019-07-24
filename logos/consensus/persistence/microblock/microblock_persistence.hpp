@@ -24,12 +24,12 @@ protected:
 
     enum microblock_validation_progress
     {
-        MVP_BEGIN,
-        MVP_DRIFT,
-        MVP_BASE,
-        MVP_TIPS_FIRST,
-        MVP_TIPS_DONE,
-        MVP_END
+        MVP_BEGIN,      /* initial state, validation not started */
+        MVP_DRIFT,      /* timestamp drift validated */
+        MVP_BASE,       /* basic validation done (primary delegate, epoch tip) */
+        MVP_TIPS_FIRST, /* validation of request tips started, some not found */
+        MVP_TIPS_DONE,  /* all request tips found */
+        MVP_END         /* final state, validation OK (previous microblock found, number of blocks matches) */
     };
 
 public:
