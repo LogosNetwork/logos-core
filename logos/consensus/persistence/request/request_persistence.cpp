@@ -90,7 +90,25 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // SYL Integration: clear reservation AFTER flushing to LMDB to ensure safety
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        _reservations->Release(message.requests[i]->GetAccount());
+        auto request = message.requests[i];
+        Release(request);
+    }
+}
+
+void PersistenceManager<R>::Release(RequestPtr request)
+{
+    _reservations->Release(request->GetAccount());
+
+    if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
+    {
+        auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+        assert(token_request);
+
+        auto token_user_id = GetTokenUserID(token_request->token_id,
+                                            token_request->GetSource());
+
+        // Also release the TokenUserID reservation.
+        _reservations->Release(token_user_id);
     }
 }
 
@@ -191,12 +209,45 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    // a valid (non-expired) reservation exits
+    // A conflicting reservation exists
     if (!_reservations->CanAcquire(request->GetAccount(), hash, allow_duplicates))
     {
-        LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
+        LOG_ERROR(_log) << "PersistenceManager::Validate - Account is already reserved. "
+                        << "Account: " << request->GetAccount().to_account();
+
         result.code = logos::process_result::already_reserved;
         return false;
+    }
+
+    // Revoke and TokenSend messages require an additional reservation
+    // for the 'source'. To avoid reservation conflicts with irrelevant
+    // requests from this user's account, tie this secondary reservation
+    // to the user's token user id, rather than their account address.
+    if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
+    {
+        auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+
+        if(!token_request)
+        {
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
+
+        auto token_user_id = GetTokenUserID(token_request->token_id,
+                                            token_request->GetSource());
+
+        // A conflicting reservation exists
+        if (!_reservations->CanAcquire(token_user_id,
+                                       hash,
+                                       allow_duplicates))
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate - Token User ID is already reserved. "
+                            << "Token User ID: "
+                            << token_user_id.to_string();
+
+            result.code = logos::process_result::already_reserved;
+            return false;
+        }
     }
 
     // Set prelim to true single transaction (non-batch) validation from TxAcceptor, false for RPC
@@ -454,12 +505,27 @@ bool PersistenceManager<R>::ValidateAndUpdate(
     auto success (ValidateRequest(request, cur_epoch_num, result, allow_duplicates, false));
 
     LOG_INFO(_log) << "PersistenceManager::ValidateAndUpdate - "
-        << "request is : " << request->Hash().to_string() <<  " . result is "
-        << success;
+                   << "request is : " << request->Hash().to_string()
+                   <<  " . result is "
+                   << success;
+
     if (success)
     {
         _reservations->UpdateReservation(request->GetHash(), request->GetAccount());
+
+        if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
+        {
+            auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+            assert(token_request);
+
+            auto token_user_id = GetTokenUserID(token_request->token_id,
+                                                token_request->GetSource());
+
+            // Also update the TokenUserID reservation.
+            _reservations->UpdateReservation(request->GetHash(), token_user_id);
+        }
     }
+
     return success;
 }
 

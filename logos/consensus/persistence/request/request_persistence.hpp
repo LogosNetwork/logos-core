@@ -166,9 +166,11 @@ protected:
     bool IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn);
 
     void ApplyRequest(RequestPtr request,
-            uint64_t timestamp,
-            uint32_t cur_epoch_num,
-            MDB_txn * transaction);
+                      uint64_t timestamp,
+                      uint32_t cur_epoch_num,
+                      MDB_txn * transaction);
+
+    void Release(RequestPtr request);
 
     static uint128_t MinTransactionFee(RequestType type);
 

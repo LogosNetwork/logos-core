@@ -448,6 +448,7 @@ if (LOGOS_TEST)
             logos/unit_test/elections.cpp
             logos/unit_test/rewards.cpp
             logos/unit_test/staking.cpp
+            logos/unit_test/token_requests.cpp
             logos/unit_test/epoch_rewards_db.cpp
             logos/unit_test/voting_power.cpp
             logos/unit_test/p2p_test.cpp
