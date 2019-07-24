@@ -22,12 +22,12 @@ protected:
 
     enum epoch_validation_progress
     {
-        EVP_BEGIN,
-        EVP_DRIFT,
-        EVP_EPOCH_TIP,
-        EVP_MICRO_TIP,
-        EVP_VOTING,
-        EVP_END
+        EVP_BEGIN,      /* initial state, validation not started */
+        EVP_DRIFT,      /* timestamp drift validated */
+        EVP_EPOCH_TIP,  /* epoch tip and privary delegate validated */
+        EVP_MICRO_TIP,  /* micro tip validated */
+        EVP_VOTING,     /* voting results validated */
+        EVP_END         /* final state, validation OK (transaction pool validated TBD) */
     };
 
 public:
