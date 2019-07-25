@@ -19,60 +19,60 @@ std::string string_to_hex_str(const std::string& input)
     return output;
 }
 
-namespace logos
-{
-
-bool read(logos::stream & stream_a, Rational::int_type & value)
-{
-    auto size = value.backend().size() * sizeof(boost::multiprecision::limb_type);
-    auto amount_read(stream_a.sgetn(reinterpret_cast<uint8_t *> (value.backend().limbs()), size));
-
-    return amount_read != size;
-}
-
-uint64_t write(logos::stream & stream_a, Rational::int_type const & value)
-{
-    auto size = value.backend().size() * sizeof(boost::multiprecision::limb_type);
-    auto amount_written(stream_a.sputn(reinterpret_cast<uint8_t const *> (value.backend().limbs()), size));
-
-    assert (amount_written == size);
-    return amount_written;
-}
-
-}
-
 bool logos::read (logos::stream & stream_a, Rational & value)
 {
     Rational::int_type n;
     Rational::int_type d;
 
-    uint256_union a;
-    uint256_union b;
-
-    auto error = read(stream_a, a);
-    if(error)
+    auto do_read = [&stream_a](auto & val)
     {
-        return error;
+        for(auto i = 0; i < (256 / 8); ++i)
+        {
+            uint8_t byte;
+            if(read(stream_a, byte))
+            {
+                return true;
+            }
+
+            Rational::int_type word = byte;
+            word <<= 8 * i;
+            val |= word;
+        }
+
+        return false;
+    };
+
+    if(do_read(n))
+    {
+        return true;
     }
 
-    error = read(stream_a, b);
-    if(error)
+    if(do_read(d))
     {
-        return error;
+        return true;
     }
 
-    value.assign(static_cast<boost::multiprecision::int256_t>(a.number()),
-                 static_cast<boost::multiprecision::int256_t>(b.number()));
+    value.assign(n, d);
 
     return false;
 }
 
 uint64_t logos::write (logos::stream & stream_a, const Rational & value)
 {
-    auto bytes_written = write(stream_a, uint256_union(static_cast<uint256_t>(value.numerator())));
-    bytes_written += write(stream_a, uint256_union(static_cast<uint256_t>(value.denominator())));
+    uint64_t bytes = 0;
 
-    return bytes_written;
+    for(auto val : {value.numerator(), value.denominator()})
+    {
+        for(auto i = 0; i < (256 / 8); ++i)
+        {
+            auto byte = static_cast<uint8_t> (val & static_cast<uint8_t> (0xff));
+            val >>= 8;
+
+            bytes += write(stream_a, byte);
+        }
+    }
+
+    return bytes;
 }
 
 template<typename U>
