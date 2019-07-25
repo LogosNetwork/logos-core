@@ -2,12 +2,13 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/rational.hpp>
 
 #include <cryptopp/osrng.h>
 #include <blake2/blake2.h>
 
-using Float50  = boost::multiprecision::cpp_dec_float_50;
-using Float100 = boost::multiprecision::cpp_dec_float_100;
+using Rational = boost::rational<boost::multiprecision::int256_t>;
+using Reward   = std::pair<boost::multiprecision::uint128_t, Rational>;
 
 namespace logos
 {

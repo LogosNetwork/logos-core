@@ -444,49 +444,27 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
                                          acc_stake);
 
     auto fee_pool = block.transaction_fee_pool;
-    auto remaining_pool = fee_pool;
+    Rational remaining_pool = fee_pool.number();
 
     // This loop distributes the rewards according to
     // personal stake.
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
+        auto & d = prev.delegates[i];
 
-        // Since the reward amounts earned are rounded to
-        // avoid dealing with fractional amounts of logos,
-        // it is technically possible for delegates to
-        // earn no rewards from transaction fees in certain
-        // cases.
         if(remaining_pool == 0)
         {
+            // TODO: Should never happen in prod.
+            //       Only acceptable in test.
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                            << "Quitting reward distribution early on delegate: "
+                            << d.account.to_string();
+
             break;
         }
 
-        auto & d = prev.delegates[i];
-
-        Amount reward;
-
-        if(i < NUM_DELEGATES - 1)
-        {
-            reward = CalculatePortion(d.raw_stake.number(),
-                                      total_stake.number(),
-                                      fee_pool.number());
-
-            if(reward > remaining_pool)
-            {
-                reward = remaining_pool;
-            }
-        }
-
-        // For the last delegate, there is no need
-        // to calculate its percentage of rewards
-        // and it simply earns the remainder of the
-        // pool.
-        else
-        {
-            reward = remaining_pool;
-        }
-
-        remaining_pool -= reward;
+        auto earnings = Rational(d.raw_stake.number(), total_stake.number()) * fee_pool.number();
+        remaining_pool -= earnings;
 
         logos::account_info info;
         if(_store.account_get(d.account, info, txn))
@@ -497,28 +475,54 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
             trace_and_halt();
         }
 
-        ReceiveBlock receive(
-            /* Previous    */ info.receive_head,
-            /* source_hash */ hash,
-            /* index       */ i
-        );
-
-        info.receive_count++;
-        info.receive_head = receive.Hash();
-        info.modified = logos::seconds_since_epoch();
-
-        info.SetBalance(info.GetBalance() + reward, block.epoch_number + 1, txn);
-
-        if(_store.account_put(d.account, info, txn))
+        auto account_put = [&]()
         {
-            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
-                            << "Failed to store account: "
-                            << d.account.to_string();
+            if(_store.account_put(d.account, info, txn))
+            {
+                LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyRewards - "
+                                << "Failed to store account: "
+                                << d.account.to_string();
 
-            trace_and_halt();
+                trace_and_halt();
+            }
+        };
+
+        Reward reward = Reward(earnings.numerator() / earnings.denominator(),
+                               Rational(earnings.numerator() % earnings.denominator(),
+                                        earnings.denominator()));
+
+        info.dust += std::get<1>(reward);
+
+        auto deposit_amount = std::get<0>(reward);
+
+        if(info.dust.numerator() >= info.dust.denominator())
+        {
+            ++deposit_amount;
+            --info.dust;
         }
 
-        PlaceReceive(receive, block.timestamp, txn);
+        if(deposit_amount > 0)
+        {
+            info.SetBalance(info.GetBalance() + deposit_amount, block.epoch_number + 1, txn);
+
+            ReceiveBlock receive(
+                /* Previous    */ info.receive_head,
+                /* source_hash */ hash,
+                /* index       */ i
+            );
+
+            info.receive_count++;
+            info.receive_head = receive.Hash();
+            info.modified = logos::seconds_since_epoch();
+
+            account_put();
+
+            PlaceReceive(receive, block.timestamp, txn);
+        }
+        else
+        {
+            account_put();
+        }
     }
 
     EpochRewardsManager::GetInstance()->RemoveFeePool(block.epoch_number, txn);

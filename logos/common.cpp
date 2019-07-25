@@ -313,15 +313,19 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
     return mdb_val(buf.size(), buf.data());
 }
 
-
-Amount const & logos::account_info::GetBalance() const
+Rational logos::account_info::GetFullAvailableBalance() const
 {
-    return balance;
+    return {available_balance.number() + dust};
 }
 
 Amount const & logos::account_info::GetAvailableBalance() const
 {
     return available_balance;
+}
+
+Amount const & logos::account_info::GetBalance() const
+{
+    return balance;
 }
 
 void logos::account_info::SetBalance(
@@ -473,6 +477,7 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     s += write (stream_a, epoch_secondary_liabilities_updated);
     s += write (stream_a, available_balance.bytes);
     s += write (stream_a, claim_epoch);
+    s += write (stream_a, dust);
 
     return s;
 }
@@ -500,7 +505,8 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
         || read(stream_a, epoch_thawing_updated)
         || read(stream_a, epoch_secondary_liabilities_updated)
         || read(stream_a, available_balance.bytes)
-        || read(stream_a, claim_epoch);
+        || read(stream_a, claim_epoch)
+        || read(stream_a, dust);
 
     return error;
 }
@@ -514,6 +520,7 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
            epoch_thawing_updated  == other_a.epoch_thawing_updated &&
            epoch_secondary_liabilities_updated == other_a.epoch_secondary_liabilities_updated &&
            claim_epoch == other_a.claim_epoch &&
+           dust == other_a.dust &&
            Account::operator==(other_a);
 }
 

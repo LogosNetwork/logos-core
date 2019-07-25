@@ -35,52 +35,52 @@ public:
 
     EpochRewardsManager(BlockStore & store);
 
-    void Init(AccountAddress const & rep_address,
-              RepEpochInfo const & rep_epoch_info,
+    void Init(const AccountAddress & rep_address,
+              const RepEpochInfo & rep_epoch_info,
               MDB_txn * txn);
 
-    bool OnFeeCollected(uint32_t epoch_number,
+    bool OnFeeCollected(const uint32_t epoch_number,
                         const Amount & value,
                         MDB_txn * txn);
 
-    bool GetFeePool(uint32_t epoch_number,
+    bool GetFeePool(const uint32_t epoch_number,
                     Amount & value,
                     MDB_txn * txn = nullptr);
 
-    bool RemoveFeePool(uint32_t epoch_number,
+    bool RemoveFeePool(const uint32_t epoch_number,
                        MDB_txn * txn);
 
-    bool SetGlobalReward(uint32_t const & epoch_number,
-                         Amount const & total_reward,
+    bool SetGlobalReward(const uint32_t epoch_number,
+                         const Amount & total_reward,
                          MDB_txn * txn);
 
-    bool HarvestReward(AccountAddress const & rep_address,
-                       uint32_t const & epoch_number,
-                       Amount const & harvest_amount,
+    bool HarvestReward(const AccountAddress & rep_address,
+                       const uint32_t epoch_number,
+                       const Rational & harvest_amount,
                        RewardsInfo & info,
                        MDB_txn * txn);
 
-    void HarvestGlobalReward(uint32_t const & epoch,
-                             Amount const & to_subtract,
+    void HarvestGlobalReward(const uint32_t epoch_number,
+                             const Rational & harvest_amount,
                              GlobalRewardsInfo global_info,
                              MDB_txn * txn);
 
     RewardsInfo GetRewardsInfo(AccountAddress const & rep_address,
-                               uint32_t const & epoch_number,
-                               MDB_txn *txn);
+                               const uint32_t epoch_number,
+                               MDB_txn * txn);
 
-    GlobalRewardsInfo GetGlobalRewardsInfo(uint32_t const & epoch_number,
-                                           MDB_txn *txn);
+    GlobalRewardsInfo GetGlobalRewardsInfo(const uint32_t epoch_number,
+                                           MDB_txn * txn);
     
-    bool RewardsAvailable(AccountAddress const & rep_address,
-                          uint32_t const & epoch_number,
+    bool RewardsAvailable(const AccountAddress & rep_address,
+                          const uint32_t epoch_number,
                           MDB_txn * txn);
 
-    bool GlobalRewardsAvailable(uint32_t const & epoch_number,
+    bool GlobalRewardsAvailable(const uint32_t epoch_number,
                                 MDB_txn * txn);
 
-    Key MakeKey(AccountAddress const & account,
-                uint32_t const & epoch);
+    Key MakeKey(const AccountAddress & account,
+                const uint32_t epoch_number);
 
 private:
 
@@ -90,7 +90,7 @@ private:
     // Need to keep track of the total stake that voted in an epoch
     // because rewards are distributed based on a reps percentage
     // of total stake that voted (sum of all voting reps stakes)
-    void AddGlobalStake(RepEpochInfo const & info, MDB_txn * txn);
+    void AddGlobalStake(const RepEpochInfo & info, MDB_txn * txn);
 
     BlockStore & _store;
     Log          _log;

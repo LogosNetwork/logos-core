@@ -54,35 +54,6 @@ public:
 
 protected:
 
-    static logos::uint128_t CalculatePortion(const logos::uint128_t stake,
-                                             const logos::uint128_t total_stake,
-                                             const logos::uint128_t pool)
-    {
-        auto numerator = logos::uint256_t(stake) * logos::uint256_t(pool);
-
-        // Calculate the ceiling of the portion of the pool
-        // that corresponds to stake / total_stake.
-        auto portion = numerator / total_stake
-            + (((numerator < 0) ^ (total_stake > 0)) && (numerator % total_stake));
-
-        return portion.convert_to<logos::uint128_t>();
-    }
-
-    static bool AdjustRemaining(logos::uint128_t & value, logos::uint128_t remaining)
-    {
-        if(value == 0)
-        {
-            value = 1;
-        }
-
-        if(value > remaining)
-        {
-            value = remaining;
-        }
-
-        return value > 0;
-    }
-
     bool ValidateTimestamp(uint64_t timestamp)
     {
         auto now = GetStamp();

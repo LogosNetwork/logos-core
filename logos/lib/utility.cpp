@@ -19,6 +19,62 @@ std::string string_to_hex_str(const std::string& input)
     return output;
 }
 
+namespace logos
+{
+
+bool read(logos::stream & stream_a, Rational::int_type & value)
+{
+    auto size = value.backend().size() * sizeof(boost::multiprecision::limb_type);
+    auto amount_read(stream_a.sgetn(reinterpret_cast<uint8_t *> (value.backend().limbs()), size));
+
+    return amount_read != size;
+}
+
+uint64_t write(logos::stream & stream_a, Rational::int_type const & value)
+{
+    auto size = value.backend().size() * sizeof(boost::multiprecision::limb_type);
+    auto amount_written(stream_a.sputn(reinterpret_cast<uint8_t const *> (value.backend().limbs()), size));
+
+    assert (amount_written == size);
+    return amount_written;
+}
+
+}
+
+bool logos::read (logos::stream & stream_a, Rational & value)
+{
+    Rational::int_type n;
+    Rational::int_type d;
+
+    uint256_union a;
+    uint256_union b;
+
+    auto error = read(stream_a, a);
+    if(error)
+    {
+        return error;
+    }
+
+    error = read(stream_a, b);
+    if(error)
+    {
+        return error;
+    }
+
+    value.assign(static_cast<boost::multiprecision::int256_t>(a.number()),
+                 static_cast<boost::multiprecision::int256_t>(b.number()));
+
+    return false;
+}
+
+uint64_t logos::write (logos::stream & stream_a, const Rational & value)
+{
+    auto bytes_written = write(stream_a, uint256_union(static_cast<uint256_t>(value.numerator())));
+    bytes_written += write(stream_a, uint256_union(static_cast<uint256_t>(value.denominator())));
+
+    return bytes_written;
+}
+
 template<typename U>
 static bool ReadUnion(logos::stream & stream_a, U & value)
 {

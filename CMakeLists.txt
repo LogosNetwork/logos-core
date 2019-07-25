@@ -287,8 +287,11 @@ add_library (secure
     logos/blockstore.hpp
     logos/ledger.cpp
     logos/ledger.hpp
+    logos/lib/utility.cpp
+    logos/lib/utility.hpp
     logos/node/utility.cpp
     logos/node/utility.hpp
+    logos/rewards/epoch_rewards.cpp
     logos/token/account.hpp
     logos/token/account.cpp
     logos/token/entry.hpp
@@ -407,6 +410,7 @@ add_library (node
     logos/request/utility.cpp
     logos/request/utility.cpp
     logos/rewards/claim.cpp
+    logos/rewards/epoch_rewards.cpp
     logos/rewards/epoch_rewards_manager.cpp
     logos/staking/thawing_funds.cpp
     logos/staking/staked_funds.cpp

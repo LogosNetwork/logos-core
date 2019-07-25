@@ -39,22 +39,22 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     ASSERT_EQ(global_info.remaining_reward,0);
     ASSERT_EQ(global_info.total_reward,0);
 
-    Amount total_reward = 100000;
+    Rational total_reward = 100000;
 
     rewards_info.total_reward = total_reward;
     rewards_info.remaining_reward = total_reward;
 
     rewards_mgr.HarvestReward(rep,epoch_num,0,rewards_info,txn);
-    rewards_mgr.SetGlobalReward(epoch_num, total_reward, txn);
+    rewards_mgr.SetGlobalReward(epoch_num, total_reward.numerator().convert_to<logos::uint128_t>(), txn);
 
     rewards_info = rewards_mgr.GetRewardsInfo(rep, epoch_num, txn);
     global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward);
-    ASSERT_EQ(global_info.total_reward, total_reward);
+    ASSERT_EQ(global_info.total_reward.number(), total_reward);
     ASSERT_EQ(global_info.remaining_reward, total_reward);
 
-    Amount harvest_amount = 1000;
+    Rational harvest_amount = 1000;
 
     rewards_mgr.HarvestGlobalReward(epoch_num,harvest_amount,global_info,txn);
     ASSERT_FALSE(rewards_mgr.HarvestReward(rep,epoch_num,harvest_amount,rewards_info,txn));
@@ -63,7 +63,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward-harvest_amount);
-    ASSERT_EQ(global_info.total_reward, total_reward);
+    ASSERT_EQ(global_info.total_reward.number(), total_reward);
     ASSERT_EQ(global_info.remaining_reward, total_reward-harvest_amount);
 
     rewards_mgr.HarvestGlobalReward(epoch_num,harvest_amount,global_info,txn);
@@ -74,7 +74,7 @@ TEST(Epoch_Rewards_DB, RewardsManager)
     global_info = rewards_mgr.GetGlobalRewardsInfo(epoch_num, txn);
     ASSERT_EQ(rewards_info.total_reward, total_reward);
     ASSERT_EQ(rewards_info.remaining_reward, total_reward-(harvest_amount+harvest_amount));
-    ASSERT_EQ(global_info.total_reward, total_reward);
+    ASSERT_EQ(global_info.total_reward.number(), total_reward);
     ASSERT_EQ(global_info.remaining_reward, total_reward-(harvest_amount+harvest_amount));
 
     rewards_mgr.HarvestGlobalReward(epoch_num,rewards_info.remaining_reward,global_info,txn);
