@@ -182,26 +182,20 @@ void BlockCache::Validate(uint8_t rb_idx)
             {
                 LOG_TRACE(_log) << "BlockCache::Validate RB status: "
                         << ProcessResultToString(status.reason);
-                switch (status.reason)
+                switch (ProcessResultToDependency(status.reason))
                 {
-                case logos::process_result::gap_previous:
-                case logos::process_result::gap_source:
-                    //TODO any other cases that can be considered as gap?
+                case logos::process_result_dependency::previous_block:
                     _block_container.AddHashDependency(block->previous, ptr);
                     break;
-                case logos::process_result::invalid_request:
+                case logos::process_result_dependency::general_error_code:
                     for (uint32_t i = 0; i < block->requests.size(); ++i)
                     {
-                        switch (status.requests[i])
+                        switch (ProcessResultToDependency(status.requests[i]))
                         {
-                        case logos::process_result::gap_previous:
+                        case logos::process_result_dependency::previous_block:
                             _block_container.AddHashDependency(block->requests[i]->previous, ptr);
                             break;
-                        case logos::process_result::insufficient_balance:
-                        case logos::process_result::insufficient_fee:
-                        case logos::process_result::insufficient_token_balance:
-                        case logos::process_result::insufficient_token_fee:
-                        case logos::process_result::insufficient_funds_for_stake:
+                        case logos::process_result_dependency::sender_account:
                             _block_container.AddAccountDependency(block->requests[i]->GetAccount(), ptr);
                             break;
                         default:
@@ -240,19 +234,21 @@ void BlockCache::Validate(uint8_t rb_idx)
             {
                 LOG_TRACE(_log) << "BlockCache::Validate MB status: "
                         << ProcessResultToString(status.reason);
-                switch (status.reason)
+                switch (ProcessResultToDependency(status.reason))
                 {
-                case logos::process_result::gap_previous:
-                case logos::process_result::gap_source:
-                    //TODO any other cases that can be considered as gap?
+                case logos::process_result_dependency::previous_block:
                     _block_container.AddHashDependency(block->previous, ptr);
                     break;
-                case logos::process_result::invalid_request:
+                case logos::process_result_dependency::general_error_code:
                     for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
                     {
-                        if (status.requests[i] == logos::process_result::gap_previous)
+                        switch (ProcessResultToDependency(status.requests[i]))
                         {
+                        case logos::process_result_dependency::previous_block:
                             _block_container.AddHashDependency(block->tips[i].digest, ptr);
+                            break;
+                        default:
+                            break;
                         }
                     }
                     break;
@@ -284,14 +280,12 @@ void BlockCache::Validate(uint8_t rb_idx)
             {
                 LOG_TRACE(_log) << "BlockCache::Validate EB status: "
                         << ProcessResultToString(status.reason);
-                switch (status.reason)
+                switch (ProcessResultToDependency(status.reason))
                 {
-                case logos::process_result::gap_previous:
-                case logos::process_result::gap_source:
-                    //TODO any other cases that can be considered as gap?
+                case logos::process_result_dependency::previous_block:
                     _block_container.AddHashDependency(block->previous, ptr);
                     break;
-                case logos::process_result::invalid_tip:
+                case logos::process_result_dependency::last_microblock:
                     _block_container.AddHashDependency(block->micro_block_tip.digest, ptr);
                     break;
                 default:

@@ -405,7 +405,22 @@ enum class process_result
     invalid_epoch_hash            // Logos - invalid epoch hash
 };
 
+// This enum represents type of dependency which we need to wait in the cache, type is based on the returned error code
+// See second column in the document "Error codes in block validation of full nodes"
+enum class process_result_dependency
+{
+    not_applied,                  // Not applied, progress or bad_signature
+    bad_block,                    // Bad block, not recoverable error
+    general_error_code,           // See individual error codes of requests in RB or request tips in MB
+    previous_block,               // Dependency is previous block in the chain
+    sender_account,               // Dependency is sender account as a transaction target
+    last_microblock,              // Dependency is last microblock of the epoch
+    previous_epoch                // Dependency is previous epoch, delegate set is needed to check signatures
+};
+
 std::string ProcessResultToString(process_result result);
+
+process_result_dependency ProcessResultToDependency(process_result result);
 
 class process_return
 {
