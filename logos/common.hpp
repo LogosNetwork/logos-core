@@ -200,6 +200,7 @@ struct account_info : Account
             uint32_t const & epoch,
             MDB_txn* txn);
 
+    Rational GetFullAvailableBalance() const;
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
 
@@ -213,6 +214,7 @@ struct account_info : Account
     //the last epoch in which secondary liabilities were checked for expiration for this account
     uint32_t   epoch_secondary_liabilities_updated;
     uint32_t   claim_epoch;
+    Rational   dust;
 
     protected:
     amount available_balance;

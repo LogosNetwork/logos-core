@@ -1459,17 +1459,30 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto account_info = dynamic_pointer_cast<logos::account_info>(info);
 
             auto sum = ProcessClaim(claim, *account_info, transaction);
+            auto deposit_amount = std::get<0>(sum);
 
-            Transaction<Amount> t(claim->origin, sum);
+            account_info->dust += std::get<1>(sum);
 
-            ApplySend(t,
-                      timestamp,
-                      transaction,
-                      request->GetHash(),
-                      {0},
-                      request->origin,
-                      cur_epoch_num,
-                      info);
+            if(account_info->dust.numerator() >= account_info->dust.denominator())
+            {
+                ++deposit_amount;
+                --account_info->dust;
+            }
+
+            if(deposit_amount > 0)
+            {
+                Transaction<Amount> t(claim->origin,
+                                      deposit_amount);
+
+                ApplySend(t,
+                          timestamp,
+                          transaction,
+                          request->GetHash(),
+                          {0},
+                          request->origin,
+                          cur_epoch_num,
+                          info);
+            }
 
             break;
         }
@@ -2828,7 +2841,7 @@ bool PersistenceManager<R>::ValidateRequest(
     return true;
 }
 
-Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> claim,
+Reward PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> claim,
                                            logos::account_info & info,
                                            MDB_txn * transaction)
 {
@@ -2840,7 +2853,7 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
     AccountAddress current_rep = 0;
     Amount staked = 0;
 
-    Amount sum = 0;
+    Rational sum = 0;
 
     auto advance_chain = [&]()
     {
@@ -2852,7 +2865,7 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
     {
         if(_store.request_get(current_hash, current_request, transaction))
         {
-            LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+            LOG_FATAL(_log) << "PersistenceManager::ProcessClaim - "
                             << "Failed to retrieve governance request with hash: "
                             << current_hash.to_string();
             trace_and_halt();
@@ -2915,7 +2928,7 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
             // a representative. Should never occur.
             if(has_rep && is_rep)
             {
-                LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                LOG_FATAL(_log) << "PersistenceManager::ProcessClaim - "
                                 << "Inconsistent account state while processing "
                                 << "claim for account: "
                                 << claim->origin.to_account();
@@ -2969,17 +2982,13 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                                 auto global_info = rewards_manager->GetGlobalRewardsInfo(epoch,
                                                                                          transaction);
 
-                                auto rep_pool = CalculatePortion(rep_info.total_stake.number(),
-                                                                 global_info.total_stake.number(),
-                                                                 global_info.total_reward.number());
+                                auto rep_pool = Rational(rep_info.total_stake.number(),
+                                                         global_info.total_stake.number()) * global_info.total_reward.number();
 
-                                if(AdjustRemaining(rep_pool, global_info.remaining_reward.number()))
-                                {
-                                    rewards_manager->HarvestGlobalReward(epoch,
-                                                                         rep_pool,
-                                                                         global_info,
-                                                                         transaction);
-                                }
+                                rewards_manager->HarvestGlobalReward(epoch,
+                                                                     rep_pool,
+                                                                     global_info,
+                                                                     transaction);
 
                                 rep_info.total_reward = rep_pool;
                                 rep_info.remaining_reward = rep_pool;
@@ -2987,9 +2996,11 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
                             else
                             {
-                                // This may occur since rewards are
-                                // rounded to avoid distributing
-                                // fractional values.
+                                LOG_FATAL(_log) << "PersistenceManager::ProcessClaim - "
+                                                << "No global rewards available for uninitialized "
+                                                << "rep reward pool. Rep address: "
+                                                << rep_address().to_account();
+                                trace_and_halt();
                             }
 
                             rep_info.initialized = true;
@@ -3021,18 +3032,13 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
                             return result.convert_to<logos::uint128_t>();
                         };
 
-                        auto reward = CalculatePortion(self_stake(),
-                                                       rep_info.total_stake.number(),
-                                                       rep_info.total_reward.number());
+                        auto reward = Rational(self_stake(), rep_info.total_stake.number()) * rep_info.total_reward;
 
-                        if(AdjustRemaining(reward, rep_info.remaining_reward.number()))
-                        {
-                            rewards_manager->HarvestReward(rep_address(),
-                                                           epoch,
-                                                           reward,
-                                                           rep_info,
-                                                           transaction);
-                        }
+                        rewards_manager->HarvestReward(rep_address(),
+                                                       epoch,
+                                                       reward,
+                                                       rep_info,
+                                                       transaction);
 
                         // Finally, update the sum with the
                         // earnings from this epoch.
@@ -3047,7 +3053,9 @@ Amount PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
     info.claim_epoch = claim->epoch_number;
 
-    return sum;
+    return Reward(sum.numerator() / sum.denominator(),
+                  Rational(sum.numerator() % sum.denominator(),
+                           sum.denominator()));
 }
 
 bool PersistenceManager<R>::ValidateRequest(

@@ -146,8 +146,12 @@ struct RequestMeta
 
 auto advance_supply = [](auto & block)
 {
-    auto new_supply = floor(Float100{block.total_supply.number()} * LOGOS_INFLATION_RATE). template convert_to<uint128_t>();
-    block.total_supply += new_supply;
+    const uint32_t INFLATION_RATE_FACTOR = 1000000;
+
+    auto total_supply = (logos::uint256_t(block.total_supply.number()) *
+                         logos::uint256_t(LOGOS_INFLATION_RATE * INFLATION_RATE_FACTOR)) / INFLATION_RATE_FACTOR;
+
+    block.total_supply = total_supply.convert_to<logos::uint128_t>();
 };
 
 auto initialize_epoch = [](auto epoch_num, auto store)
@@ -458,7 +462,7 @@ TEST (Rewards, Claim_Processing_1)
 
     update_info();
 
-    auto balance = rep_info.GetAvailableBalance();
+    Rational balance = rep_info.GetAvailableBalance().number() + rep_info.dust;
 
     Claim claim;
     claim.origin = rep;
@@ -481,7 +485,7 @@ TEST (Rewards, Claim_Processing_1)
         ASSERT_FALSE(store->receive_get(rep_info.receive_head, receive, txn));
         ASSERT_EQ(claim.GetHash(), receive.source_hash);
 
-        Amount pool_diff = 0;
+        Rational pool_diff = 0;
 
         for(uint32_t e = start_epoch + 1; e <= eb.epoch_number; ++e)
         {
@@ -494,14 +498,15 @@ TEST (Rewards, Claim_Processing_1)
             ASSERT_TRUE(erm->RewardsAvailable(rep, e, txn));
         }
 
-        pool_diff -= claim.fee;
+        pool_diff -= claim.fee.number();
 
-        auto balance_diff = Amount{rep_info.GetAvailableBalance() - balance}.number();
-        ASSERT_EQ(balance_diff, pool_diff.number());
+        Rational balance_diff = Rational{rep_info.GetAvailableBalance().number() + rep_info.dust} - balance;
+
+        ASSERT_EQ(balance_diff, pool_diff);
     }
 
-    Amount sum = 0;
-    Amount account_balance = info.GetAvailableBalance();
+    Rational sum = 0;
+    Rational account_balance = info.GetAvailableBalance().number() + info.dust;
 
     {
         logos::transaction txn(store->environment,nullptr,true);
@@ -512,7 +517,8 @@ TEST (Rewards, Claim_Processing_1)
 
             sum += rep_rewards.remaining_reward;
         }
-        sum -= claim.fee;
+
+        sum -= claim.fee.number();
     }
 
     claim.origin = account;
@@ -526,7 +532,7 @@ TEST (Rewards, Claim_Processing_1)
     ASSERT_NE(info.claim_epoch, account_claim_epoch);
     ASSERT_EQ(info.claim_epoch, eb.epoch_number);
 
-    Amount balance_diff = info.GetAvailableBalance() - account_balance;
+    Rational balance_diff = Rational{info.GetAvailableBalance().number() + info.dust} - account_balance;
     ASSERT_EQ(sum, balance_diff);
 
     {
@@ -1030,14 +1036,14 @@ TEST(Rewards, Delegate_Rewards)
 
         update_info(delegate_accounts_b);
 
-        Amount diff;
+        Rational diff = 0;
         for(size_t i = 0; i < 32; ++i)
         {
-            diff += delegate_accounts_b[i].GetAvailableBalance() -
-                    delegate_accounts_a[i].GetAvailableBalance();
+            diff += delegate_accounts_b[i].GetFullAvailableBalance() -
+                    delegate_accounts_a[i].GetFullAvailableBalance();
         }
 
-        ASSERT_EQ(diff, eb.transaction_fee_pool);
+        ASSERT_EQ(diff, eb.transaction_fee_pool.number());
     };
 
     auto compare_delegates = [&]()

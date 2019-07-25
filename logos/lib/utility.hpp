@@ -138,6 +138,10 @@ bool peek (logos::stream & stream_a, T & value)
     return failure;
 }
 
+bool read (logos::stream & stream_a, Rational & value);
+
+uint64_t write (logos::stream & stream_a, const Rational & value);
+
 bool read (logos::stream & stream_a, uint128_union & value);
 uint64_t write (logos::stream & stream_a, uint128_union const & value);
 bool read (logos::stream & stream_a, uint256_union & value);
