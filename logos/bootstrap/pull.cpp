@@ -101,7 +101,7 @@ namespace Bootstrap
             {
                 UpdateMyEBTip(block);
                 state = PullerState::Epoch;
-                LOG_INFO(log) << "Puller::CheckMicroProgress: processed an epoch "
+                LOG_INFO(log) << "Puller::EBReceived: processed an epoch "
                               << working_epoch.epoch_num;
             } else {
                 working_epoch.eb = block;
