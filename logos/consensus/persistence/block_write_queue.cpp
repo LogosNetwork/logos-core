@@ -73,7 +73,7 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
                     && _unit_test_accounts.find(block->requests[i]->origin) == _unit_test_requests.end()
                     && block->requests[i]->fee == Amount(0))
             {
-                status->requests[i] = logos::process_result::insufficient_fee;
+                status->requests[i] = logos::process_result::insufficient_balance;
                 status->reason = logos::process_result::invalid_request;
             }
         }

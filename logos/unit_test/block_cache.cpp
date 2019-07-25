@@ -280,7 +280,7 @@ TEST (BlockCache, RequestsSquaredTest)
         EXPECT_EQ(c.AddRequestBlock(rbs[i]), true);
     }
 
-    for (int i = 0; i < 3 && t.store_q.size() != N_TOTAL; ++i)
+    for (int i = 0; i < 10 && t.store_q.size() != N_TOTAL; ++i)
     {
         sleep(1);
     }
@@ -410,7 +410,7 @@ TEST (BlockCache, MixedBlocksTest)
         }
     }
 
-    for (int i = 0; i < 5 && t.store_q.size() != size + N_EPOCHS * NUM_DELEGATES; ++i)
+    for (int i = 0; i < 10 && t.store_q.size() != size + N_EPOCHS * NUM_DELEGATES; ++i)
     {
         sleep(1);
     }
