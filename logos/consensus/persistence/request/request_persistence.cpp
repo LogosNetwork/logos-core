@@ -1629,7 +1629,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       const BlockHash &token_id,
                                       const AccountAddress& origin,
                                       uint32_t const & epoch_num,
-                                      std::shared_ptr<logos::Account> info,
+                                      std::shared_ptr<logos::Account> &info,
                                       uint16_t transaction_index)
 {
     ReceiveBlock receive(

@@ -220,7 +220,7 @@ private:
         const BlockHash &token_id,
         const AccountAddress& origin,
         uint32_t const & epoch_num,
-        std::shared_ptr<logos::Account> info,
+        std::shared_ptr<logos::Account> &info,
         uint16_t transaction_index = 0);
 
     template<typename AmountType>
