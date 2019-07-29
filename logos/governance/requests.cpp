@@ -984,7 +984,8 @@ bool AnnounceCandidacy::operator==(const AnnounceCandidacy& other) const
 void AnnounceCandidacy::Hash(blake2b_state& hash) const
 {
     Governance::Hash(hash);
-    blake2b_update(&hash, &stake, sizeof(stake));
+    if(set_stake)
+        blake2b_update(&hash, &stake, sizeof(stake));
     bls_key.Hash(hash);
     ecies_key.Hash(hash);
     blake2b_update(&hash, &levy_percentage, sizeof(levy_percentage));
@@ -1126,6 +1127,13 @@ boost::property_tree::ptree RenounceCandidacy::SerializeJson() const
 bool RenounceCandidacy::operator==(const RenounceCandidacy& other) const
 {
     return Governance::operator==(other);
+}
+
+void RenounceCandidacy::Hash(blake2b_state& hash) const
+{
+    Governance::Hash(hash);
+    if(set_stake)
+        blake2b_update(&hash, &stake, sizeof(stake));
 }
 
 StartRepresenting::StartRepresenting()
@@ -1281,8 +1289,8 @@ bool StartRepresenting::operator==(const StartRepresenting& other) const
 void StartRepresenting::Hash(blake2b_state& hash) const
 {
     Governance::Hash(hash);
-
-    blake2b_update(&hash, &stake, sizeof(stake));
+    if(set_stake)
+        blake2b_update(&hash, &stake, sizeof(stake));
     blake2b_update(&hash, &levy_percentage, sizeof(levy_percentage));
 }
 
@@ -1421,4 +1429,11 @@ uint64_t StopRepresenting::Serialize(logos::stream & stream) const
 bool StopRepresenting::operator==(const StopRepresenting& other) const
 {
     return Governance::operator==(other);
+}
+
+void StopRepresenting::Hash(blake2b_state& hash) const
+{
+    Governance::Hash(hash);
+    if(set_stake)
+        blake2b_update(&hash, &stake, sizeof(stake));
 }

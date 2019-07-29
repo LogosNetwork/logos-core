@@ -255,6 +255,10 @@ struct RenounceCandidacy : Governance
 
     bool operator==(const RenounceCandidacy & other) const;
 
+    void Hash(blake2b_state& hash) const override;
+
+    using Request::Hash;
+
     // If set_stake is true, this request will adjust origin's self stake
     // to the amount specified in the stake field
     // If set_stake is false, this request will ignore the stake field,
@@ -323,6 +327,10 @@ struct StopRepresenting : Governance
     boost::property_tree::ptree SerializeJson() const override;
 
     bool operator==(const StopRepresenting & other) const;
+
+    void Hash(blake2b_state& hash) const override;
+
+    using Request::Hash;
 
     // If set_stake is true, this request will adjust origin's self stake
     // to the amount specified in the stake field
