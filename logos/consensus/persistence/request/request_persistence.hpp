@@ -25,6 +25,16 @@ protected:
     using ReservationsPtr = std::shared_ptr<Reservations>;
     using RequestPtr      = std::shared_ptr<const Request>;
 
+    enum request_validation_progress
+    {
+        RVP_BEGIN,          /* initial state, validation not started */
+        RVP_DRIFT,          /* timestamp drift validated */
+        RVP_PREVIOUS,       /* previous block found, sequence number OK */
+        RVP_REQUESTS_FIRST, /* validation of requests started, some is invalid */
+        RVP_REQUESTS_DONE,  /* all requests validated */
+        RVP_END             /* final state, block validated */
+    };
+
     public:
 
     PersistenceManager(
@@ -210,7 +220,7 @@ private:
         const BlockHash &token_id,
         const AccountAddress& origin,
         uint32_t const & epoch_num,
-        std::shared_ptr<logos::Account> info,
+        std::shared_ptr<logos::Account> &info,
         uint16_t transaction_index = 0);
 
     template<typename AmountType>

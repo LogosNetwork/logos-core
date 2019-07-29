@@ -26,7 +26,7 @@ namespace Bootstrap
          */
         BootstrapAttempt(logos::alarm & alarm,
                 Store & store,
-                BlockCache & cache,
+                logos::BlockCache & cache,
                 PeerInfoProvider &peer_provider,
                 uint8_t max_connected);
 

@@ -1297,6 +1297,177 @@ std::string logos::ProcessResultToString(logos::process_result result)
     return ret;
 }
 
+logos::process_result_dependency logos::ProcessResultToDependency(logos::process_result result)
+{
+    process_result_dependency ret = process_result_dependency::bad_block;
+
+    switch (result)
+    {
+        case process_result::progress:
+            ret = process_result_dependency::not_applied;
+            break;
+        case process_result::bad_signature:
+            ret = process_result_dependency::not_applied;
+            break;
+        case process_result::old:
+            break;
+        case process_result::negative_spend:
+            break;
+        case process_result::fork:
+            break;
+        case process_result::unreceivable:
+            break;
+        case process_result::gap_previous:
+            ret = process_result_dependency::previous_block;
+            break;
+        case process_result::gap_source:
+            ret = process_result_dependency::previous_block;
+            break;
+        case process_result::state_block_disabled:
+            break;
+        case process_result::not_receive_from_send:
+            break;
+        case process_result::account_mismatch:
+            break;
+        case process_result::opened_burn_account:
+            break;
+        case process_result::balance_mismatch:
+            break;
+        case process_result::block_position:
+            break;
+        case process_result::invalid_block_type:
+            break;
+        case process_result::unknown_source_account:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::unknown_origin:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::buffered:
+            break;
+        case process_result::buffering_done:
+            break;
+        case process_result::pending:
+            break;
+        case process_result::already_reserved:
+            break;
+        case process_result::initializing:
+            break;
+        case process_result::insufficient_fee:
+            break;
+        case process_result::insufficient_balance:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::not_delegate:
+            break;
+        case process_result::clock_drift:
+            break;
+        case process_result::wrong_sequence_number:
+            break;
+        case process_result::invalid_request:
+            ret = process_result_dependency::general_error_code;
+            break;
+        case process_result::invalid_tip:
+            ret = process_result_dependency::last_microblock;
+            break;
+        case process_result::invalid_number_blocks:
+            break;
+        case process_result::revert_immutability:
+            break;
+        case process_result::immutable:
+            break;
+        case process_result::redundant:
+            break;
+        case process_result::insufficient_token_balance:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::invalid_token_id:
+            break;
+        case process_result::untethered_account:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::invalid_controller:
+            break;
+        case process_result::controller_capacity:
+            break;
+        case process_result::invalid_controller_action:
+            break;
+        case process_result::unauthorized_request:
+            break;
+        case process_result::prohibitted_request:
+            break;
+        case process_result::not_whitelisted:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::frozen:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::insufficient_token_fee:
+            break;
+        case process_result::invalid_token_symbol:
+            break;
+        case process_result::invalid_token_name:
+            break;
+        case process_result::invalid_token_amount:
+            break;
+        case process_result::total_supply_overflow:
+            break;
+        case process_result::key_collision:
+            break;
+        case process_result::invalid_fee:
+            break;
+        case process_result::invalid_issuer_info:
+            break;
+        case process_result::too_many_token_entries:
+            break;
+        case process_result::elections_dead_period:
+            ret = process_result_dependency::previous_epoch;
+            break;
+        case process_result::not_a_rep:
+            break;
+        case process_result::already_voted:
+            break;
+        case process_result::invalid_candidate:
+            break;
+        case process_result::not_enough_stake:
+            break;
+        case process_result::never_announced_candidacy:
+            break;
+        case process_result::already_renounced_candidacy:
+            break;
+        case process_result::already_announced_candidacy:
+            break;
+        case process_result::is_rep:
+            break;
+        case process_result::is_candidate:
+            break;
+        case process_result::is_delegate:
+            break;
+        case process_result::wrong_epoch_number:
+            break;
+        case process_result::no_elections:
+            break;
+        case process_result::pending_rep_action:
+            break;
+        case process_result::pending_candidacy_action:
+            break;
+        case process_result::insufficient_funds_for_stake:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::invalid_governance_subchain:
+            break;
+        case process_result::invalid_account_type:
+            ret = process_result_dependency::sender_account;
+            break;
+        case process_result::proxy_to_self:
+            break;
+        case process_result::invalid_epoch_hash:
+            break;
+    }
+
+    return ret;
+}
+
 namespace logos_global
 {
     std::mutex mtx;

@@ -22,6 +22,16 @@ protected:
     using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
     using BatchBlockReceiverCb         = std::function<void(const ApprovedRB &)>;
 
+    enum microblock_validation_progress
+    {
+        MVP_BEGIN,      /* initial state, validation not started */
+        MVP_DRIFT,      /* timestamp drift validated */
+        MVP_BASE,       /* basic validation done (primary delegate, epoch tip) */
+        MVP_TIPS_FIRST, /* validation of request tips started, some not found */
+        MVP_TIPS_DONE,  /* all request tips found */
+        MVP_END         /* final state, validation OK (previous microblock found, number of blocks matches) */
+    };
+
 public:
     PersistenceManager(Store & store,
                        ReservationsPtr,

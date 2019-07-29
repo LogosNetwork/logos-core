@@ -9,6 +9,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/node/peer_provider.hpp>
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
@@ -46,39 +47,20 @@ class ConsensusP2p
 {
 public:
     ConsensusP2p(p2p_interface & p2p,
-                 std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)> Validate,
-                 std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
-                 std::function<bool (const PostCommittedBlock<CT> &)> BlockExists);
+                 std::function<bool (const PostCommittedBlock<CT> &)> AddBlock);
 
     bool ProcessInputMessage(const Prequel &prequel, const uint8_t *data, uint32_t size);
 
     p2p_interface &                                                                             _p2p;
-    std::function<void (const logos::block_hash &)>                                             _RetryValidate;
 
 private:
-    void RetryValidate(const logos::block_hash &hash);
-
-    bool ApplyCacheUpdates(const PostCommittedBlock<CT> & block,
-                           std::shared_ptr<PostCommittedBlock<CT>> pblock,
-                           uint8_t delegate_id,
-                           ValidationStatus &status);
-
-    void CacheInsert(const logos::block_hash & hash,
-                     uint8_t delegate_id,
-                     const PostCommittedBlock<CT> & block,
-                     std::shared_ptr<PostCommittedBlock<CT>> & pblock);
-
     bool Deserialize(const uint8_t *data,
                      uint32_t size,
                      uint8_t version,
                      PostCommittedBlock<CT> &block);
 
     Log                                                                                         _log;
-    std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)>           _Validate;
-    std::function<void (const PostCommittedBlock<CT> &, uint8_t)>                               _ApplyUpdates;
-    std::function<bool (const PostCommittedBlock<CT> &)>                                        _BlockExists;
-    std::multimap<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PostCommittedBlock<CT>>>> _cache;
-    std::mutex                                                                                  _cache_mutex;
+    std::function<bool (const PostCommittedBlock<CT> &)>                                        _AddBlock;
 
     friend class ContainerP2p;
     friend class PersistenceP2p<CT>;
@@ -89,20 +71,12 @@ class PersistenceP2p
 {
 public:
     PersistenceP2p(p2p_interface & p2p,
-                   logos::block_store &store)
-        : _persistence(store, P2P_DEFAULT_CLOCK_DRIFT)
+                   std::function<bool (std::shared_ptr<PostCommittedBlock<CT> >)> add_block)
+        : _add_block(add_block)
         , _p2p(p2p,
-            [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id, ValidationStatus * status)
+            [this](const PostCommittedBlock<CT> &message) -> bool
             {
-                return this->_persistence.Validate(message, status);
-            },
-            [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id)
-            {
-                this->_persistence.ApplyUpdates(message, delegate_id);
-            },
-            [this](const PostCommittedBlock<CT> &message)
-            {
-                return this->_persistence.BlockExists(message);
+                return this->_add_block(std::make_shared<PostCommittedBlock<CT>>(message));
             }
         )
     {}
@@ -113,8 +87,8 @@ public:
     }
 
 private:
-    NonDelPersistenceManager<CT>    _persistence;
-    ConsensusP2p<CT>                _p2p;
+    std::function<bool (std::shared_ptr<PostCommittedBlock<CT> >)>  _add_block;
+    ConsensusP2p<CT>                                                _p2p;
 
     friend class ContainerP2p;
     friend class ConsensusP2p<CT>;
@@ -125,20 +99,23 @@ class ContainerP2p: public PeerInfoProvider
 {
 public:
     ContainerP2p(p2p_interface & p2p,
-                 logos::block_store &store)
+                 logos::IBlockCache & block_cache)
         : _p2p(p2p)
-        , _batch(p2p, store)
-        , _micro(p2p, store)
-        , _epoch(p2p, store)
+        , _block_cache(block_cache)
+        , _batch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Request> >    rptr) -> bool
+            {
+                return this->_block_cache.AddRequestBlock(rptr);
+            })
+        , _micro(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::MicroBlock> > mptr) -> bool
+            {
+                return this->_block_cache.AddMicroBlock  (mptr);
+            })
+        , _epoch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Epoch> >      eptr) -> bool
+            {
+                return this->_block_cache.AddEpochBlock  (eptr);
+            })
         , _session_id(0)
     {
-        _batch._p2p._RetryValidate
-            = _micro._p2p._RetryValidate
-            = _epoch._p2p._RetryValidate
-            = [this](const logos::block_hash &hash)
-                {
-                    this->RetryValidate(hash);
-                };
     }
 
     bool ProcessInputMessage(const Prequel &prequel, const void *data, uint32_t size);
@@ -170,13 +147,8 @@ public:
 
     p2p_interface &                                 _p2p;
 private:
-    void RetryValidate(const logos::block_hash &hash)
-    {
-        _batch._p2p.RetryValidate(hash);
-        _micro._p2p.RetryValidate(hash);
-        _epoch._p2p.RetryValidate(hash);
-    }
 
+    logos::IBlockCache &                            _block_cache;
     PersistenceP2p<ConsensusType::Request>          _batch;
     PersistenceP2p<ConsensusType::MicroBlock>       _micro;
     PersistenceP2p<ConsensusType::Epoch>            _epoch;

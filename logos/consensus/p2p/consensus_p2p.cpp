@@ -81,189 +81,10 @@ bool ConsensusP2pOutput::ProcessOutputMessage(const uint8_t *data,
 
 template<ConsensusType CT>
 ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
-                               std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)> Validate,
-                               std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
-                               std::function<bool (const PostCommittedBlock<CT> &)> BlockExists)
+                               std::function<bool (const PostCommittedBlock<CT> &)> AddBlock)
     : _p2p(p2p)
-      /* In the unit test we redefine the _RetryValidate function, but the redefinition calls this initial version
-         of this function, see the file unit_test/p2p_test.cpp, the test VerifyCache. */
-    , _RetryValidate([this](const logos::block_hash &hash)
-        {
-            this->RetryValidate(hash);
-        })
-    , _Validate(Validate)
-    , _ApplyUpdates(ApplyUpdates)
-    , _BlockExists(BlockExists)
+    , _AddBlock(AddBlock)
 {}
-
-template<>
-bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::Request> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::Request>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status);
-
-template<>
-bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::MicroBlock> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::MicroBlock>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status);
-
-template<>
-bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::Epoch> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::Epoch>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status);
-
-template<ConsensusType CT>
-void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
-{
-    _cache_mutex.lock();
-
-    if (!_cache.count(hash))
-    {
-        _cache_mutex.unlock();
-        return;
-    }
-
-    std::vector<std::pair<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PostCommittedBlock<CT>>>>> cache_copy;
-    auto range = _cache.equal_range(hash);
-
-    for (auto it = range.first; it != range.second; it++)
-    {
-        cache_copy.push_back(*it);
-    }
-
-    _cache.erase(range.first, range.second);
-    _cache_mutex.unlock();
-
-    for (int i = 0; i < cache_copy.size(); ++i)
-    {
-        ValidationStatus status;
-        auto value = cache_copy[i];
-        const PostCommittedBlock<CT> &block = *value.second.second;
-        if (_Validate(block, value.second.first, &status))
-        {
-            status.reason = logos::process_result::progress;
-        }
-        ApplyCacheUpdates(block, value.second.second, value.second.first, status);
-    }
-}
-
-template<ConsensusType CT>
-void ConsensusP2p<CT>::CacheInsert(
-        const logos::block_hash & hash,
-        uint8_t delegate_id,
-        const PostCommittedBlock<CT> & block,
-        std::shared_ptr<PostCommittedBlock<CT>> & pblock)
-{
-    if (!pblock)
-    {
-        pblock = std::make_shared<PostCommittedBlock<CT>>(block);
-    }
-    std::lock_guard<std::mutex> lock(_cache_mutex);
-    _cache.insert(std::make_pair(hash, std::make_pair(delegate_id, pblock)));
-}
-
-template<>
-bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::Request> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::Request>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status)
-{
-    switch(status.reason)
-    {
-        case logos::process_result::progress:
-            _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
-
-            for(uint32_t i = 0; i < block.requests.size(); ++i)
-            {
-                _RetryValidate(block.requests[i]->Hash());
-            }
-            return true;
-
-        case logos::process_result::gap_previous:
-            CacheInsert(block.previous, delegate_id, block, pblock);
-            return false;
-
-        case logos::process_result::invalid_request:
-            for(uint32_t i = 0; i < block.requests.size(); ++i)
-            {
-                if (status.requests[i] == logos::process_result::gap_previous)
-                {
-                    CacheInsert(block.requests[i]->previous, delegate_id, block, pblock);
-                }
-            }
-            return false;
-
-        default:
-            return false;
-    }
-}
-
-template<>
-bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::MicroBlock> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::MicroBlock>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status)
-{
-    switch(status.reason)
-    {
-        case logos::process_result::progress:
-            _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
-            return true;
-
-        case logos::process_result::gap_previous:
-            CacheInsert(block.previous, delegate_id, block, pblock);
-            return false;
-
-        case logos::process_result::invalid_request:
-            for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
-            {
-                if (status.requests[i] == logos::process_result::gap_previous)
-                {
-                    CacheInsert(block.tips[i].digest, delegate_id, block, pblock);
-                }
-            }
-            return false;
-
-        default:
-            return false;
-    }
-}
-
-template<>
-bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::Epoch> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::Epoch>> pblock,
-        uint8_t delegate_id,
-        ValidationStatus &status)
-{
-    switch(status.reason)
-    {
-        case logos::process_result::progress:
-            _ApplyUpdates(block, delegate_id);
-            _RetryValidate(block.Hash());
-            return true;
-
-        case logos::process_result::gap_previous:
-            CacheInsert(block.previous, delegate_id, block, pblock);
-            return false;
-
-        case logos::process_result::invalid_tip:
-            CacheInsert(block.micro_block_tip.digest, delegate_id, block, pblock);
-            return false;
-
-        default:
-            return false;
-    }
-}
 
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::Deserialize(const uint8_t *data, uint32_t size,
@@ -278,10 +99,7 @@ bool ConsensusP2p<CT>::Deserialize(const uint8_t *data, uint32_t size,
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t * data, uint32_t size)
 {
-    MessageType mtype = MessageType::Pre_Prepare;
     PostCommittedBlock<CT> block;
-    std::shared_ptr<PostCommittedBlock<CT>> pblock;
-    ValidationStatus status;
 
     LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                    << "> - received message of size " << size;
@@ -306,56 +124,20 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t
     LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                     << "> - PostCommittedBlock: parsing done";
 
-    if (_BlockExists(block))
-    {
-        LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                       << "> - stop validate block, it already exists in the storage";
-        return true;
-    }
-
-    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                    << "> - PostCommittedBlock: not exists";
-
-    if (!_Validate(block, block.primary_delegate, &status))
-    {
-        if (status.reason != logos::process_result::gap_previous
-            && status.reason != logos::process_result::invalid_tip
-            && status.reason != logos::process_result::invalid_request)
-        {
-            LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                            << "> - error validation PostCommittedBlock: "
-                            << ProcessResultToString(status.reason);
-            return false;
-        }
-        else
-        {
-            LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                            << "> - validation PostCommittedBlock failed, try add to cache: "
-                            << ProcessResultToString(status.reason);
-        }
-    }
-    else
-    {
-        status.reason = logos::process_result::progress;
-    }
-
-    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                    << "> - PostCommittedBlock: validation done";
-
-    if (ApplyCacheUpdates(block, pblock, block.primary_delegate, status))
+    if (_AddBlock(block))
     {
         LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                        << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
                        << ", epoch number " << block.epoch_number
-                       << " saved to storage (or already persisted).";
+                       << " added to cache.";
         return true;
     }
     else
     {
         LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                        << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
-                       << " added to cache.";
-        return true;
+                       << " has invalid signatures and rejected.";
+        return false;
     }
 }
 

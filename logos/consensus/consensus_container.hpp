@@ -120,6 +120,7 @@ class ConsensusContainer : public ConsensusScheduler,
     using Service    = boost::asio::io_service;
     using Config     = logos::node_config;
     using Store      = logos::block_store;
+    using Cache      = logos::IBlockCache;
     using Alarm      = logos::alarm;
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
@@ -140,6 +141,7 @@ public:
     ///     @param[in] archiver epoch/microblock related consensus validation and persistence
     ConsensusContainer(Service & service,
                        Store & store,
+                       Cache & block_cache,
                        logos::alarm & alarm,
                        const logos::node_config & config,
                        Archiver & archiver,
@@ -339,6 +341,7 @@ private:
     std::shared_ptr<EpochManager>     _trans_epoch;         ///< epoch transition consensus objects
     Service &                         _service;             ///< boost service
     Store &                           _store;               ///< block store reference
+    Cache &                           _block_cache;         ///< block cache reference
     Alarm &                           _alarm;               ///< alarm reference
     const Config &                    _config;              ///< consensus configuration reference
     Log                               _log;                 ///< boost log

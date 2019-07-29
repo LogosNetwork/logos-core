@@ -47,6 +47,7 @@ protected:
     using Service         = boost::asio::io_service;
     using Config          = ConsensusManagerConfig;
     using Store           = logos::block_store;
+    using Cache           = logos::IBlockCache;
     using Connection      = BackupDelegate<CT>;
     using Connections     = std::vector<std::shared_ptr<Connection>>;
     using Manager         = ConsensusManager<CT>;
@@ -67,6 +68,7 @@ public:
 
     ConsensusManager(Service & service,
                      Store & store,
+                     Cache & block_cache,
                      const Config & config,
                      ConsensusScheduler & scheduler,
                      MessageValidator & validator,
@@ -172,6 +174,7 @@ protected:
     Service &                 _service;
     Connections               _connections;
     Store &                   _store;
+    Cache &                   _block_cache;
     MessageValidator &        _validator;
     ConsensusScheduler &      _scheduler;
     std::mutex                _connection_mutex;

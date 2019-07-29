@@ -276,6 +276,7 @@ bool logos::block_store::iterate_db(
             return error;
         }
     }
+    return error;
 }
 
 template bool logos::block_store::iterate_db(MDB_dbi&, AccountAddress const &, std::function<bool(ThawingFunds&, logos::store_iterator&)> const &,MDB_txn*);

@@ -6,13 +6,14 @@
 MicroBlockConsensusManager::MicroBlockConsensusManager(
                                Service & service,
                                Store & store,
+                               Cache & block_cache,
                                const Config & config,
                                ConsensusScheduler & scheduler,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
                                p2p_interface & p2p,
                                uint32_t epoch_number)
-    : Manager(service, store, config,
+    : Manager(service, store, block_cache, config,
 	      scheduler, validator, p2p, epoch_number)
     , _microblock_handler(handler)
     , _handler(MicroBlockMessageHandler::GetMessageHandler())
@@ -93,7 +94,8 @@ MicroBlockConsensusManager::ApplyUpdates(
     const ApprovedMB & block,
     uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(block);
+//    _persistence_manager.ApplyUpdates(block);
+    _block_cache.StoreMicroBlock(std::make_shared<ApprovedMB>(block));
 
     _microblock_handler.OnApplyUpdates(block);
 }
@@ -125,7 +127,7 @@ MicroBlockConsensusManager::MakeBackupDelegate(
     auto notifier = GetSharedPtr(_events_notifier,
             "MicroBlockConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
-    return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), _store,
+    return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), _store, _block_cache,
             _validator, ids, _microblock_handler, _scheduler, notifier, _persistence_manager,
             GetP2p(), _service);
 }

@@ -561,25 +561,45 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
 {
     using namespace logos;
 
-    bool valid = true;
-    std::lock_guard<std::mutex> lock (_write_mutex);
-    for(uint16_t i = 0; i < message.requests.size(); ++i)
+    if (!status || status->progress < RVP_REQUESTS_DONE)
     {
-        logos::process_return   result;
-        LOG_INFO(_log) << "PersistenceManager::Validate - " 
-            << "attempting to validate : " << message.requests[i]->Hash().to_string();
-        if(!ValidateRequest(message.requests[i], message.epoch_number, result, true, false))
-        {
-            UpdateStatusRequests(status, i, result.code);
-            UpdateStatusReason(status, process_result::invalid_request);
-            LOG_INFO(_log) << "PersistenceManager::Validate - "
-                << "failed to validate request : " << message.requests[i]->Hash().to_string(); 
+        bool valid = true;
+        std::lock_guard<std::mutex> lock (_write_mutex);
 
-            valid = false;
+        for(uint16_t i = 0; i < message.requests.size(); ++i)
+        {
+            if (!status || status->progress < RVP_REQUESTS_FIRST || status->requests.find(i) != status->requests.end())
+            {
+                logos::process_return   result;
+                LOG_INFO(_log) << "PersistenceManager::Validate - "
+                    << "attempting to validate : " << message.requests[i]->Hash().to_string();
+                if (!ValidateRequest(message.requests[i], message.epoch_number, result, true, false))
+                {
+                    UpdateStatusRequests(status, i, result.code);
+                    UpdateStatusReason(status, process_result::invalid_request);
+                    LOG_INFO(_log) << "PersistenceManager::Validate - "
+                        << "failed to validate request : " << message.requests[i]->Hash().to_string();
+
+                    valid = false;
+                }
+                else if (status && status->progress >= RVP_REQUESTS_FIRST)
+                {
+                    status->requests.erase(i);
+                }
+            }
         }
+
+        if (status)
+            status->progress = RVP_REQUESTS_FIRST;
+
+        if (!valid)
+            return false;
+
+        if (status)
+            status->progress = RVP_REQUESTS_DONE;
     }
 
-    return valid;
+    return true;
 }
 
 bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
@@ -1609,7 +1629,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       const BlockHash &token_id,
                                       const AccountAddress& origin,
                                       uint32_t const & epoch_num,
-                                      std::shared_ptr<logos::Account> info,
+                                      std::shared_ptr<logos::Account> &info,
                                       uint16_t transaction_index)
 {
     ReceiveBlock receive(

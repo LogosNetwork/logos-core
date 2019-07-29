@@ -357,6 +357,11 @@ add_library (node
     logos/consensus/persistence/microblock/microblock_persistence.cpp
     logos/consensus/persistence/reservations.cpp
     logos/consensus/persistence/block_cache.cpp
+    logos/consensus/persistence/block_cache.hpp
+    logos/consensus/persistence/block_container.cpp
+    logos/consensus/persistence/block_container.hpp
+    logos/consensus/persistence/block_write_queue.cpp
+    logos/consensus/persistence/block_write_queue.hpp
     logos/consensus/primary_delegate.cpp
     logos/elections/representative.cpp
     logos/elections/candidate.cpp
@@ -437,6 +442,7 @@ if (LOGOS_TEST)
             logos/unit_test/main.cpp
             logos/unit_test/account_serialization.cpp
             logos/unit_test/bootstrap.cpp
+            logos/unit_test/block_cache.cpp
             logos/unit_test/consensus_msg_serialize.cpp
             logos/unit_test/msg_validator_setup.cpp
             logos/unit_test/dual_RB_tips.cpp

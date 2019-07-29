@@ -18,6 +18,7 @@ bool ConsensusContainer::_validate_sig_config = false;
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
+                                       Cache & block_cache,
                                        logos::alarm & alarm,
                                        const logos::node_config & config,
                                        Archiver & archiver,
@@ -28,13 +29,14 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _trans_epoch(nullptr)
     , _service(service)
     , _store(store)
+    , _block_cache(block_cache)
     , _alarm(alarm)
     , _config(config)
     , _archiver(archiver)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
-    , _p2p(p2p, store)
+    , _p2p(p2p, block_cache)
 {
 }
 
@@ -90,7 +92,7 @@ ConsensusContainer::CreateEpochManager(
     EpochConnection connection,
     std::shared_ptr<ApprovedEB> eb)
 {
-    auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
+    auto res = std::make_shared<EpochManager>(_service, _store, _block_cache, _alarm, config,
                                               _archiver, _transition_state,
                                               delegate, connection, epoch_number, *this, *this, _p2p._p2p,
                                               config.delegate_id, _peer_manager, eb);

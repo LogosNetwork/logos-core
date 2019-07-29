@@ -524,7 +524,7 @@ public:
     logos::ledger ledger;
     //CH logos::active_transactions active;
     logos::network network;
-    BlockCache block_cache;
+    logos::BlockCache block_cache;
     logos::peer_container peers;
     boost::filesystem::path application_path;
     logos::node_observers observers;
