@@ -20,7 +20,7 @@ namespace Bootstrap
         return stream.str ();
     }
 
-    Puller::Puller(IBlockCache & block_cache)
+    Puller::Puller(logos::IBlockCache & block_cache)
     : block_cache(block_cache)
     {
         LOG_TRACE(log) << "Puller::"<<__func__;
@@ -91,7 +91,7 @@ namespace Bootstrap
 
         assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
         bool good_block = block->previous == pull->prev_hash &&
-                block_cache.AddEB(block);
+                block_cache.AddEpochBlock(block);
         bool eb_processed = !block_cache.IsBlockCached(block->Hash());
         std::lock_guard<std::mutex> lck (mtx);
         ongoing_pulls.erase(pull);
@@ -130,7 +130,7 @@ namespace Bootstrap
 
         assert(state==PullerState::Micro);
         bool good_block = block->previous == pull->prev_hash &&
-                block_cache.AddMB(block);
+                block_cache.AddMicroBlock(block);
 
         std::lock_guard<std::mutex> lck (mtx);
         ongoing_pulls.erase(pull);
@@ -174,7 +174,7 @@ namespace Bootstrap
         assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
         bool good_block = block->previous == pull->prev_hash &&
                 block->primary_delegate < NUM_DELEGATES &&
-                block_cache.AddBSB(block);
+                block_cache.AddRequestBlock(block);
 
         auto digest(block->Hash());
         std::lock_guard<std::mutex> lck (mtx);
