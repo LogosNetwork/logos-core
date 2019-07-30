@@ -534,6 +534,7 @@ bool PersistenceManager<R>::ValidateBatch(
 {
     // SYL Integration: use _write_mutex because we have to wait for other database writes to finish flushing
     bool valid = true;
+    bool need_bootstrap = false;
     logos::process_return ignored_result;
     std::lock_guard<std::mutex> lock (_write_mutex);
     for(uint64_t i = 0; i < message.requests.size(); ++i)
@@ -551,11 +552,26 @@ bool PersistenceManager<R>::ValidateBatch(
             {
                 valid = false;
             }
+            if(!need_bootstrap)
+            {
+            	if(logos::MissingBlock(ignored_result.code))
+            	{
+            		need_bootstrap = true;
+            	}
+            }
         }
+    }
+    if(need_bootstrap)
+    {
+    	// TODO: high speed Bootstrapping
+    	LOG_DEBUG(_log) << "PersistenceManager<R>::ValidateBatch"
+                        << " Try Bootstrap...";
+        logos_global::Bootstrap();
     }
     return valid;
 }
 
+//Do not bootstrap here, since this function is called by NonDelPersistenceManager which is used by P2P and bootstrap
 bool PersistenceManager<R>::Validate(const PrePrepare & message,
                                      ValidationStatus * status)
 {
@@ -930,8 +946,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
     {
         if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
-            // TODO: high speed Bootstrapping
-            logos_global::Bootstrap();
+            LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - Failed to update prev block's next field";
+            trace_and_halt();
         }
     }
 }
