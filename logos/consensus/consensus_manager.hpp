@@ -40,6 +40,8 @@ public:
     
     virtual void DestroyAllBackups() = 0;
 
+    virtual bool CanReachQuorumViaDirectConnect() = 0;
+
 };
 
 template<ConsensusType CT>
@@ -123,7 +125,9 @@ public:
 
     void EnableP2p(bool enable) override;
 
-    void DestroyAllBackups();
+    void DestroyAllBackups() override;
+
+    bool CanReachQuorumViaDirectConnect() override;
 
 
 protected:

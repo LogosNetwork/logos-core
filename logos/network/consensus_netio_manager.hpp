@@ -20,6 +20,7 @@ public:
     NetIOErrorHandler() = default;
     ~NetIOErrorHandler() = default;
     virtual void EnableP2p(bool enable) = 0;
+    virtual bool CanReachQuorumViaDirectConnect() = 0;
 };
 
 /// ConsensusNetIOManager manages connections to peers.
@@ -116,6 +117,9 @@ protected:
 
     /// Enable p2p on all consensus managers
     void EnableP2p(bool enable) override;
+
+    //returns true if we have enough direct connections to reach quorum
+    bool CanReachQuorumViaDirectConnect() override;
 
     uint32_t GetEpochNumber();
 

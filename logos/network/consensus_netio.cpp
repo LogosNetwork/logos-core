@@ -605,9 +605,16 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
                     
                     });
 
-            //When connection fails, and epoch has not ended,
-            //enable p2p for the time being
-            _error_handler.EnableP2p(true);
+            //reset direct connect count when this direct connection fails
+            ResetConnectCount();
+
+            if(!_error_handler.CanReachQuorumViaDirectConnect())
+            {
+
+                //enable p2p consensus if enough connections have failed to
+                //prevent quorum
+                _error_handler.EnableP2p(true);
+            }
         }
     }
     else {

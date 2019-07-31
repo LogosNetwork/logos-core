@@ -360,14 +360,9 @@ ConsensusManager<CT>::DestroyAllBackups()
 }
 
 template<ConsensusType CT>
-void
-ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
-
-    if (ec && ec == boost::asio::error::operation_aborted)
-    {
-        return;
-    }
-
+bool
+ConsensusManager<CT>::CanReachQuorumViaDirectConnect()
+{
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
     uint64_t quorum = 0;
@@ -376,17 +371,33 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
         auto direct = (*it)->PrimaryDirectlyConnected()?1:0;
+        LOG_TRACE(_log) << "ConsensusManager<" << ConsensusToName(CT)
+            << ">::OnP2pTimeout-delegate=" << (int)((*it)->RemoteDelegateId())
+            << ",direct=" << (int)direct;
         (*it)->ResetConnectCount();
         vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
         stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
     }
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+        << ">::CanReachQuorumViaDirectConnect-"
+        << " vote " << vote << "/" << _vote_quorum
+        << " stake " << stake << "/" << _stake_quorum;
+    return vote + _my_vote >= _vote_quorum && stake + _my_stake >= _stake_quorum;
+}
 
-    if (!(vote >= _vote_quorum && stake >= _stake_quorum))
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
+
+    if (ec && ec == boost::asio::error::operation_aborted)
+    {
+        return;
+    }
+
+    if (!CanReachQuorumViaDirectConnect())
     {
         LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                        << ">::OnP2pTimeout, scheduling p2p timer "
-                        << " vote " << vote << "/" << _vote_quorum
-                        << " stake " << stake << "/" << _stake_quorum;
+                        << ">::OnP2pTimeout, scheduling p2p timer ";
         std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
         ConsensusP2pBridge::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
             auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
