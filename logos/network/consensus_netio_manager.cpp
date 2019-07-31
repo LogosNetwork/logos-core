@@ -281,6 +281,13 @@ ConsensusNetIOManager::BindIOChannel(
     }
 }
 
+bool
+ConsensusNetIOManager::CanReachQuorumViaDirectConnect()
+{
+    //only need to check with one manager, since they all share the same IOChannel 
+    return _consensus_managers[ConsensusType::Request]->CanReachQuorumViaDirectConnect();
+}
+
 void
 ConsensusNetIOManager::EnableP2p(bool enable)
 {
