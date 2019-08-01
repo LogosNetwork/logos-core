@@ -44,9 +44,12 @@ DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE HARD-CODED PUB KEYS!!! TODO
+/// ONLY FOR GENERATING LOGS
 void
-DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
+DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, logos::genesis_config &config)
 {
+    LOG_INFO(_log) << "DelegateIdentityManager::CreateGenesisBlocks, creating genesis blocks";
+
     BlockHash epoch_hash(0);
     BlockHash microblock_hash(0);
     MDB_txn *tx = transaction;
@@ -82,6 +85,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         micro_block.last_micro_block = 1;
         microblock_hash = micro_block.Hash();
         auto microblock_tip = micro_block.CreateTip();
+        LOG_INFO(_log) << "genmicro {\"epoch_number\": \"" << std::to_string(e) << "\", \"previous\": \"" <<
+            micro_block.previous.to_string() << "\", \"hash\": \"" << microblock_hash.to_string() << "\"}";
         if (_store.micro_block_put(micro_block, transaction) ||
                 _store.micro_block_tip_put(microblock_tip, transaction) )
         {
@@ -126,11 +131,14 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
             get_bls(bls_keys[del]);
             get_ecies(ecies_keys[del]);
-            char buff[5];
-            sprintf(buff, "%02x", del + 1);
-            logos::keypair pair(buff);
-            Amount stake = 100000 + (uint64_t)del * 100;
-            Delegate delegate = {pair.pub, dpk, ecies_key, 100000 + (uint64_t)del * 100, stake};
+            //char buff[5];
+            //sprintf(buff, "%02x", del + 1);
+            //logos::keypair pair(buff);
+            logos::public_key pub = config.accounts[(int)i];
+            //Amount stake = 100000 + (uint64_t)del * 100;
+            Amount stake = config.amount[(int)i];
+            //Delegate delegate = {pub, dpk, ecies_key, 100000 + (uint64_t)del * 100, stake};
+            Delegate delegate = {pub, dpk, ecies_key, stake, stake};
             if(e == 0)
             {
                 //TODO: how to initialize the delegate accounts for elections
@@ -143,9 +151,13 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 //dummy request for epoch transition
                 StartRepresenting start;
                 start.epoch_num = 0;
-                start.origin = pair.pub;
+                start.origin = pub;
                 start.stake = stake;
+                start.Sign(config.priv[i], pub);
                 rep.rep_action_tip = start.Hash();
+                LOG_INFO(_log) << "genstartrep {\"origin\": \"" << pub.to_string() << "\", \"stake\": \"" <<
+                    stake.to_string_dec() << "\", \"signature\": \"" << start.signature.to_string() << "\"}";
+
                 if (_store.request_put(start, transaction))
                 {
                     LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update StartRepresenting";
@@ -154,17 +166,24 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 //dummy request for epoch transition
                 AnnounceCandidacy announce;
                 announce.epoch_num = 0;
-                announce.origin = pair.pub;
+                announce.origin = pub;
                 announce.stake = stake;
                 announce.bls_key = dpk;
                 announce.ecies_key = ecies_key;
+                announce.Sign(config.priv[i], pub);
+
+                LOG_INFO(_log) << "genannounce {\"origin\": \"" << pub.to_string() << "\", \"stake\": \"" <<
+                    stake.to_string_dec() << "\", \"bls\": \"" << dpk.to_string() << "\", \"ecies\": \"" <<
+                    ecies_key.ToHexString() << "\", \"signature\": \"" << announce.signature.to_string() << "\"}";
+
+
                 rep.candidacy_action_tip = announce.Hash();
-                if (_store.request_put(announce, transaction) || _store.rep_put(pair.pub, rep, transaction))
+                if (_store.request_put(announce, transaction) || _store.rep_put(pub, rep, transaction))
                 {
                     LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update AnnounceCandidacy";
                     trace_and_halt();
                 }
-                VotingPowerManager::GetInstance()->AddSelfStake(pair.pub,stake,0,transaction);
+                VotingPowerManager::GetInstance()->AddSelfStake(pub,stake,0,transaction);
                 CandidateInfo candidate;
                 candidate.next_stake = stake;
                 candidate.cur_stake = stake;
@@ -172,7 +191,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 candidate.ecies_key = ecies_key;
                 //TODO: should we put these accounts into candidate list even
                 //though elections are not being held yet?
-                if (_store.candidate_put(pair.pub, candidate, transaction))
+                if (_store.candidate_put(pub, candidate, transaction))
                 {
                     LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update CandidateInfo";
                     trace_and_halt();
@@ -181,7 +200,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
 
             LOG_INFO(_log) << __func__ << "bls public key for delegate i=" << (int)i
-                            << " pub_key=" << pair.pub.to_account();
+                            << " pub_key=" << pub.to_account();
             if(i < NUM_DELEGATES)
             {
                 delegate.starting_term = false;
@@ -190,6 +209,19 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         }
 
         epoch_hash = epoch.Hash();
+
+        LOG_INFO(_log) << "genepoch {\"epoch_number\": \"" << std::to_string(e) <<"\", \"previous\": \"" <<
+            epoch.previous.to_string() << "\", \"hash\": \"" << epoch_hash.to_string() << "\", \"delegates\": [";
+
+        for(int i = 0; i < NUM_DELEGATES; i++) {
+            LOG_INFO(_log) << "{\"account\": \"" << epoch.delegates[i].account.to_string() << "\", \"bls_pub\": \"" <<
+                epoch.delegates[i].bls_pub.to_string() << "\", \"ecies\": \"" << epoch.delegates[i].ecies_pub.ToHexString() <<
+                "\", \"vote\": \"" << epoch.delegates[i].vote.to_string_dec() << "\", \"stake\": \"" <<
+                epoch.delegates[i].stake.to_string_dec() << "\"}";
+        }
+        LOG_INFO(_log) << "]}";
+
+
         if(_store.epoch_put(epoch, transaction) ||
                 _store.epoch_tip_put(epoch.CreateTip(), transaction))
         {
@@ -204,96 +236,208 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 }
 
 void
+DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, GenesisBlock &config)
+{
+    BlockHash epoch_hash(0);
+    BlockHash microblock_hash(0);
+    MDB_txn *tx = transaction;
+    // passed in block is overwritten
+    auto update = [this, tx](auto msg, auto &block, const BlockHash &next, auto get, auto put) mutable->void{
+        if (block.previous != 0)
+        {
+            if ((_store.*get)(block.previous, block, tx))
+            {
+                LOG_FATAL(_log) << "update failed to get previous " << msg << " "
+                                << block.previous.to_string();
+                trace_and_halt();
+                return;
+            }
+            block.next = next;
+            auto status = (_store.*put)(block, tx);
+            if (status)
+            {
+                LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update the database";
+                trace_and_halt();
+            }
+        }
+    };
+    for (int e = 0; e <= GENESIS_EPOCH; e++)
+    {
+        microblock_hash = config.gen_micro[e].Hash();
+        auto microblock_tip = config.gen_micro[e].CreateTip();
+
+        if (_store.micro_block_put(config.gen_micro[e], transaction) ||
+                _store.micro_block_tip_put(microblock_tip, transaction) )
+        {
+            LOG_FATAL(_log) << "update failed to insert micro_block or micro_block tip"
+                            << microblock_hash.to_string();
+            trace_and_halt();
+            return;
+        }
+        update("micro block", config.gen_micro[e], microblock_hash,
+               &BlockStore::micro_block_get, &BlockStore::micro_block_put);
+
+        config.gen_epoch[e].micro_block_tip = microblock_tip;
+        epoch_hash = config.gen_epoch[e].Hash();
+        if(_store.epoch_put(config.gen_epoch[e], transaction) ||
+                _store.epoch_tip_put(config.gen_epoch[e].CreateTip(), transaction))
+        {
+            LOG_FATAL(_log) << "update failed to insert epoch or epoch tip"
+                            << epoch_hash.to_string();
+            trace_and_halt();
+            return;
+        }
+        update("epoch", config.gen_epoch[e], epoch_hash,
+               &BlockStore::epoch_get, &BlockStore::epoch_put);
+    }
+
+    for (int del = 0; del < NUM_DELEGATES*2; ++del)
+    {
+        char buff[5];
+        sprintf(buff, "%02x", del + 1);
+        stringstream str(bls_keys[del]);
+        bls::KeyPair bls_key;
+        str >> bls_key.prv >> bls_key.pub;
+        ECIESKeyPair ecies_key(ecies_keys[del]);
+
+        // StartRepresenting requests
+        RepInfo rep;
+        rep.rep_action_tip = config.start[del].Hash();
+        if (_store.request_put(config.start[del], transaction))
+        {
+            LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update StartRepresenting";
+                    trace_and_halt();
+        }
+
+        // AnnounceCandidacy requests
+        rep.candidacy_action_tip = config.announce[del].Hash();
+        if (_store.request_put(config.announce[del], transaction) || _store.rep_put(config.announce[del].origin, rep, transaction))
+        {
+            LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update AnnounceCandidacy";
+            trace_and_halt();
+        }
+        VotingPowerManager::GetInstance()->AddSelfStake(config.announce[del].origin,config.announce[del].stake,0,transaction);
+
+        // CandidateInfo
+        if (_store.candidate_put(config.announce[del].origin, config.candidate[del], transaction))
+        {
+            LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update CandidateInfo";
+            trace_and_halt();
+        }
+
+        // TODO: REMOVE ONCE IM IS IN
+        logos::genesis_delegate delegate{config.start[del].origin, bls_key, ecies_key, config.start[del].stake, config.start[del].stake};
+        logos::genesis_delegates.push_back(delegate);
+    }
+}
+
+void
 DelegateIdentityManager::Init(const Config &config)
 {
-    logos::transaction transaction (_store.environment, nullptr, true);
-
-    const ConsensusManagerConfig &cmconfig = _node.config.consensus_manager_config;
-    _epoch_transition_enabled = cmconfig.enable_epoch_transition;
-
-    EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
-
-    Tip epoch_tip;
-    BlockHash &epoch_tip_hash = epoch_tip.digest;
     uint32_t epoch_number = 0;
-    if (_store.epoch_tip_get(epoch_tip))
     {
-        CreateGenesisBlocks(transaction);
-        epoch_number = GENESIS_EPOCH + 1;
-    }
-    else
-    {
-        ApprovedEB previous_epoch;
-        if (_store.epoch_get(epoch_tip_hash, previous_epoch))
+        logos::transaction transaction(_store.environment, nullptr, true);
+
+        const ConsensusManagerConfig &cmconfig = _node.config.consensus_manager_config;
+        _epoch_transition_enabled = cmconfig.enable_epoch_transition;
+
+        EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
+
+        boost::filesystem::path data_path(boost::filesystem::current_path());
+        logos::genesis_config genconfig;
+        auto config_path((data_path / "genesis.json"));
+        std::fstream config_file;
+        auto error(logos::fetch_object(genconfig, config_path, config_file));
+
+        boost::filesystem::path gen_data_path(boost::filesystem::current_path());
+        GenesisBlock genesisBlock;
+        auto gen_config_path((gen_data_path / "genlogos.json"));
+        std::fstream gen_config_file;
+        auto error1(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
+
+        if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
         {
-            LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
-            trace_and_halt();
+            LOG_INFO(_log) << "Genesis Log input failed signature " << genesisBlock.signature.to_string();
+            return;
         }
 
-        // if a node starts after epoch transition start but before the last microblock
-        // is proposed then the latest epoch block is not created yet and the epoch number
-        // has to be increamented by 1
-        epoch_number = previous_epoch.epoch_number + 1;
-        epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
-    }
+        Tip epoch_tip;
+        BlockHash &epoch_tip_hash = epoch_tip.digest;
+        if (_store.epoch_tip_get(epoch_tip)) {
+            //CreateGenesisBlocks(transaction, genconfig);
+            CreateGenesisBlocks(transaction, genesisBlock);
+            epoch_number = GENESIS_EPOCH + 1;
+        } else {
+            ApprovedEB previous_epoch;
+            if (_store.epoch_get(epoch_tip_hash, previous_epoch)) {
+                LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
+                trace_and_halt();
+            }
 
-    // check account_db
-    if(_store.account_db_empty())
-    {
-        auto error (false);
-
-        // Construct genesis open block
-        boost::property_tree::ptree tree;
-        std::stringstream istream(logos::logos_test_genesis);
-        boost::property_tree::read_json(istream, tree);
-        Send logos_genesis_block(error, tree);
-
-        if(error)
-        {
-            LOG_FATAL(_log) << "DelegateIdentityManager::Init - Failed to initialize Logos genesis block.";
-            trace_and_halt();
+            LOG_INFO(_log) << "DelegateIdentityManager::Init to get epoch: " << epoch_tip.to_string();
+            // if a node starts after epoch transition start but before the last microblock
+            // is proposed then the latest epoch block is not created yet and the epoch number
+            // has to be incremented by 1
+            epoch_number = previous_epoch.epoch_number + 1;
+            epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
         }
 
-        //TODO check with Greg
-        ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-        if (_store.request_put(logos_genesis_block, transaction) ||
-            _store.receive_put(logos_genesis_receive.Hash(), logos_genesis_receive, transaction) ||
-            _store.account_put(logos::genesis_account,
-            {
-                /* Head         */ logos_genesis_block.GetHash(),
-                /* Receive Head */ logos_genesis_receive.Hash(),
-                /* Rep          */ 0,
-                /* Open         */ logos_genesis_block.GetHash(),
-                /* Amount       */ logos_genesis_block.transactions[0].amount,
-                /* Time         */ logos::seconds_since_epoch(),
-                /* Count        */ 1,
-                /* Receive      */ 1,
-                /* Claim Epoch  */ 0
-            },
-            transaction))
-        {
-            LOG_FATAL(_log) << "DelegateIdentityManager::Init failed to update the database";
-            trace_and_halt();
-        }
-        CreateGenesisAccounts(transaction);
+        // check account_db
+        if (_store.account_db_empty()) {
+            auto error(false);
+
+            // Construct genesis open block
+            boost::property_tree::ptree tree;
+            std::stringstream istream(logos::logos_test_genesis);
+            boost::property_tree::read_json(istream, tree);
+            Send logos_genesis_block(error, tree);
+            if (error) {
+                LOG_FATAL(_log) << "DelegateIdentityManager::Init - Failed to initialize Logos genesis block.";
+                trace_and_halt();
+            }
+            //TODO check with Greg
+            ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
+            if (_store.request_put(logos_genesis_block, transaction) ||
+                _store.receive_put(logos_genesis_receive.Hash(), logos_genesis_receive, transaction) ||
+                _store.account_put(logos::genesis_account,
+                                   {
+                                           /* Head         */ logos_genesis_block.GetHash(),
+                                           /* Receive Head */ logos_genesis_receive.Hash(),
+                                           /* Rep          */ 0,
+                                           /* Open         */ logos_genesis_block.GetHash(),
+                                           /* Amount       */ logos_genesis_block.transactions[0].amount,
+                                           /* Time         */ logos::seconds_since_epoch(),
+                                           /* Count        */ 1,
+                                           /* Receive      */ 1,
+                                           /* Claim Epoch  */ 0
+                                   },
+                                   transaction)) {
+                LOG_FATAL(_log) << "DelegateIdentityManager::Init failed to update the database";
+                trace_and_halt();
+            }
+            CreateGenesisAccounts(transaction, genesisBlock);
+            //CreateGenesisAccounts(transaction, genconfig, genesisBlock);
+        } else { LoadGenesisAccounts(genesisBlock); }
+
+        // TODO, wallet integration
+        _delegate_account = logos::genesis_delegates[cmconfig.delegate_id].key;
+        _ecies_key = logos::genesis_delegates[cmconfig.delegate_id].ecies_key;
+        *_bls_key = logos::genesis_delegates[cmconfig.delegate_id].bls_key;
+        _global_delegate_idx = cmconfig.delegate_id;
+        LOG_INFO(_log) << "delegate id is " << (int) _global_delegate_idx;
+
+        ConsensusContainer::SetCurEpochNumber(epoch_number);
     }
-    else {LoadGenesisAccounts();}
-
-    // TODO, wallet integration
-    _delegate_account = logos::genesis_delegates[cmconfig.delegate_id].key.pub;
-    _ecies_key = logos::genesis_delegates[cmconfig.delegate_id].ecies_key;
-    *_bls_key = logos::genesis_delegates[cmconfig.delegate_id].bls_key;
-    _global_delegate_idx = cmconfig.delegate_id;
-    LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
-
-    ConsensusContainer::SetCurEpochNumber(epoch_number);
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE PRIVATE KEYS ARE 0-63!!! TBD
 /// THE SAME GOES FOR BLS KEYS
+/// ONLY FOR GENERATING LOG
 void
-DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
+DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, logos::genesis_config &config, GenesisBlock &config1)
 {
+
+    LOG_INFO(_log) << "DelegateIdentityManager::CreateGenesisBlocks, creating genesis accounts";
     logos::account_info genesis_account;
     if (_store.account_get(logos::logos_test_account, genesis_account, transaction))
     {
@@ -309,23 +453,31 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
         ECIESKeyPair ecies_key(ecies_keys[del]);
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, ecies_key,
+
+        logos::public_key pub = config.accounts[del];
+
+        logos::genesis_delegate delegate{pub, bls_key, ecies_key,
                                          100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
-        logos::keypair &pair = delegate.key;
+        //logos::keypair &pair = delegate.key;
+        //pub = pair.pub;
 
         logos::genesis_delegates.push_back(delegate);
 
-        logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MinTransactionFee(RequestType::Send));
+        //logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MIN_TRANSACTION_FEE);
+        logos::amount amount(config.amount[del]);
 
         Send request(logos::logos_test_account,   // account
                      genesis_account.head,        // previous
                      genesis_account.block_count, // sequence
-                     pair.pub,                    // link/to
+                     pub,                    // link/to
                      amount,
                      0,                           // transaction fee
                      logos::test_genesis_key.prv.data, // SG: Sign with correct key
                      logos::test_genesis_key.pub);
 
+        LOG_INFO(_log) << "genaccount {\"account\": \"" << pub.to_string() << "\", \"amount\": \""<<
+            amount.to_string_dec() << "\", \"previous\": \"" << genesis_account.head.to_string() << "\", \"sequence\": \"" <<
+            std::to_string(genesis_account.block_count) << "\", \"signature\": \"" << request.signature.to_string() << "\"}";
         genesis_account.SetBalance(genesis_account.GetBalance() - amount,0,transaction);
         genesis_account.head = request.GetHash();
         genesis_account.block_count++;
@@ -335,7 +487,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         if (_store.request_put(request, transaction) ||
             _store.receive_put(receive.Hash(), receive, transaction) ||
-            _store.account_put(pair.pub,
+            _store.account_put(pub,
                            {
                                /* Head          */ 0,
                                /* Receive       */ receive.Hash(),
@@ -362,7 +514,57 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 }
 
 void
-DelegateIdentityManager::LoadGenesisAccounts()
+DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, GenesisBlock &config)
+{
+
+    LOG_INFO(_log) << "DelegateIdentityManager::CreateGenesisBlocks, creating genesis accounts";
+    logos::account_info genesis_account;
+    if (_store.account_get(logos::logos_test_account, genesis_account, transaction))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to get account";
+        trace_and_halt();
+    }
+
+    // create genesis delegate accounts
+    for (int del = 0; del < NUM_DELEGATES*2; ++del) {
+
+        genesis_account.SetBalance(genesis_account.GetBalance() - config.gen_sends[del].transactions.front().amount,0,transaction);
+        genesis_account.head = config.gen_sends[del].GetHash();
+        genesis_account.block_count++;
+        genesis_account.modified = logos::seconds_since_epoch();
+
+        ReceiveBlock receive(0, config.gen_sends[del].GetHash(), 0);
+
+        if (_store.request_put(config.gen_sends[del], transaction) ||
+            _store.receive_put(receive.Hash(), receive, transaction) ||
+            _store.account_put(config.gen_sends[del].transactions.front().destination,
+                           {
+                               /* Head          */ 0,
+                               /* Receive       */ receive.Hash(),
+                               /* Rep           */ 0,
+                               /* Open          */ config.gen_sends[del].GetHash(),
+                               /* Amount        */ config.gen_sends[del].transactions.front().amount,
+                               /* Time          */ logos::seconds_since_epoch(),
+                               /* Count         */ 0,
+                               /* Receive Count */ 1,
+                               /* Claim Epoch   */ 0
+                           },
+                           transaction))
+        {
+           LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to update the database";
+           trace_and_halt();
+        }
+    }
+
+    if (_store.account_put(logos::logos_test_account, genesis_account, transaction))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to update the account";
+        trace_and_halt();
+    }
+}
+
+void
+DelegateIdentityManager::LoadGenesisAccounts(logos::genesis_config &config)
 {
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
@@ -371,9 +573,29 @@ DelegateIdentityManager::LoadGenesisAccounts()
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
         ECIESKeyPair ecies_key(ecies_keys[del]);
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, ecies_key,
+        logos::public_key pub = config.accounts[del];
+        logos::genesis_delegate delegate{pub, bls_key, ecies_key,
                                          100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
-        logos::keypair &pair = delegate.key;
+        //logos::keypair &pair = delegate.key;
+
+        logos::genesis_delegates.push_back(delegate);
+    }
+}
+
+void
+DelegateIdentityManager::LoadGenesisAccounts(GenesisBlock &config)
+{
+    for (int del = 0; del < NUM_DELEGATES*2; ++del) {
+        char buff[5];
+        sprintf(buff, "%02x", del + 1);
+        stringstream str(bls_keys[del]);
+        bls::KeyPair bls_key;
+        str >> bls_key.prv >> bls_key.pub;
+        ECIESKeyPair ecies_key(ecies_keys[del]);
+        logos::public_key pub = config.gen_sends[del].transactions.front().destination;
+        logos::genesis_delegate delegate{pub, bls_key, ecies_key,
+                                         config.gen_epoch[0].delegates[del].vote, config.gen_epoch[0].delegates[del].stake};
+        //logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);
     }
@@ -555,6 +777,25 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
     ApprovedEBPtr epoch_next;
 
     LOG_DEBUG(_log) << "DelegateIdentityManager::CheckAdvertise for epoch " << current_epoch_number;
+
+    if (current_epoch_number <= GENESIS_EPOCH+1)
+    {
+
+        //_node.p2p.get_peers(this, 4);
+
+        ApprovedEBPtr eb;
+        IdentifyDelegates(2, idx, eb);
+
+        if (idx != NON_DELEGATE) {
+            //std::cout << std::to_string(idx) << std::endl;
+            auto ids = GetDelegatesToAdvertise(idx);
+            Advertise(2, idx, eb, ids);
+            UpdateAddressAd(2, idx);
+        }
+        LoadDB();
+        //auto now = boost::posix_time::milliseconds(0);
+        //ScheduleAd(now);
+    }
 
     // advertise for next epoch
     IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
@@ -1130,7 +1371,7 @@ DelegateIdentityManager::LoadDB()
 
         /// all ad messages are saved to the database even if they are encrypted
         /// with another delegate id so that the delegate can respond to peer request
-        /// for ad messages. we only store in memory messages encryped with this delegate id
+        /// for ad messages. we only store in memory messages encrypted with this delegate id
         auto idx = GetDelegateIdFromCache(adKey.epoch_number);
         if (idx == adKey.encr_delegate_id) {
             try {
@@ -1413,4 +1654,231 @@ DelegateIdentityManager::GetDelegateIdFromCache(uint32_t cur_epoch_number) {
         }
         return idx;
     }
+}
+
+logos::genesis_config::genesis_config ()
+{}
+
+bool logos::genesis_config::deserialize_json (bool & upgraded_a, boost::property_tree::ptree & tree_a)
+{
+    auto error (false);
+    try
+    {
+        std::stringstream ss;
+        boost::property_tree::json_parser::write_json(ss, tree_a);
+
+        //std::cout << ss.str() << std::endl;
+        auto accnts (tree_a.get_child("accounts"));
+        for (int del = 0; del < NUM_DELEGATES*2; ++del) {
+            auto idx (accnts.get_child(std::to_string(del)));
+            //accounts[del] = idx.get<std::string>("account");
+            auto error = accounts[del].decode_account(idx.get<std::string>("account"));
+            priv[del].decode_hex(idx.get<std::string>("private"));
+            amount[del].decode_dec(idx.get<std::string>("amount"));
+            //LOG_DEBUG(_log) << "SGU AMOUNT:  " << idx.get<std::string>("amount");
+        }
+        //auto idx (accounts.get_child("0"));
+        //auto account (idx.get<std::string>("account"));
+        //std::cout << account << std::endl;
+        //LOG_DEBUG(_log) << "SGU ACCOUNT: " << account;
+    }
+    catch (std::runtime_error const &)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
+GenesisBlock::GenesisBlock()
+{}
+
+bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::ptree & tree_a)
+{
+    digest = BlockHash(0);
+    blake2b_state hash;
+
+    auto status(blake2b_init(&hash, sizeof(BlockHash)));
+    assert(status == 0);
+    auto error (false);
+    try
+    {
+        std::stringstream ss;
+        boost::property_tree::json_parser::write_json(ss, tree_a);
+
+        auto accnts (tree_a.get_child("accounts"));
+        int idx = 0;
+        boost::property_tree::ptree::const_iterator end = accnts.end();
+        for (boost::property_tree::ptree::const_iterator it = accnts.begin(); it != end; ++it)
+        {
+            AccountAddress account;
+            account.decode_hex(it->second.get<std::string>("account"));
+            //del_accounts[idx].decode_hex(it->second.get<std::string>("account"));
+            Amount amount;
+            amount.decode_dec(it->second.get<std::string>("amount"));
+            BlockHash previous;
+            previous.decode_hex(it->second.get<std::string>("previous"));
+            //del_amount[idx].decode_dec(it->second.get<std::string>("amount"));
+            uint32_t sequence = it->second.get<uint32_t>("sequence");
+            AccountSig signature;
+            signature.decode_hex(it->second.get<std::string>("signature"));
+            uint64_t work = 0;
+
+            gen_sends[idx] = Send(logos::logos_test_account,   // account
+                     previous,        // previous
+                     sequence, // sequence
+                     account,                    // link/to
+                     amount,
+                     0,                           // transaction fee
+                     signature,
+                     work);
+
+            gen_sends[idx].Hash(hash);
+            idx++;
+        }
+
+        auto micro (tree_a.get_child("micros"));
+        idx = 0;
+        end = micro.end();
+        for (boost::property_tree::ptree::const_iterator it = micro.begin(); it != end; ++it)
+        {
+            gen_micro[idx].primary_delegate = 0xff;
+            gen_micro[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
+            gen_micro[idx].sequence = 0;
+            gen_micro[idx].timestamp = 0;
+            gen_micro[idx].previous.decode_hex(it->second.get<std::string>("previous"));
+            gen_micro[idx].last_micro_block = 0;
+            gen_micro[idx].Hash(hash);
+            idx++;
+        }
+
+        auto epoch (tree_a.get_child("epochs"));
+        idx = 0;
+        end = epoch.end();
+        for (boost::property_tree::ptree::const_iterator it = epoch.begin(); it != end; ++it)
+        {
+            gen_epoch[idx].primary_delegate = 0xff;
+            gen_epoch[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
+            gen_epoch[idx].sequence = 0;
+            gen_epoch[idx].timestamp = 0;
+            gen_epoch[idx].previous.decode_hex(it->second.get<std::string>("previous"));
+            auto delegates (it->second.get_child("delegates"));
+            int del_idx = 0;
+            boost::property_tree::ptree::const_iterator end1 = delegates.end();
+            for (boost::property_tree::ptree::const_iterator it = delegates.begin(); it != end1; ++it)
+            {
+                logos::public_key pub;
+                pub.decode_hex(it->second.get<std::string>("account"));
+                DelegatePubKey dpk(it->second.get<std::string>("bls_pub"));
+                ECIESPublicKey ecies_key;
+                ecies_key.FromHexString(it->second.get<std::string>("ecies"));
+                Amount stake, vote;
+                stake.decode_dec(it->second.get<std::string>("stake"));
+                vote.decode_dec(it->second.get<std::string>("vote"));
+                Delegate delegate = {pub, dpk, ecies_key, stake, stake};
+                delegate.starting_term = false;
+                gen_epoch[idx].delegates[del_idx] = delegate;
+                del_idx++;
+            }
+            gen_epoch[idx].Hash(hash);
+            idx++;
+        }
+
+        auto starts (tree_a.get_child("start"));
+        idx = 0;
+        end = starts.end();
+        for (boost::property_tree::ptree::const_iterator it = starts.begin(); it != end; ++it)
+        {
+            logos::public_key pub;
+            pub.decode_hex(it->second.get<std::string>("origin"));
+            Amount stake;
+            stake.decode_dec(it->second.get<std::string>("stake"));
+            start[idx].epoch_num = 0;
+            start[idx].origin = pub;
+            start[idx].stake = stake;
+            start[idx].signature.decode_hex(it->second.get<std::string>("signature"));
+            start[idx].Hash(hash);
+            idx++;
+        }
+
+        auto announces (tree_a.get_child("announce"));
+        idx = 0;
+        end = announces.end();
+        for (boost::property_tree::ptree::const_iterator it = announces.begin(); it != end; ++it)
+        {
+            logos::public_key pub;
+            pub.decode_hex(it->second.get<std::string>("origin"));
+            Amount stake;
+            stake.decode_dec(it->second.get<std::string>("stake"));
+            announce[idx].epoch_num = 0;
+            announce[idx].origin = pub;
+            announce[idx].stake = stake;
+            announce[idx].ecies_key.FromHexString(it->second.get<std::string>("ecies"));
+            DelegatePubKey dpk(it->second.get<std::string>("bls"));
+            announce[idx].bls_key = dpk;
+            announce[idx].signature.decode_hex(it->second.get<std::string>("signature"));
+
+            candidate[idx].next_stake = stake;
+            candidate[idx].cur_stake = stake;
+            candidate[idx].bls_key = dpk;
+            candidate[idx].ecies_key = announce[idx].ecies_key;
+
+            announce[idx].Hash(hash);
+            idx++;
+        }
+
+        signature.decode_hex(tree_a.get<std::string>("signature"));
+        status = blake2b_final(&hash, digest.data(), sizeof(BlockHash));
+        //assert(status == 0);
+        //LOG_DEBUG(_log) << "SGU DEBUG HASH " << digest.to_string();
+        //Sign(logos::test_genesis_key.prv.data, logos::test_genesis_key.pub);
+        //LOG_DEBUG(_log) << "SGU DEBUG SIGNATURE " << signature.to_string();
+    }
+    catch (std::runtime_error const &)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+// For creating logs only
+void logos::genesis_config::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
+{
+
+    ed25519_sign(const_cast<BlockHash&>(digest).data(),
+                 HASH_SIZE,
+                 const_cast<AccountPrivKey&>(priv).data(),
+                 const_cast<AccountPubKey&>(pub).data(),
+                 signature.data());
+}
+
+bool GenesisBlock::VerifySignature(AccountPubKey const & pub) const
+{
+    return 0 == ed25519_sign_open(const_cast<BlockHash &>(digest).data(),
+                                  HASH_SIZE,
+                                  const_cast<AccountPubKey&>(pub).data(),
+                                  const_cast<AccountSig&>(signature).data());
+}
+void GenesisBlock::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
+{
+
+    ed25519_sign(const_cast<BlockHash&>(digest).data(),
+                 HASH_SIZE,
+                 const_cast<AccountPrivKey&>(priv).data(),
+                 const_cast<AccountPubKey&>(pub).data(),
+                 signature.data());
+}
+bool GenesisBlock::Validate(logos::process_return & result) const
+{
+    for (int i = 0; i < NUM_DELEGATES*2; ++i)
+    {
+        if (start[i].stake != gen_epoch[0].delegates[i].stake)
+            return false;
+
+        if (announce[i].stake != gen_epoch[0].delegates[i].stake)
+            return false;
+    }
+    return true;
 }
