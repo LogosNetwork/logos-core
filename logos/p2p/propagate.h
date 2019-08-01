@@ -17,8 +17,8 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <hash.h>
 
-#define DEFAULT_PROPAGATE_STORE_SIZE    0x10000
-#define DEFAULT_PROPAGATE_HASH_SIZE     0x100000
+#define DEFAULT_PROPAGATE_STORE_SIZE    0x100
+#define DEFAULT_PROPAGATE_HASH_SIZE     0x100
 #define PROPAGATE_HASH_BUCKET_LOG       4
 #define PROPAGATE_HASH_BUCKET_SIZE      (1 << PROPAGATE_HASH_BUCKET_LOG)
 

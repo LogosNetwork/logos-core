@@ -8,8 +8,44 @@
 
 #include <bls/bls.hpp>
 
+static uint64_t new_counter = 0, delete_counter = 0;
+
+void *operator new(size_t size) {
+    new_counter++;
+    return malloc(size);
+}
+
+void operator delete(void *ptr) {
+    delete_counter++;
+    free(ptr);
+}
+
+void *operator new[](size_t size) {
+    new_counter++;
+    return malloc(size);
+}
+
+void operator delete[](void *ptr) {
+    delete_counter++;
+    free(ptr);
+}
+
+static void *out_counters_thread(void *arg) {
+    for(;;) {
+        FILE *f = fopen("counters.log", "a");
+        time_t t = time(0);
+        fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld\n", ctime(&t), getpid(), new_counter - delete_counter, new_counter, delete_counter);
+        fclose(f);
+        sleep(60);
+    }
+    return 0;
+}
+
 int main (int argc, char * const * argv)
 {
+    pthread_t t;
+    pthread_create(&t, 0, out_counters_thread, 0);
+
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
     bls::init();
 
