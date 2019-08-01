@@ -21,6 +21,20 @@ namespace logos {
     class block_store;
     class transaction;
     class node;
+    class genesis_config
+    {
+    public:
+        genesis_config();
+        ~genesis_config() = default;
+        bool deserialize_json (bool &, boost::property_tree::ptree &);
+        void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
+        Log _log;
+        AccountAddress accounts [NUM_DELEGATES*2];
+        Amount amount [NUM_DELEGATES*2];
+        AccountPrivKey priv [NUM_DELEGATES*2];
+        AccountSig signature;
+        BlockHash digest;
+    };
 }
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
@@ -30,6 +44,29 @@ enum class EpochDelegates {
     Next
 };
 class PeerBinder;
+
+class GenesisBlock
+{
+public:
+    GenesisBlock();
+    ~GenesisBlock() = default;
+
+    bool deserialize_json (bool &, boost::property_tree::ptree &);
+    void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
+    bool VerifySignature(AccountPubKey const & pub) const;
+    bool Validate(logos::process_return & result) const;
+
+    Log _log;
+    Send gen_sends[NUM_DELEGATES*2];
+    logos::genesis_delegate gen_delegates[NUM_DELEGATES*2];
+    ApprovedMB gen_micro [3];
+    ApprovedEB gen_epoch [3];
+    StartRepresenting start [NUM_DELEGATES*2];
+    AnnounceCandidacy announce [NUM_DELEGATES*2];
+    CandidateInfo candidate [NUM_DELEGATES*2];
+    AccountSig signature;
+    BlockHash digest;
+};
 
 class DelegateIdentityManager
 {
@@ -76,14 +113,24 @@ public:
     ~DelegateIdentityManager() = default;
 
     /// Create genesis Epoch's and MicroBlock's
-    void CreateGenesisBlocks(logos::transaction &transaction);
+    void CreateGenesisBlocks(logos::transaction &transaction, logos::genesis_config &config);
+
+    /// Create genesis Epoch's and MicroBlock's
+    void CreateGenesisBlocks(logos::transaction &transaction, GenesisBlock &config);
 
     /// Initialize genesis accounts
     /// @param transaction database transaction reference
-    void CreateGenesisAccounts(logos::transaction &);
+    void CreateGenesisAccounts(logos::transaction &, logos::genesis_config &config, GenesisBlock &config1);
+
+    /// Initialize genesis accounts
+    /// @param transaction database transaction reference
+    void CreateGenesisAccounts(logos::transaction &, GenesisBlock &config);
 
     /// Load genesis accounts
-    void LoadGenesisAccounts();
+    void LoadGenesisAccounts(logos::genesis_config &config);
+
+    /// Load genesis accounts
+    void LoadGenesisAccounts(GenesisBlock &config);
 
     /// Initialize Genesis blocks/accounts
     /// @param config node configuration reference
