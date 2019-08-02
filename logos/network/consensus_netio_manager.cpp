@@ -143,14 +143,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
                     LOG_INFO(this_s->_log)
                         << "ConsensusNetIOManager::_startup_timer - "
                         << "Delegates not connected, starting p2p consensus";
-                    if(this_s->GetEpochNumber() == GENESIS_EPOCH+1)
-                    {
-                        mgr->StartConsensusWithP2p();
-                    }
-                    else
-                    {
-                        mgr->EnableP2p(true);
-                    }
+                    mgr->StartConsensusWithP2p();
                 }
             }
         }

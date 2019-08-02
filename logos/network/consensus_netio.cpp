@@ -610,10 +610,21 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
 
             if(!_error_handler.CanReachQuorumViaDirectConnect())
             {
+                LOG_INFO(_log) << "ConsensusNetIO::OnNetIOError-reconnecting-"
+                    << "enabling p2p"
+                    << CommonInfoToLog();
+                
 
                 //enable p2p consensus if enough connections have failed to
                 //prevent quorum
                 _error_handler.EnableP2p(true);
+            }
+            else
+            {
+                LOG_INFO(_log) << "ConsensusNetIO::OnNetIOError-reconnecting-"
+                    << "not enabling p2p"
+                    << CommonInfoToLog();
+            
             }
         }
     }
