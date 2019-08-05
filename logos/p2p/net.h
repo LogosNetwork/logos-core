@@ -59,7 +59,7 @@ constexpr uint64_t DEFAULT_MAX_UPLOAD_TARGET = 0;
 constexpr uint64_t MAX_UPLOAD_TIMEFRAME = 60 * 60 * 24;
 
 constexpr bool DEFAULT_FORCEDNSSEED = false;
-constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000;
+constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 2 * 1000;
 constexpr size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
@@ -113,7 +113,8 @@ private:
     boost::asio::ip::tcp::socket    socket;
     std::shared_ptr<CNode>          pnode;
     NodeId                          id;
-    bool                            in_shutdown;
+    std::atomic<bool>               read_running;
+    std::atomic<bool>               in_shutdown;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
                      size_t bytes_transferred);
     void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,

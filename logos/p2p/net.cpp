@@ -309,6 +309,7 @@ AsioSession::AsioSession(boost::asio::io_service& ios,
     , socket(ios)
     , pnode(0)
     , id(-1ll)
+    , read_running(false)
     , in_shutdown(false)
     , logger_(connman.logger_)
 {
@@ -334,21 +335,26 @@ void AsioSession::setNode(std::shared_ptr<CNode> pnode_)
 void AsioSession::start()
 {
     // debug socket number to track file descriptor leaks
-    LogDebug(BCLog::NET, "Session started, this=%p, socket=%d, peer=%lld", this, socket.native_handle(), id);
-    socket.async_read_some(boost::asio::buffer(data, max_length),
+    bool expected = false;
+    if (read_running.compare_exchange_weak(expected, true))
+    {
+        LogDebug(BCLog::NET, "Session reading started, this=%p, socket=%d, peer=%lld",
+                this, socket.native_handle(), id);
+        socket.async_read_some(boost::asio::buffer(data, max_length),
                            boost::bind(&AsioSession::handle_read, this, shared_from_this(),
                                        boost::asio::placeholders::error,
                                        boost::asio::placeholders::bytes_transferred));
+    }
 }
 
 void AsioSession::shutdown()
 {
-    if (in_shutdown)
+    bool expected = false;
+    if (!in_shutdown.compare_exchange_weak(expected, true))
     {
         LogDebug(BCLog::NET, "Double session shutdown ignored, peer=%ld\n", id);
         return;
     }
-    in_shutdown = true;
     boost::system::error_code error;
     socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
     if (error)
@@ -387,10 +393,20 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
     else
     {
         LogTrace(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
-        socket.async_read_some(boost::asio::buffer(data, max_length),
+        auto pnode_ = pnode;
+        if (!pnode_ || !pnode_->fPauseRecv)
+        {
+            socket.async_read_some(boost::asio::buffer(data, max_length),
                                boost::bind(&AsioSession::handle_read, this, shared_from_this(),
                                            boost::asio::placeholders::error,
                                            boost::asio::placeholders::bytes_transferred));
+        }
+        else
+        {
+            LogDebug(BCLog::NET, "Session reading stopped, this=%p, socket=%d, peer=%lld",
+                    this, socket.native_handle(), id);
+            read_running = false;
+        }
     }
 }
 
