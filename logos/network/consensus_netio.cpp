@@ -136,9 +136,7 @@ ConsensusNetIO::Connect()
 }
 
 void
-ConsensusNetIO::Send(
-    const void *data, 
-    size_t size)
+ConsensusNetIO::Send(const void *data, size_t size)
 {
 
     std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);

@@ -37,7 +37,7 @@ class ConsensusNetIOManager : public NetIOErrorHandler,
     using Socket      = boost::asio::ip::tcp::socket;
     using Config      = ConsensusManagerConfig;
     using Address     = boost::asio::ip::address;
-    using Delegates   = std::vector<Config::Delegate>;
+    using Delegates   = std::unordered_map<uint8_t,Config::Delegate>;
     using Managers    = std::map<ConsensusType, std::shared_ptr<NetIOHandler>>;
     using Connections = std::vector<std::shared_ptr<ConsensusNetIO>>;
     using Timer       = boost::asio::deadline_timer;
@@ -69,6 +69,7 @@ public:
     /// Called by PeerAcceptor.
     ///     @param endpoint connected peer endpoint
     ///     @param socket connected peer socket
+    ///     @param delegate_id peer's delegate id
     void OnConnectionAccepted(const Endpoint endpoint,
                               std::shared_ptr<Socket>,
                               uint8_t delegate_id);
@@ -102,9 +103,10 @@ protected:
 
 
     /// Create netio instance and add to connecitons
-    /// @param t either service or shared_ptr<Socket>
     /// @param remote_delegate_id remote delegate id
-    /// @param endpoint remote peer's endpoint
+    /// @returns ConsensusNetIO object that does not yet have a connection
+    /// Actual connection is bound later when learning the peers endpoint
+    /// or when the peer connects to us
     std::shared_ptr<ConsensusNetIO> AddNetIOConnection(uint8_t remote_delegate_id);
 
     /// Schedule heartbeat/garbage colleciton timer
@@ -118,7 +120,7 @@ protected:
     /// Enable p2p on all consensus managers
     void EnableP2p(bool enable) override;
 
-    //returns true if we have enough direct connections to reach quorum
+    /// @returns true if we have enough direct connections to reach quorum
     bool CanReachQuorumViaDirectConnect() override;
 
     uint32_t GetEpochNumber();
@@ -141,5 +143,5 @@ private:
     std::mutex                     _gb_mutex;           ///< Garbage mutex
     Config                         _config;
     PeerAcceptorStarter &          _acceptor;
-    Timer                          _startup_timer;
+    Timer                          _startup_timer;      ///< Timer to enable p2p consensus if fail to connect 
 };
