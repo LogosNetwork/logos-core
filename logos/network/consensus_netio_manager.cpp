@@ -30,10 +30,13 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
     , _heartbeat_timer(service)
     , _config(config)
     , _acceptor(starter)
-    , _delegates(config.delegates)
     , _startup_timer(service)
 {
 
+    for(auto& d: config.delegates)
+    {
+        _delegates[d.id] = d; 
+    }
 }
 
 void
@@ -48,46 +51,9 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
         << ", _delegate_id = " << unsigned(_delegate_id)
         << ",num_delegates = " << unsigned(num_delegates);
 
-    std::vector<bool> created_backup(num_delegates,false);
-
-    //for delegates in config, we know their ip, so connect now if their id
-    //is greater than our own
-    for(auto & delegate : _delegates)
-    {
-        if(_delegate_id < delegate.id)
-        {
-            LOG_INFO(_log) << "ConsensusNetIOManager::Start - delegate = "
-                << unsigned(delegate.id) << " present in config." 
-                << "Connecting now."
-                << " epoch_number = " << epoch_info->GetEpochNumber();
-            created_backup[delegate.id] = true;
-            auto netio = AddNetIOConnection(delegate.id);
-
-            DelegateIdentities ids{_delegate_id, delegate.id};
-            for(auto & entry : _consensus_managers)
-            {
-                auto backup = entry.second->AddBackupDelegate(ids);
-                netio->AddConsensusConnection(entry.first,backup);
-            }
-
-            Endpoint endpoint(make_address_v4(delegate.ip), _config.peer_port);
-            netio->BindEndpoint(endpoint);
-            netio->Connect();
-        }
-    }
-
-    //for delegates not present in config, we need to wait until we receive
-    //their addressAd over p2p, to learn their ip
-    //also, delegates in config with id less than our own, we wait for them to
-    //connect to us
     for(uint8_t i = 0; i < num_delegates; ++i)
     {
-        if(i == _delegate_id || created_backup[i]) continue;
-        LOG_INFO(_log) << "ConsensusNetIOManager::Start - "
-            << "delegate = " << unsigned(i) << " creating backup but "
-            << "connecting later"
-            << " epoch_number = " << epoch_info->GetEpochNumber();
-
+        if(i == _delegate_id) continue;
         DelegateIdentities ids{_delegate_id, i};
 
         auto netio = AddNetIOConnection(i);
@@ -96,8 +62,22 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
             auto backup = entry.second->AddBackupDelegate(ids);
             netio->AddConsensusConnection(entry.first,backup);
         }
+        //If delegate is in config, and id is greater than ours, connect now
+        if(_delegate_id < i)
+        {
+            auto iter = _delegates.find(i);
+            if(iter != _delegates.end())
+            {
+                Endpoint endpoint(make_address_v4(iter->second.ip),_config.peer_port);
+                netio->BindEndpoint(endpoint);
+                netio->Connect();
+                LOG_INFO(_log) << "ConsensusNetIOManager::Start - delegate="
+                    << unsigned(iter->second.id) 
+                    << ",epoch_number = " << epoch_info->GetEpochNumber()
+                    << "Connecting now.";
+            }
+        }
     }
-
 
     if(_delegate_id != 0)
     {
@@ -106,9 +86,14 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 
     ScheduleTimer(HEARTBEAT);
 
-    boost::posix_time::seconds startup_timeout{60};
+    //if we don't connect in 5 minutes, start p2p consensus
+    boost::posix_time::seconds startup_timeout{300};
     _startup_timer.expires_from_now(startup_timeout);
-
+    //if not genesis, only wait 30 seconds before starting p2p consensus
+    if(GetEpochNumber() > GENESIS_EPOCH+1)
+    {
+        startup_timeout = boost::posix_time::seconds(30);
+    }
 
     std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
     auto this_s = GetSharedPtr(this_w,
@@ -157,20 +142,26 @@ void
 ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port)
 {
     LOG_INFO(_log) << "ConsensusNetIOManager::AddDelegate - "
-        << "delegate.id = " << unsigned(delegate_id) << " _delegate_id ="
-        << unsigned(_delegate_id)
+        << "delegate.id=" << unsigned(delegate_id)
+        << ",_delegate_id=" << unsigned(_delegate_id)
         << ",epoch_number=" << GetEpochNumber();
-    if (std::find_if(_delegates.begin(), _delegates.end(), [&](auto delegate){
-                return delegate.id == delegate_id;}) != _delegates.end())
+    auto iter = _delegates.find(delegate_id);
+    if(iter != _delegates.end())
     {
-        LOG_DEBUG(_log) << "ConsensusNetIOManager::AddDelegate, delegate id " << (int) delegate_id
+        LOG_DEBUG(_log) << "ConsensusNetIOManager::AddDelegate, delegate id "
+            << (int) delegate_id
             << " is already connected "
             << ", epoch_number=" << GetEpochNumber();
+        if(ip != iter->second.ip)
+        {
+            LOG_WARN(_log) << "ConsensusNetIOManager::AddDelegate-"
+                << "ips do not match. stored ip=" << iter->second.ip
+                << ",received ip=" << ip;
+        }
         return;
     }
 
-
-    _delegates.emplace_back(ip, delegate_id);
+    _delegates[delegate_id] = Config::Delegate(ip,delegate_id);
 
     if (_delegate_id < delegate_id)
     {
@@ -326,9 +317,6 @@ ConsensusNetIOManager::AddNetIOConnection(
         BindIOChannel(netio, id);
     };
 
-    using PtrMemberFun = void (ConsensusNetIO::*)(); // ConsensusNetIO member function pointer
-
-    PtrMemberFun cb;
     auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::AddNetIOConnection, object destroyed");
     if (!info)
     {

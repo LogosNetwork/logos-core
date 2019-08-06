@@ -375,7 +375,6 @@ ConsensusContainer::Bind(
 
     if (_cur_epoch == nullptr && _trans_epoch == nullptr)
     {
-        socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
                         << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                         << ", delegate = " << unsigned(delegate_id)
@@ -386,13 +385,8 @@ ConsensusContainer::Bind(
     if (_binding_map.find(epoch_number) == _binding_map.end())
     {
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
-                        << " delegate " << (int)delegate_id
-                        << " epoch " << epoch_number;
-        //Integration fix: close the socket if we are not doing anything with it
-        //TODO: actually this is unclear. The calling function closes the
-        //socket if the return value is false, but the above if case closes
-        //the socket in this function as well. not sure what is correct
-        socket->close();
+                        << " delegate =" << (int)delegate_id
+                        << " epoch =" << epoch_number;
         return false;
     }
 
