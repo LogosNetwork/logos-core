@@ -17,7 +17,61 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <hash.h>
 
-#define DEFAULT_PROPAGATE_STORE_SIZE	0x10000
+#define DEFAULT_PROPAGATE_STORE_SIZE    0x10000
+#define DEFAULT_PROPAGATE_HASH_SIZE     0x100000
+#define PROPAGATE_HASH_BUCKET_LOG       4
+#define PROPAGATE_HASH_BUCKET_SIZE      (1 << PROPAGATE_HASH_BUCKET_LOG)
+
+class PropagateHash
+{
+    using cheap_hash = uint64_t;
+
+public:
+    PropagateHash(size_t size)
+        : _buckets_mask(size / PROPAGATE_HASH_BUCKET_SIZE - 1)
+        , _data(new cheap_hash[size]())
+    {
+    }
+
+    ~PropagateHash()
+    {
+        delete[] _data;
+    }
+
+    bool find(const uint256 hash) const
+    {
+        cheap_hash chash = hash.GetCheapHash();
+        size_t index = chash & _buckets_mask;
+        const cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
+        for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
+        {
+            if (bucket[i] == chash)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void insert(const uint256 hash)
+    {
+        cheap_hash chash = hash.GetCheapHash(), tmp = chash;
+        size_t index = chash & _buckets_mask;
+        cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
+        for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
+        {
+            std::swap(tmp, bucket[i]);
+            if (tmp == chash)
+            {
+                break;
+            }
+        }
+    }
+
+private:
+    size_t          _buckets_mask;
+    cheap_hash *    _data;
+};
 
 struct PropagateMessage
 {
@@ -39,9 +93,10 @@ struct PropagateMessage
 class PropagateStore
 {
 private:
-    uint64_t    max_size;
-    uint64_t    first_label;
-    uint64_t    next_label;
+    PropagateHash   hash;
+    uint64_t        max_size;
+    uint64_t        first_label;
+    uint64_t        next_label;
     boost::multi_index_container<PropagateMessage,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
@@ -53,17 +108,19 @@ private:
                 boost::multi_index::member<PropagateMessage,uint64_t,&PropagateMessage::label>
             >
         >
-    >           store;
-    std::mutex  mutex;
+    >               store;
+    std::mutex      mutex;
 
     bool _Find(const PropagateMessage &mess)
     {
-        return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+        return hash.find(mess.hash) ||
+            store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
     }
 
 public:
-    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE)
-        : max_size(size)
+    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE, uint64_t hash_size = DEFAULT_PROPAGATE_HASH_SIZE)
+        : hash(hash_size)
+        , max_size(size)
         , first_label(0)
         , next_label(0)
     {
@@ -93,6 +150,7 @@ public:
             }
             mess.label = next_label++;
             store.insert(mess);
+            hash.insert(mess.hash);
             return true;
         }
         return false;
