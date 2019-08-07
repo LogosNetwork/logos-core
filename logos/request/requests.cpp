@@ -540,9 +540,12 @@ Amount Send::GetLogosTotal() const
 {
     auto total = std::accumulate(transactions.begin(), transactions.end(),
                                  Amount(0),
-                                 [](const Amount & a, const Transaction & t)
+                                 [this](const Amount & a, const Transaction & t)
                                  {
-                                     return a + t.amount;
+                                     if(t.destination == origin)
+                                         return a;
+                                     else
+                                        return a + t.amount;
                                  });
 
     return total + Request::GetLogosTotal();
