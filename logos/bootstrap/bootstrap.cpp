@@ -62,6 +62,27 @@ namespace Bootstrap
         }
     }
 
+    bool BootstrapInitiator::GetTipsets(TipSet &my_tips, TipSet &others_tips)
+    {
+        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+        std::unique_lock<std::mutex> lock(mtx);
+        if (stopped)
+        {
+            LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+            return false;
+        }
+
+        if (attempt == nullptr)
+        {
+            LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " no on-going attempt";
+            return false;
+        }
+        else
+        {
+            return attempt->GetTipsets(my_tips, others_tips);
+        }
+    }
+
     void BootstrapInitiator::bootstrap(logos::endpoint const &peer)
     {
         LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__;

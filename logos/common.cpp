@@ -1304,7 +1304,7 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
     switch (result)
     {
         case process_result::progress:
-            ret = process_result_dependency::not_applied;
+            ret = process_result_dependency::progress;
             break;
         case process_result::bad_signature:
             ret = process_result_dependency::not_applied;

@@ -25,66 +25,68 @@ public:
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    using RelianceSet = std::unordered_set<BlockHash>;
+
     struct PendingRB {
         PendingRB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         PendingRB(const RBPtr &block_)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         RBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
     };
 
     struct PendingMB {
         PendingMB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         PendingMB(const MBPtr &block_)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         MBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
     };
 
     struct PendingEB {
         PendingEB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         PendingEB(const EBPtr &block_)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
         {
         }
 
         EBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
     };
 
@@ -121,12 +123,7 @@ public:
         uint32_t                        epoch_num;
         EPtr                            eb;
         std::list<MPtr>                 mbs;
-        std::unordered_set<BlockHash>   rbs_next_mb_depend_on;
         std::list<RPtr>                 rbs[NUM_DELEGATES];
-
-        //TODO optimize
-        //1 for each unprocessed tip of the oldest mb
-        //std::bitset<NUM_DELEGATES> mb_dependences;
     };
 
     struct ChainPtr
@@ -173,7 +170,6 @@ public:
     bool AddRequestBlock(RBPtr block);
 
     void AddHashDependency(const BlockHash &hash, ChainPtr ptr);
-    void AddAccountDependency(const AccountAddress &addr, ChainPtr ptr);
 
     bool MarkAsValidated(EBPtr block);
     bool MarkAsValidated(MBPtr block);
@@ -191,18 +187,16 @@ public:
 
 private:
     bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);
-    bool DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains);
-    void MarkForRevalidation(std::list<ChainPtr> &chains);
+    void MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains);
+    bool DeleteDependenciesAndMarkForRevalidation(const BlockHash &hash);
 
     BlockWriteQueue &                               _write_q;
     std::list<EpochPeriod>                          _epochs;
     std::unordered_set<BlockHash>                   _cached_blocks;
     std::multimap<BlockHash, ChainPtr>              _hash_dependency_table;
-    std::multimap<AccountAddress, ChainPtr>         _account_dependency_table;
     std::mutex                                      _chains_mutex;
     std::mutex                                      _cache_blocks_mutex;
     std::mutex                                      _hash_dependency_table_mutex;
-    std::mutex                                      _account_dependency_table_mutex;
     Log                                             _log;
 };
 
