@@ -2,9 +2,9 @@
 
 namespace logos {
 
-BlockCache::BlockCache(Store &store, std::queue<BlockHash> *unit_test_q)
+BlockCache::BlockCache(boost::asio::io_service & service, Store &store, std::queue<BlockHash> *unit_test_q)
     : _store(store)
-    , _write_q(store, this, unit_test_q)
+    , _write_q(service, store, this, unit_test_q)
     , _block_container(_write_q)
 {
 }
@@ -88,42 +88,42 @@ void BlockCache::StoreEpochBlock(EBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:E:" << block->CreateTip().to_string();
 
-    if (_block_container.BlockExistsAdd(block))
-    {
-        LOG_DEBUG(_log) << "BlockCache::StoreEpochBlock: BlockExists";
-        return;
-    }
+//    if (_block_container.BlockExistsAdd(block))
+//    {
+//        LOG_DEBUG(_log) << "BlockCache::StoreEpochBlock: BlockExists";
+//        return;
+//    }
 
     _write_q.StoreBlock(block);
-    _block_container.BlockDelete(block->Hash());
+//    _block_container.BlockDelete(block->Hash());
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:M:" << block->CreateTip().to_string();
 
-    if (_block_container.BlockExistsAdd(block))
-    {
-        LOG_DEBUG(_log) << "BlockCache::StoreMicroBlock: BlockExists";
-        return;
-    }
+//    if (_block_container.BlockExistsAdd(block))
+//    {
+//        LOG_DEBUG(_log) << "BlockCache::StoreMicroBlock: BlockExists";
+//        return;
+//    }
 
     _write_q.StoreBlock(block);
-    _block_container.BlockDelete(block->Hash());
+//    _block_container.BlockDelete(block->Hash());
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:R:" << block->CreateTip().to_string();
 
-    if (_block_container.BlockExistsAdd(block))
-    {
-        LOG_DEBUG(_log) << "BlockCache::StoreRequestBlock: BlockExists";
-        return;
-    }
+//    if (_block_container.BlockExistsAdd(block))
+//    {
+//        LOG_DEBUG(_log) << "BlockCache::StoreRequestBlock: BlockExists";
+//        return;
+//    }
 
     _write_q.StoreBlock(block);
-    _block_container.BlockDelete(block->Hash());
+//    _block_container.BlockDelete(block->Hash());
 }
 
 void BlockCache::ProcessDependencies(EBPtr block)
@@ -180,6 +180,7 @@ void BlockCache::Validate(uint8_t rb_idx)
             }
             else
             {
+                //TODO order of validation
                 LOG_TRACE(_log) << "BlockCache::Validate RB status: "
                         << ProcessResultToString(status.reason);
                 switch (ProcessResultToDependency(status.reason))
@@ -192,13 +193,20 @@ void BlockCache::Validate(uint8_t rb_idx)
                     {
                         switch (ProcessResultToDependency(status.requests[i]))
                         {
+                        case logos::process_result_dependency::progress:
+                            continue;
                         case logos::process_result_dependency::previous_block:
                             _block_container.AddHashDependency(block->requests[i]->previous, ptr);
                             break;
                         case logos::process_result_dependency::sender_account:
-                            _block_container.AddAccountDependency(block->requests[i]->GetAccount(), ptr);
+                            _block_container.AddHashDependency(block->requests[i]->GetAccount(), ptr);
                             break;
                         default:
+                            LOG_FATAL(_log) << "BlockCache::Validate RB status: request i=" << i
+                                            << " error_code=" << ProcessResultToString(status.requests[i])
+                                            << " block " << block->CreateTip().to_string();
+                            //TODO should not be here unless bad delegate set
+                            trace_and_halt();
                             break;
                         }
                     }
@@ -207,12 +215,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                     //Since the agg-sigs are already verified,
                     //we expect gap-like reasons.
                     //For any other reason, we log them, and investigate.
-                    LOG_ERROR(_log) << "BlockCache::Validate RB status: "
-                            << ProcessResultToString(status.reason)
-                            << " block " << block->CreateTip().to_string();
+                    LOG_FATAL(_log) << "BlockCache::Validate RB status: "
+                                    << ProcessResultToString(status.reason)
+                                    << " block " << block->CreateTip().to_string();
+                    //TODO should not be here unless bad delegate set
+                    trace_and_halt();
                     //Throw the block out, otherwise it blocks the rest.
-                    _block_container.BlockDelete(block->Hash());
-                    success = true;
+                    //_block_container.BlockDelete(block->Hash());//not enough
+                    //success = true;
                     //TODO recall?
                     //TODO detect double spend?
                     break;

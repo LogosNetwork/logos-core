@@ -148,6 +148,7 @@ public:
     void block_hash ();
     void bootstrap ();
     void bootstrap_any ();
+    void bootstrap_progress ();
     void chain ();
     //CH void confirmation_history ();
     template <typename  CT>

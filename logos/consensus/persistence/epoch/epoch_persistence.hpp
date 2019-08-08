@@ -26,6 +26,7 @@ protected:
         EVP_DRIFT,      /* timestamp drift validated */
         EVP_EPOCH_TIP,  /* epoch tip and privary delegate validated */
         EVP_MICRO_TIP,  /* micro tip validated */
+        EVP_NUMBER_RB,  /* number of request blocks validated */
         EVP_VOTING,     /* voting results validated */
         EVP_END         /* final state, validation OK (transaction pool validated TBD) */
     };

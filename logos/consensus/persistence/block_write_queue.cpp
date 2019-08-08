@@ -4,8 +4,9 @@
 namespace logos
 {
 
-BlockWriteQueue::BlockWriteQueue(Store &store, BlockCache *cache, std::queue<BlockHash> *unit_test_q)
-    : _eb_handler(store)
+BlockWriteQueue::BlockWriteQueue(boost::asio::io_service & service, Store &store, BlockCache *cache, std::queue<BlockHash> *unit_test_q)
+    : _service(service)
+    , _eb_handler(store)
     , _mb_handler(store)
     , _rb_handler(store)
     , _terminate(false)
@@ -85,7 +86,7 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
     }
 }
 
-bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
+bool BlockWriteQueue::IsBlockQueued(const BlockHash &hash)
 {
     std::lock_guard<std::mutex> lck (_q_mutex);
     return _q_cache.find(hash) != _q_cache.end();
@@ -93,28 +94,34 @@ bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
 
 bool BlockWriteQueue::BlockExists(EBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _eb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _eb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(MBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _mb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _mb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(RBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _rb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _rb_handler.BlockExists(*block);
 }
 
-void BlockWriteQueue::StoreBlock(BlockPtr ptr)
+bool BlockWriteQueue::StoreBlock(BlockPtr ptr)
 {
     {
         std::lock_guard<std::mutex> lck (_q_mutex);
+        if(_q_cache.find(ptr.hash) != _q_cache.end())
+        {
+            LOG_TRACE(_log) << "BlockCache::StoreBlock: already Queued";
+            return false;
+        }
         _q.push(ptr);
         _q_cache.insert(ptr.hash);
     }
 
     _write_sem.notify();
+    return true;
 }
 
 void BlockWriteQueue::WriteThread()
@@ -152,7 +159,12 @@ void BlockWriteQueue::WriteThread()
                 _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
             }
             if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.rptr);
+            {
+                _service.post([this, ptr]() {
+                    LOG_TRACE(_log) << "-> BlockCache:ProcessDependencies:R: " << ptr.rptr->CreateTip().to_string();
+                    this->_block_cache->ProcessDependencies(ptr.rptr);
+                });
+            }
             ptr.rptr = nullptr;
         }
         else if (ptr.mptr)
@@ -160,7 +172,11 @@ void BlockWriteQueue::WriteThread()
             LOG_TRACE(_log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             _mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
             if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.mptr);
+            {
+                _service.post([this, ptr]() {
+                    this->_block_cache->ProcessDependencies(ptr.mptr);
+                });
+            }
             ptr.mptr = nullptr;
         }
         else if (ptr.eptr)
@@ -168,7 +184,11 @@ void BlockWriteQueue::WriteThread()
             LOG_TRACE(_log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             _eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
             if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.eptr);
+            {
+                _service.post([this, ptr]() {
+                    this->_block_cache->ProcessDependencies(ptr.eptr);
+                });
+            }
             ptr.eptr = nullptr;
         }
 
@@ -185,25 +205,43 @@ void BlockWriteQueue::WriteThread()
     }
 }
 
-void BlockWriteQueue::StoreBlock(EBPtr block)
+bool BlockWriteQueue::StoreBlock(EBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:E:{ " << block->CreateTip().to_string();
-    StoreBlock(BlockPtr(block));
+    if(_eb_handler.BlockExists(*block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreEpochBlock: BlockExists=true";
+        return false;
+    }
+    auto res = StoreBlock(BlockPtr(block));
     LOG_TRACE(_log) << "BlockCache:Store:E:} " << block->CreateTip().to_string();
+    return res;
 }
 
-void BlockWriteQueue::StoreBlock(MBPtr block)
+bool BlockWriteQueue::StoreBlock(MBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:M:{ " << block->CreateTip().to_string();
-    StoreBlock(BlockPtr(block));
+    if(_mb_handler.BlockExists(*block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreMicroBlock: BlockExists=true";
+        return false;
+    }
+    auto res = StoreBlock(BlockPtr(block));
     LOG_TRACE(_log) << "BlockCache:Store:M:} " << block->CreateTip().to_string();
+    return res;
 }
 
-void BlockWriteQueue::StoreBlock(RBPtr block)
+bool BlockWriteQueue::StoreBlock(RBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:R:{ " << block->CreateTip().to_string();
-    StoreBlock(BlockPtr(block));
+    if(_rb_handler.BlockExists(*block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreRequestBlock: BlockExists=true";
+        return false;
+    }
+    auto res = StoreBlock(BlockPtr(block));
     LOG_TRACE(_log) << "BlockCache:Store:R:} " << block->CreateTip().to_string();
+    return res;
 }
 
 }

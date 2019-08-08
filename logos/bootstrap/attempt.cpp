@@ -84,7 +84,8 @@ namespace Bootstrap
                 /*
                  * do not use the TipSet stored in the tip request, since it could be stale as saw in tests.
                  */
-                puller.Init(TipSet::CreateTipSet(store), client->response);
+                auto x = TipSet::CreateTipSet(store, true);
+                puller.Init(x, client->response);
             }
         }
         return failed;

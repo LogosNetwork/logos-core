@@ -26,6 +26,7 @@ struct Tip
     bool operator!=(const Tip & other) const;
     void clear();
     std::string to_string () const;
+    uint32_t n_th_block_in_epoch(uint32_t expected_epoch) const;
     static constexpr uint32_t WireSize = sizeof(epoch) + sizeof(sqn) + HASH_SIZE;
 };
 
