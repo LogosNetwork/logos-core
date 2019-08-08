@@ -40,8 +40,8 @@ public:
 
     bool find(const uint256 hash) const
     {
-        cheap_hash chash = hash.GetCheapHash();
-        size_t index = chash & _buckets_mask;
+        cheap_hash chash = hash.GetCheapHash() | 1, chash1 = hash.GetCheapHash(sizeof(cheap_hash));
+        size_t index = chash1 & _buckets_mask;
         const cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
         for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
         {
@@ -55,8 +55,8 @@ public:
 
     void insert(const uint256 hash)
     {
-        cheap_hash chash = hash.GetCheapHash(), tmp = chash;
-        size_t index = chash & _buckets_mask;
+        cheap_hash chash = hash.GetCheapHash() | 1, tmp = chash, chash1 = hash.GetCheapHash(sizeof(cheap_hash));
+        size_t index = chash1 & _buckets_mask;
         cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
         for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
         {

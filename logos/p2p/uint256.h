@@ -135,9 +135,9 @@ public:
      * when the value can easily be influenced from outside as e.g. a network adversary could
      * provide values to trigger worst-case behavior.
      */
-    uint64_t GetCheapHash() const
+    uint64_t GetCheapHash(size_t offset = 0) const
     {
-        return ReadLE64(data);
+        return ReadLE64(data + offset);
     }
 };
 
