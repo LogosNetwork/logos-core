@@ -1279,7 +1279,7 @@ store (init_a.block_store_init, application_path_a / "data.ldb", config_a.lmdb_m
 gap_cache (*this),
 ledger (store, stats, config.state_block_parse_canary, config.state_block_generate_canary),
 network (*this, config.peering_port),
-block_cache (store),
+block_cache (service_a,store),
 peers (network.endpoint ()),
 application_path (application_path_a),
 wallets (init_a.block_store_init, *this),
@@ -1801,6 +1801,22 @@ void logos::node::on_demand_bootstrap (logos_global::BootstrapCompleteCB cb)
 {
     LOG_DEBUG (log) << __func__;
     bootstrap_initiator.bootstrap (cb);
+}
+
+logos::BootstrapProgress logos::node::CreateBootstrapProgress()
+{
+    LOG_DEBUG (log) << __func__;
+    Bootstrap::TipSet my_bootstrap, others;
+    bool on_going = bootstrap_initiator.GetTipsets (my_bootstrap, others);
+    if(on_going)
+    {
+        auto my_store = Bootstrap::TipSet::CreateTipSet(store);
+        return BootstrapProgress(my_store, my_bootstrap, others);
+    }
+    else
+    {
+        return BootstrapProgress();
+    }
 }
 
 void logos::node::backup_wallet ()

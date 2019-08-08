@@ -8,6 +8,24 @@
 #include <logos/lib/trace.hpp>
 #include <logos/lib/log.hpp>
 
+uint64_t
+EpochHandler::ComputeNumRBs(BlockStore &store, uint32_t epoch_number)
+{
+    uint64_t total_RBs = 0;
+    for(uint8_t i=0; i < NUM_DELEGATES; ++i)
+    {
+        Tip tip;
+        store.request_tip_get(i, epoch_number, tip);
+        assert(tip.epoch <= epoch_number);
+        if(tip.epoch == epoch_number &&
+            ! tip.digest.is_zero()) // to be safe, we also test digest
+        {
+            total_RBs += tip.sqn + 1;
+        }
+    }
+    return total_RBs;
+}
+
 bool
 EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 {
@@ -74,12 +92,19 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
         epoch.total_supply = total_supply.convert_to<logos::uint128_t>();
     }
 
+    //TODO to be safe, all reads from DB should be under the same read transaction when building an object, EB, MB, etc.
+    //Maybe Ok for now without, since building EB and MB are delayed.
+
+    //total_RBs
+    epoch.total_RBs = previous_epoch.total_RBs + ComputeNumRBs(_store, epoch.epoch_number);
+
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"
                    << " hash " << epoch.Hash().to_string()
                    << " timestamp " << epoch.timestamp
                    << " previous " << epoch.previous.to_string()
                    << " epoch_number " << epoch.epoch_number
-                   << " micro_block_tip " << epoch.micro_block_tip.to_string();
+                   << " micro_block_tip " << epoch.micro_block_tip.to_string()
+                   << " total_request_blocks " << epoch.total_RBs;
 
     return true;
 }

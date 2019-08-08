@@ -436,7 +436,8 @@ enum class process_result
 // See second column in the document "Error codes in block validation of full nodes"
 enum class process_result_dependency
 {
-    not_applied,                  // Not applied, progress or bad_signature
+    progress,                     // Good
+    not_applied,                  // Not applied, bad_signature
     bad_block,                    // Bad block, not recoverable error
     general_error_code,           // See individual error codes of requests in RB or request tips in MB
     previous_block,               // Dependency is previous block in the chain

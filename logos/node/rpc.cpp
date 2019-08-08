@@ -1337,6 +1337,14 @@ void logos::rpc_handler::bootstrap_any ()
     response (response_l);
 }
 
+void logos::rpc_handler::bootstrap_progress ()
+{
+    auto bp = node.CreateBootstrapProgress();
+    boost::property_tree::ptree response_l;
+    bp.SerializeJson(response_l);
+    response (response_l);
+}
+
 void logos::rpc_handler::chain ()
 {
     std::string block_text (request.get<std::string> ("block"));
@@ -4627,6 +4635,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "bootstrap_any")
         {
             bootstrap_any ();
+        }
+        else if (action == "bootstrap_progress")
+        {
+            bootstrap_progress ();
         }
         else if (action == "chain")
         {

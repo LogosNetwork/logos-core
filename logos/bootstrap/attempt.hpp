@@ -70,6 +70,12 @@ namespace Bootstrap
         void remove_connection(std::shared_ptr<BootstrapClient> client, bool blacklist);
 
         logos::alarm & alarm;
+
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips)
+        {
+            return puller.GetTipsets(my_tips, others_tips);
+        }
+
     private:
 
         size_t target_connections(size_t need);

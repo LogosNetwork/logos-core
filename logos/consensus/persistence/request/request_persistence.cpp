@@ -168,8 +168,9 @@ bool PersistenceManager<R>::ValidateRequest(
     bool allow_duplicates,
     bool prelim)
 {
-    LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request"
-                   << request->Hash().to_string();
+    auto hash = request->GetHash();
+    LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request " << hash.to_string();
+
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
@@ -185,8 +186,6 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         return false;
     }
-
-    auto hash = request->GetHash();
 
     if(!_store.account_exists(request->origin))
     {
@@ -260,11 +259,11 @@ bool PersistenceManager<R>::ValidateRequest(
     // Move on to check account info
 
     // No previous block set.
-    if(request->previous.is_zero() && info->block_count)
-    {
-        result.code = logos::process_result::fork;
-        return false;
-    }
+    //    if(request->previous.is_zero() && info->block_count)
+    //    {
+    //        result.code = logos::process_result::fork;
+    //        return false;
+    //    }
 
     // This account has issued at least one send transaction.
     if(info->block_count)
@@ -274,6 +273,16 @@ bool PersistenceManager<R>::ValidateRequest(
             result.code = logos::process_result::gap_previous;
             LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
                             << "; current account info head is: " << info->head.to_string();
+            return false;
+        }
+    }
+    else
+    {
+        if(!request->previous.is_zero())
+        {
+            result.code = logos::process_result::gap_previous;
+            LOG_WARN (_log) << "GAP_PREVIOUS: account has no previous requests, current request sqn="
+                            << request->sequence;
             return false;
         }
     }
@@ -287,6 +296,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
+        // Also cover the case: (request->previous.is_zero() && info->block_count), which can be an old block or a fork
         if(hash == info->head || _store.request_exists(hash))
         {
             if(allow_duplicates)
@@ -316,7 +326,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     else
     {
-        LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
+        LOG_TRACE(_log) << "right_sequence_number, request sqn=" << request->sequence
                        << " expecting=" << info->block_count;
     }
 
@@ -594,7 +604,8 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
                     UpdateStatusRequests(status, i, result.code);
                     UpdateStatusReason(status, process_result::invalid_request);
                     LOG_INFO(_log) << "PersistenceManager::Validate - "
-                        << "failed to validate request : " << message.requests[i]->Hash().to_string();
+                        << "failed to validate request : " << message.requests[i]->Hash().to_string()
+                                << " error_code=" << ProcessResultToString(result.code);
 
                     valid = false;
                 }

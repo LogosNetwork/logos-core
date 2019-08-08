@@ -76,7 +76,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         ApprovedMB micro_block;
         micro_block.primary_delegate = 0xff;
         micro_block.epoch_number = e;
-        micro_block.sequence = 0;
+        micro_block.sequence = e;
         micro_block.timestamp = 0;
         micro_block.previous = microblock_hash;
         micro_block.last_micro_block = 0;
@@ -599,9 +599,12 @@ DelegateIdentityManager::P2pPropagate(
 void
 DelegateIdentityManager::Sign(uint32_t epoch_number, CommonAddressAd &ad)
 {
-    auto validator = _validator_builder.GetValidator(epoch_number);
-    auto hash = ad.Hash();
-    validator->Sign(hash, ad.signature);
+    DelegateIdentityManager::Sign(ad.Hash(), ad.signature);
+//    auto validator = _validator_builder.GetValidator(epoch_number);
+//    if(validator == nullptr)
+//    	return;
+//    auto hash = ad.Hash();
+//    validator->Sign(hash, ad.signature);
 }
 
 bool

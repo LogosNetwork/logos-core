@@ -28,5 +28,6 @@ void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
     epoch_block.add_child("delegates", ptree_delegates);
     epoch_block.put("transaction_fee_pool", transaction_fee_pool.to_string());
     epoch_block.put("total_supply", total_supply.to_string());
+    epoch_block.put("total_request_blocks", std::to_string(total_RBs));
     epoch_block.put("is_extension", is_extension);
 }

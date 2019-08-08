@@ -39,6 +39,8 @@ public:
     /// @param block build the block [in|out]
     bool Build(DelegateMessage<ConsensusType::Epoch> &);
 
+    static uint64_t ComputeNumRBs(BlockStore &store, uint32_t epoch_number);
+
 private:
 
     EpochVotingManager & _voting_manager;  ///< voting manager

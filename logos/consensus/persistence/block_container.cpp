@@ -5,6 +5,8 @@ namespace logos {
 bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
 {
     std::lock_guard<std::mutex> lck (_cache_blocks_mutex);
+    //TODO Peng: remove after integration
+    DumpCachedBlocks();
     return _cached_blocks.find(hash) != _cached_blocks.end();
 }
 
@@ -52,7 +54,7 @@ void PendingBlockContainer::BlockDelete(const BlockHash &hash)
 
 void PendingBlockContainer::DumpCachedBlocks()
 {
-    std::lock_guard<std::mutex> lck (_cache_blocks_mutex);
+    //std::lock_guard<std::mutex> lck (_cache_blocks_mutex);
     LOG_TRACE(_log) << "BlockCache:Dump:count: " << _cached_blocks.size();
     for (auto & h : _cached_blocks)
         LOG_TRACE(_log) << "BlockCache:Dump:hash: " << h.to_string();
@@ -212,18 +214,31 @@ bool PendingBlockContainer::AddRequestBlock(RBPtr block)
 
 void PendingBlockContainer::AddHashDependency(const BlockHash &hash, ChainPtr ptr)
 {
-    std::lock_guard<std::mutex> lck (_hash_dependency_table_mutex);
-    _hash_dependency_table.insert(std::make_pair(hash, ptr));
+    LOG_TRACE(_log) << "BlockCache:AddHashDependency " << hash.to_string();
+    {
+        std::lock_guard<std::mutex> lck (_hash_dependency_table_mutex);
+        _hash_dependency_table.insert(std::make_pair(hash, ptr));
+    }
+    {
+        std::lock_guard<std::mutex> lck (_chains_mutex);
+        if (ptr.eptr)
+        {
+            ptr.eptr->reliances.insert(hash);
+        }
+        else if (ptr.mptr)
+        {
+            ptr.mptr->reliances.insert(hash);
+        }
+        else if (ptr.rptr)
+        {
+            ptr.rptr->reliances.insert(hash);
+        }
+    }
 }
 
-void PendingBlockContainer::AddAccountDependency(const AccountAddress &addr, ChainPtr ptr)
+void PendingBlockContainer::MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains)
 {
-    std::lock_guard<std::mutex> lck (_account_dependency_table_mutex);
-    _account_dependency_table.insert(std::make_pair(addr, ptr));
-}
-
-void PendingBlockContainer::MarkForRevalidation(std::list<ChainPtr> &chains)
-{
+    LOG_TRACE(_log) << "BlockCache:MarkForRevalidation " << hash.to_string();
     std::lock_guard<std::mutex> lck (_chains_mutex);
 
     for (auto ptr : chains)
@@ -232,25 +247,39 @@ void PendingBlockContainer::MarkForRevalidation(std::list<ChainPtr> &chains)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:E:"
                     << ptr.eptr->block->CreateTip().to_string();
-            ptr.eptr->continue_validate = true;
+            ptr.eptr->reliances.erase(hash);
         }
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:M:"
                     << ptr.mptr->block->CreateTip().to_string();
-            ptr.mptr->continue_validate = true;
+            ptr.mptr->reliances.erase(hash);
+            //TODO remove after integration
+            LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.mptr->reliances.size();
+            for( auto & h : ptr.mptr->reliances)
+            {
+                LOG_TRACE(_log) << "BlockCache:Mark reliance hash " << h.to_string();
+            }
         }
         else if (ptr.rptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:R:"
                     << ptr.rptr->block->CreateTip().to_string();
-            ptr.rptr->continue_validate = true;
+            ptr.rptr->reliances.erase(hash);
+            //TODO remove after integration
+            LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.rptr->reliances.size();
+            for( auto & h : ptr.rptr->reliances)
+            {
+                LOG_TRACE(_log) << "BlockCache:Mark reliance hash " << h.to_string();
+            }
         }
     }
 }
 
 bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains)
 {
+    LOG_TRACE(_log) << "BlockCache:DeleteHashDependencies " << hash.to_string();
+
     std::lock_guard<std::mutex> lck (_hash_dependency_table_mutex);
 
     if (!_hash_dependency_table.count(hash))
@@ -270,61 +299,39 @@ bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash, std::l
     return true;
 }
 
-bool PendingBlockContainer::DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains)
+bool PendingBlockContainer::DeleteDependenciesAndMarkForRevalidation(const BlockHash &hash)
 {
-    std::lock_guard<std::mutex> lck (_account_dependency_table_mutex);
+    LOG_TRACE(_log) << "BlockCache:DeleteAndMark, hash " << hash.to_string();
 
-    if (!_account_dependency_table.count(addr))
+    std::list<ChainPtr> chains;
+    bool res = DeleteHashDependencies(hash, chains);
+    if (res)
     {
-        return false;
+        MarkForRevalidation(hash, chains);
     }
-
-    auto range = _account_dependency_table.equal_range(addr);
-
-    for (auto it = range.first; it != range.second; it++)
-    {
-        chains.push_back((*it).second);
-    }
-
-    _account_dependency_table.erase(range.first, range.second);
-
-    return true;
+    return res;
 }
 
 bool PendingBlockContainer::MarkAsValidated(EBPtr block)
 {
-    BlockHash hash = block->Hash();
-    std::list<ChainPtr> chains;
-    bool res = DeleteHashDependencies(hash, chains);
-    if (res)
-    {
-        MarkForRevalidation(chains);
-    }
-    return res;
+    return DeleteDependenciesAndMarkForRevalidation(block->Hash());
 }
 
 bool PendingBlockContainer::MarkAsValidated(MBPtr block)
 {
-    BlockHash hash = block->Hash();
-    std::list<ChainPtr> chains;
-    bool res = DeleteHashDependencies(hash, chains);
-    if (res)
-    {
-        MarkForRevalidation(chains);
-    }
-    return res;
+    return DeleteDependenciesAndMarkForRevalidation(block->Hash());
 }
 
 bool PendingBlockContainer::MarkAsValidated(RBPtr block)
 {
-    BlockHash hash = block->Hash();
-    std::list<ChainPtr> chains;
-    bool res = DeleteHashDependencies(hash, chains);
+    auto block_hash = block->Hash();
+    LOG_TRACE(_log) << "BlockCache:MarkAsValidated, hash " << block_hash.to_string();
+    bool res = DeleteDependenciesAndMarkForRevalidation(block_hash);
     for (uint32_t i = 0; i < block->requests.size(); ++i)
     {
         auto request = block->requests[i];
-        res |= DeleteHashDependencies(request->Hash(), chains);
-        res |= DeleteAccountDependencies(request->GetSource(), chains);
+        res |= DeleteDependenciesAndMarkForRevalidation(request->Hash());
+        res |= DeleteDependenciesAndMarkForRevalidation(request->GetSource());
         switch (request->type)
         {
         case RequestType::Send:
@@ -332,32 +339,32 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
                 auto send = dynamic_pointer_cast<const Send>(request);
                 for(auto &t : send->transactions)
                 {
-                    res |= DeleteAccountDependencies(t.destination, chains);
+                    res |= DeleteDependenciesAndMarkForRevalidation(t.destination);
                 }
             }
             break;
         case RequestType::Revoke:
             {
                 auto revoke = dynamic_pointer_cast<const Revoke>(request);
-                res |= DeleteAccountDependencies(revoke->transaction.destination, chains);
+                res |= DeleteDependenciesAndMarkForRevalidation(revoke->transaction.destination);
             }
             break;
         case RequestType::Distribute:
             {
                 auto distribute = dynamic_pointer_cast<const Distribute>(request);
-                res |= DeleteAccountDependencies(distribute->transaction.destination, chains);
+                res |= DeleteDependenciesAndMarkForRevalidation(distribute->transaction.destination);
             }
             break;
         case RequestType::WithdrawFee:
             {
                 auto withdraw = dynamic_pointer_cast<const WithdrawFee>(request);
-                res |= DeleteAccountDependencies(withdraw->transaction.destination, chains);
+                res |= DeleteDependenciesAndMarkForRevalidation(withdraw->transaction.destination);
             }
             break;
         case RequestType::WithdrawLogos:
             {
                 auto withdraw = dynamic_pointer_cast<const WithdrawLogos>(request);
-                res |= DeleteAccountDependencies(withdraw->transaction.destination, chains);
+                res |= DeleteDependenciesAndMarkForRevalidation(withdraw->transaction.destination);
             }
             break;
         case RequestType::TokenSend:
@@ -365,7 +372,7 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
                 auto send = dynamic_pointer_cast<const TokenSend>(request);
                 for(auto &t : send->transactions)
                 {
-                    res |= DeleteAccountDependencies(t.destination, chains);
+                    res |= DeleteDependenciesAndMarkForRevalidation(t.destination);
                 }
             }
             break;
@@ -373,10 +380,7 @@ bool PendingBlockContainer::MarkAsValidated(RBPtr block)
             break;
         }
     }
-    if (res)
-    {
-        MarkForRevalidation(chains);
-    }
+
     return res;
 }
 
@@ -443,7 +447,7 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 {
                     std::list<RPtr>::iterator to_validate = e->rbs[rb_idx].begin();
                     if (to_validate == e->rbs[rb_idx].end()
-                            || !(*to_validate)->continue_validate
+                            || !((*to_validate)->reliances.empty())
                             || (*to_validate)->lock)
                     {
                         //cannot make progress with empty list
@@ -454,7 +458,7 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                     else
                     {
                         ptr.rptr = *to_validate;
-                        ptr.rptr->continue_validate = false;
+                        //TODO Peng: safe to ignore? ptr.rptr->reliances = false;
                         ptr.rptr->lock = true;
                         LOG_TRACE(_log) << "BlockCache:Next:R: "
                                 << ptr.rptr->block->CreateTip().to_string();
@@ -485,11 +489,11 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             }
 
             if (!e->mbs.empty()
-                    && e->mbs.front()->continue_validate
+                    && e->mbs.front()->reliances.empty()
                     && !e->mbs.front()->lock)
             {
                 ptr.mptr = e->mbs.front();
-                ptr.mptr->continue_validate = false;
+                //TODO Peng: safe to ignore? ptr.mptr->reliances = false;
                 ptr.mptr->lock = true;
                 LOG_TRACE(_log) << "BlockCache:Next:M: "
                         << ptr.mptr->block->CreateTip().to_string();
@@ -517,11 +521,11 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
         if ((last_mb			    /* if last microblock in this epoch is validated */
                     || mbs_empty) &&        /*     or there was no unvalidated microblocks in the queue */
                 e->eb &&                    /* and unvalidated epoch block is present */
-                e->eb->continue_validate && /* and epoch block is marked for validation */
+                e->eb->reliances.empty() && /* and epoch block is marked for validation */
                 !e->eb->lock)               /* and it is not located by another validation thread */
         {                                   /* then return this epoch block and next for validation */
             ptr.eptr = e->eb;
-            ptr.eptr->continue_validate = false;
+            //TODO Peng: safe to ignore? ptr.eptr->reliances = false;
             ptr.eptr->lock = true;
             LOG_TRACE(_log) << "BlockCache:Next:E: "
                     << ptr.eptr->block->CreateTip().to_string();
