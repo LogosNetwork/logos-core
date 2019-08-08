@@ -203,6 +203,7 @@ public:
         , transaction_fee_pool(0ull)
         , total_supply(0ull)
         , delegates()
+        , total_RBs(0)
         , is_extension(false)
     {}
 
@@ -243,6 +244,12 @@ public:
             }
         }
 
+        error = logos::read(stream, total_RBs);
+        if(error)
+        {
+            return;
+        }
+
         error = logos::read(stream, is_extension);
     }
 
@@ -256,6 +263,7 @@ public:
         {
             delegates[i].Hash(hash);
         }
+        blake2b_update(&hash, &total_RBs, sizeof(total_RBs));
     }
 
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const
@@ -268,6 +276,7 @@ public:
         {
             s += delegates[i].Serialize(stream);
         }
+        s += logos::write(stream, total_RBs);
         s += logos::write(stream, is_extension);
         return s;
     }
@@ -279,5 +288,6 @@ public:
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
     Amount    total_supply;             ///< Total amount of Native Logos in circulation.
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
+    uint64_t total_RBs;                ///< total number of RBs since epoch 0
     bool      is_extension;
 };

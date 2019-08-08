@@ -8,6 +8,7 @@
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
+#include <logos/bootstrap/tips.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
@@ -459,6 +460,59 @@ public:
     friend class logos::node;
 };
 
+struct BootstrapProgress
+{
+    uint32_t eb_stored = 0;
+    uint32_t mb_stored = 0;
+    uint64_t rb_stored = 0;
+
+    uint32_t eb_to_process = 0;
+    uint32_t mb_to_process = 0;
+    uint64_t rb_to_process = 0;
+
+    uint32_t eb_to_download = 0;
+    uint32_t mb_to_download = 0;
+    uint64_t rb_to_download = 0;
+
+    bool on_going = false;
+
+    BootstrapProgress() = default;
+
+    BootstrapProgress(const Bootstrap::TipSet & my_store, const Bootstrap::TipSet & my_bootstrap, const Bootstrap::TipSet & other)
+    {
+        eb_stored = my_store.eb.epoch;
+        mb_stored = my_store.mb.sqn;
+        rb_stored = my_store.ComputeNumberAllRBs();
+        my_store.ComputeNumberBlocksBehind(my_bootstrap, eb_to_process, mb_to_process, rb_to_process);
+        my_bootstrap.ComputeNumberBlocksBehind(other, eb_to_download, mb_to_download, rb_to_download);
+        on_going = true;
+    }
+
+    void SerializeJson(boost::property_tree::ptree & tree) const
+    {
+        tree.put("on_going_bootstrap", on_going ? "true" : "false");
+        tree.put("eb_stored", std::to_string(eb_stored));
+        tree.put("mb_stored", std::to_string(mb_stored));
+        tree.put("rb_stored", std::to_string(rb_stored));
+        tree.put("eb_to_process", std::to_string(eb_to_process));
+        tree.put("mb_to_process", std::to_string(mb_to_process));
+        tree.put("rb_to_process", std::to_string(rb_to_process));
+        tree.put("eb_to_download", std::to_string(eb_to_download));
+        tree.put("mb_to_download", std::to_string(mb_to_download));
+        tree.put("rb_to_download", std::to_string(rb_to_download));
+    }
+
+    std::string ToJson() const
+    {
+        boost::property_tree::ptree tree;
+        SerializeJson (tree);
+        std::stringstream ostream;
+        boost::property_tree::write_json(ostream, tree);
+        std::string s = ostream.str();
+        return s;
+    }
+};
+
 class node : public std::enable_shared_from_this<logos::node>
 {
 public:
@@ -491,6 +545,7 @@ public:
     void ongoing_keepalive ();
     void ongoing_bootstrap ();
     void on_demand_bootstrap ();
+    BootstrapProgress CreateBootstrapProgress();
     void backup_wallet ();
     int price (logos::uint128_t const &, int);
     void work_generate_blocking (logos::block &);

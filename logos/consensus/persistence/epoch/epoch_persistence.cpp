@@ -6,6 +6,7 @@
 #include <logos/rewards/epoch_rewards_manager.hpp>
 #include <logos/staking/voting_power_manager.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/epoch/epoch_handler.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/staking/staking_manager.hpp>
 #include <logos/lib/trace.hpp>
@@ -86,6 +87,30 @@ PersistenceManager<ECT>::Validate(
 
         if (status)
             status->progress = EVP_MICRO_TIP;
+    }
+
+    if (!status || status->progress < EVP_NUMBER_RB)
+    {
+        ApprovedEB previous_epoch;
+        if (_store.epoch_get(epoch.previous, previous_epoch))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::Validate failed to get epoch: " <<
+                            epoch.previous.to_string();
+            trace_and_halt();
+            return false;
+        }
+
+        if (epoch.total_RBs != previous_epoch.total_RBs + EpochHandler::ComputeNumRBs(_store, epoch.epoch_number))
+        {
+            LOG_WARN(_log) << "PersistenceManager::Validate total_RBs is wrong"
+                            << " actual=" << epoch.total_RBs
+                            << " expect=" << previous_epoch.total_RBs + EpochHandler::ComputeNumRBs(_store, epoch.epoch_number);
+            UpdateStatusReason(status, process_result::invalid_number_blocks);
+            return false;
+        }
+
+        if (status)
+            status->progress = EVP_NUMBER_RB;
     }
 
     if (!status || status->progress < EVP_VOTING)

@@ -74,6 +74,8 @@ namespace Bootstrap
          */
         void stop ();
 
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips);
+
     private:
         Service & service;
         logos::alarm & alarm;

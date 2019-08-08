@@ -90,9 +90,12 @@ namespace Bootstrap
          */
         void PullFailed(PullPtr pull);
 
+        bool GetTipsets(TipSet &my, TipSet &others);
+
     private:
         void CreateMorePulls();
         void CheckMicroProgress();
+        bool ReduceNumBlockToDownload();
 
         void UpdateMyBSBTip(BSBPtr block);
         void UpdateMyMBTip(MBPtr block);
@@ -101,7 +104,8 @@ namespace Bootstrap
         logos::IBlockCache & block_cache;
         TipSet my_tips;
         TipSet others_tips;
-
+        uint64_t num_blocks_to_download;
+        bool inited;
         std::mutex mtx;//for waiting_pulls and ongoing_pulls
         std::deque<PullPtr> waiting_pulls;
         std::unordered_set<PullPtr> ongoing_pulls;

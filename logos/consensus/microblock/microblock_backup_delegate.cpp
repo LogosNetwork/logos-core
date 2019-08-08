@@ -115,11 +115,7 @@ MicroBlockBackupDelegate::AdvanceCounter()
 {
     if (_pre_prepare->last_micro_block)
     {
-        _sequence_number = 0;
         _expected_epoch_number = _pre_prepare->epoch_number + 1;
     }
-    else
-    {
-        _sequence_number = _pre_prepare->sequence + 1;
-    }
+    _sequence_number = _pre_prepare->sequence + 1;
 }
