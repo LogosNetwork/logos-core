@@ -896,6 +896,33 @@ TEST(Staking, SwitchProxy)
         ASSERT_EQ(vp_info.current.unlocked_proxied, 0); 
     }
 
+    //Test receive from previous epoch goes to correct rep
+    AccountAddress sender = 43233243;
+    {
+    
+        logos::transaction txn(store->environment, nullptr, true);
+        logos::account_info sender_info;
+        auto sender_balance = PersistenceManager<R>::MinTransactionFee(RequestType::Send) * 100;
+        sender_info.SetBalance(sender_balance,epoch_num,txn);
+        store->account_put(sender, sender_info,txn); 
+    }
+    {
+    Send send;
+    send.origin = sender;
+    send.AddTransaction(account,200);
+    send.fee = PersistenceManager<R>::MinTransactionFee(RequestType::Send);
+    --epoch_num;
+    std::cout << "cj applying send" << std::endl;
+    apply(send);
+    std::cout << "cj applied send" << std::endl;
+    std::cout << "rep2 is " << rep2.to_string();
+    ++epoch_num;
+    update_info();
+    old_bal += 200;
+
+    }
+
+
     //reset the dummy accounts everytime
     AccountAddress dummy_account = 122222;
     AccountAddress dummy_account2 = 333333;
@@ -947,7 +974,7 @@ TEST(Staking, SwitchProxy)
 
             ASSERT_EQ(vp_info.current.self_stake, start_rep.stake);
             ASSERT_EQ(vp_info.current.locked_proxied, 0);
-            ASSERT_EQ(vp_info.current.unlocked_proxied, 0); 
+            ASSERT_EQ(vp_info.current.unlocked_proxied,0); 
         }
 
         //Receive some funds
@@ -1092,6 +1119,11 @@ TEST(Staking, SwitchProxy)
     ASSERT_TRUE(validate(proxy));
     apply(proxy);
 
+
+}
+
+TEST(Staking, EpochBoundaryRace)
+{
 
 }
 

@@ -328,12 +328,28 @@ Amount const & logos::account_info::GetBalance() const
     return balance;
 }
 
+AccountAddress logos::account_info::GetRepForEpoch(uint32_t epoch) const
+{
+    if(new_rep.rep != 0 && epoch>= new_rep.epoch_first_active)
+    {
+        return new_rep.rep;
+    }
+    else
+    {
+        assert(epoch >= old_rep.epoch_first_active);
+        return old_rep.rep;
+    }
+}
+
 void logos::account_info::SetBalance(
         Amount const & new_balance,
         uint32_t const & epoch, 
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    AccountAddress rep = GetRepForEpoch(epoch+1);
+    AccountAddress next_rep = GetRepForEpoch(epoch+2);
+    
     if(new_balance > balance)
     {
         Amount diff = new_balance - balance;
@@ -344,6 +360,23 @@ void logos::account_info::SetBalance(
                     rep,
                     diff,
                     epoch,
+                    txn);
+        }
+
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+             vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            vpm->AddUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
                     txn);
         }
     }
@@ -365,6 +398,22 @@ void logos::account_info::SetBalance(
                     epoch,
                     txn);
         }
+
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+             vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+            vpm->SubtractUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
+                    txn);
+        }
     }
     balance = new_balance;
 }
@@ -375,6 +424,10 @@ void logos::account_info::SetAvailableBalance(
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    AccountAddress rep = GetRepForEpoch(epoch+1);
+
+    AccountAddress next_rep = GetRepForEpoch(epoch+2);
+
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;
@@ -386,6 +439,24 @@ void logos::account_info::SetAvailableBalance(
                     diff,
                     epoch,
                     txn);
+        }
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+            
+            vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            vpm->AddUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
+                    txn);
+
         }
     }
     else
@@ -399,6 +470,21 @@ void logos::account_info::SetAvailableBalance(
                     rep,
                     diff,
                     epoch,
+                    txn);
+        }
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+             vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+            vpm->SubtractUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
                     txn);
         }
     }
@@ -465,6 +551,8 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 
     s += write (stream_a, governance_subchain_head.bytes);
     s += write (stream_a, rep);
+    s += new_rep.Serialize(stream_a);
+    s += old_rep.Serialize(stream_a);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
 
@@ -489,6 +577,8 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
     auto error = Account::Deserialize(stream_a)
         || read (stream_a, governance_subchain_head.bytes)
         || read (stream_a, rep)
+        || new_rep.Deserialize(stream_a)
+        || old_rep.Deserialize(stream_a)
         || read (stream_a, open_block.bytes)
         || read (stream_a, count);
 
