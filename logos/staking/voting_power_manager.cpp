@@ -162,20 +162,18 @@ void VotingPowerManager::Modify(
             func(info.current.self_stake, diff);
         }
     }
+    //Updates from the previous epoch effect current as well as next
+    if(stake_type == LOCKED_PROXY)
+    {
+        func(info.next.locked_proxied, diff);
+    }
+    else if(stake_type == UNLOCKED_PROXY)
+    {
+        func(info.next.unlocked_proxied, diff);
+    }
     else
     {
-        if(stake_type == LOCKED_PROXY)
-        {
-            func(info.next.locked_proxied, diff);
-        }
-        else if(stake_type == UNLOCKED_PROXY)
-        {
-            func(info.next.unlocked_proxied, diff);
-        }
-        else
-        {
-            func(info.next.self_stake, diff);
-        }
+        func(info.next.self_stake, diff);
     }
 
 }
