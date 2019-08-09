@@ -1122,11 +1122,6 @@ TEST(Staking, SwitchProxy)
 
 }
 
-TEST(Staking, EpochBoundaryRace)
-{
-
-}
-
 TEST(Staking, MultipleProxy)
 {
     /*
