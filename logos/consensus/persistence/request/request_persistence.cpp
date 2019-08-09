@@ -1666,22 +1666,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                             << "failed to get origin account";
             trace_and_halt();
         }
-        if(origin_account_info->type == logos::AccountType::LogosAccount)
-        {
-            //set rep of destination account to same as sending accounts rep
-            auto info_c = static_pointer_cast<logos::account_info>(info);
-            auto origin_info_c =
-                static_pointer_cast<logos::account_info>(origin_account_info);
-            info_c->governance_subchain_head
-                =  origin_info_c->governance_subchain_head;
-            info_c->rep = origin_info_c->rep;
 
-        }
-        else
-        {
-            LOG_WARN(_log) << "PersistenceManager::ApplySend - "
-                           << "creating new account with no rep";
-        }
         LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
                         << "new account: "
                         << send.destination.to_string();
@@ -2734,7 +2719,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     //Can't submit Stake request if you have a rep already
-    if(info.rep != 0)
+    if(info.new_rep.rep != 0)
     {
        result.code = logos::process_result::not_a_rep;
        return false; 
@@ -2831,7 +2816,7 @@ bool PersistenceManager<R>::ValidateRequest(
     //if account has a rep already, cannot perform Unstake
     //any self staked funds should have began thawing when account selected a rep
     //via Proxy request
-    if(info.rep != 0)
+    if(info.new_rep.rep != 0)
     {
        result.code = logos::process_result::not_a_rep;
        return false; 

@@ -460,7 +460,7 @@ TEST (BlockCache, MixedBlocksTest)
         }
         else
         {
-            ASSERT_EQ(2,3);
+           EXPECT_EQ(2,3);
         }
     cont:;
     }

@@ -154,6 +154,7 @@ public:
 
 struct RepRecord
 {
+    //0 means no rep. Note, reps themselves have this field set to 0
     AccountAddress rep = 0;
     uint32_t epoch_first_active = 0;
     uint32_t Serialize(stream &stream) const
@@ -166,6 +167,10 @@ struct RepRecord
     bool Deserialize(stream &stream)
     {
         return read(stream, rep)|| read(stream, epoch_first_active);
+    }
+    bool operator==(RepRecord const & other) const
+    {
+        return rep == other.rep && epoch_first_active == other.epoch_first_active;
     }
 
 };
@@ -225,8 +230,6 @@ struct account_info : Account
     amount const & GetBalance() const override;
 
     block_hash governance_subchain_head;
-    //0 means no rep. Note, reps themselves have this field set to 0
-    AccountAddress rep;
     RepRecord old_rep;
     RepRecord new_rep;
     block_hash open_block;
