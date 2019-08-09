@@ -912,10 +912,7 @@ TEST(Staking, SwitchProxy)
     send.AddTransaction(account,200);
     send.fee = PersistenceManager<R>::MinTransactionFee(RequestType::Send);
     --epoch_num;
-    std::cout << "cj applying send" << std::endl;
     apply(send);
-    std::cout << "cj applied send" << std::endl;
-    std::cout << "rep2 is " << rep2.to_string();
     ++epoch_num;
     update_info();
     old_bal += 200;
