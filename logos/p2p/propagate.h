@@ -156,6 +156,11 @@ public:
         return false;
     }
 
+    uint64_t GetNextLabel() const
+    {
+        return next_label;
+    }
+
     const PropagateMessage *GetNext(uint64_t &current_label)
     {
         std::lock_guard<std::mutex> lock(mutex);
