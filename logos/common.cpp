@@ -367,12 +367,14 @@ void logos::account_info::SetBalance(
         //previous epoch, and the accounts rep has changed in the current epoch
         if(next_rep != 0 && next_rep != rep)
         {
-             vpm->SubtractUnlockedProxied(
+            //need to undo update to rep voting power in epoch + 2
+            vpm->SubtractUnlockedProxied(
                     rep,
                     diff,
                     epoch+1,
                     txn);       
 
+            //need to add voting power for next_rep in epoch + 2
             vpm->AddUnlockedProxied(
                     next_rep,
                     diff,
@@ -403,11 +405,15 @@ void logos::account_info::SetBalance(
         //previous epoch, and the accounts rep has changed in the current epoch
         if(next_rep != 0 && next_rep != rep)
         {
-             vpm->AddUnlockedProxied(
+
+            //need to undo update to rep voting power in epoch + 2
+            vpm->AddUnlockedProxied(
                     rep,
                     diff,
                     epoch+1,
                     txn);       
+
+            //need to subtract voting power for next_rep in epoch + 2
             vpm->SubtractUnlockedProxied(
                     next_rep,
                     diff,
@@ -445,12 +451,14 @@ void logos::account_info::SetAvailableBalance(
         if(next_rep != 0 && next_rep != rep)
         {
             
+            //need to undo update to rep voting power in epoch + 2
             vpm->SubtractUnlockedProxied(
                     rep,
                     diff,
                     epoch+1,
                     txn);       
 
+            //need to add voting power for next_rep in epoch + 2
             vpm->AddUnlockedProxied(
                     next_rep,
                     diff,
@@ -476,11 +484,14 @@ void logos::account_info::SetAvailableBalance(
         //previous epoch, and the accounts rep has changed in the current epoch
         if(next_rep != 0 && next_rep != rep)
         {
-             vpm->AddUnlockedProxied(
+            //need to undo update to rep voting power in epoch + 2
+            vpm->AddUnlockedProxied(
                     rep,
                     diff,
                     epoch+1,
                     txn);       
+
+            //need to subtract voting power for next_rep in epoch + 2
             vpm->SubtractUnlockedProxied(
                     next_rep,
                     diff,
