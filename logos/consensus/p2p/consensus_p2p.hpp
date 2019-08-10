@@ -104,15 +104,15 @@ public:
         , _block_cache(block_cache)
         , _batch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Request> >    rptr) -> bool
             {
-                return this->_block_cache.AddRequestBlock(rptr);
+                return this->_block_cache.AddRequestBlock(rptr) == logos::IBlockCache::add_result::OK;
             })
         , _micro(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::MicroBlock> > mptr) -> bool
             {
-                return this->_block_cache.AddMicroBlock  (mptr);
+                return this->_block_cache.AddMicroBlock  (mptr) == logos::IBlockCache::add_result::OK;
             })
         , _epoch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Epoch> >      eptr) -> bool
             {
-                return this->_block_cache.AddEpochBlock  (eptr);
+                return this->_block_cache.AddEpochBlock  (eptr) == logos::IBlockCache::add_result::OK;
             })
         , _session_id(0)
     {
