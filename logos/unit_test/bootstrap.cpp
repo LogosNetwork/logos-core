@@ -809,17 +809,17 @@ TEST (bootstrap, tip_set_valid_other)
 class UT_Cache: public logos::IBlockCache
 {
 public:
-    virtual bool AddEpochBlock(EBPtr block) override
+    virtual logos::IBlockCache::add_result AddEpochBlock(EBPtr block) override
     {
-        return addeb;
+        return addeb ? logos::IBlockCache::add_result::OK : logos::IBlockCache::add_result::FAILED;
     }
-    virtual bool AddMicroBlock(MBPtr block) override
+    virtual logos::IBlockCache::add_result AddMicroBlock(MBPtr block) override
     {
-        return addmb;
+        return addmb ? logos::IBlockCache::add_result::OK : logos::IBlockCache::add_result::FAILED;
     }
-    virtual bool AddRequestBlock(RBPtr block) override
+    virtual logos::IBlockCache::add_result AddRequestBlock(RBPtr block) override
     {
-        return addbsb;
+        return addbsb ? logos::IBlockCache::add_result::OK : logos::IBlockCache::add_result::FAILED;
     }
     virtual void StoreEpochBlock(EBPtr block) override
     {

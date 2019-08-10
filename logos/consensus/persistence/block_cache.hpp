@@ -30,27 +30,34 @@ public:
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    enum add_result
+    {
+        FAILED,
+        EXISTS,
+        OK
+    };
+
     // should be called by bootstrap and P2P
     /**
      * add an epoch block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddEpochBlock(EBPtr block) = 0;
+    virtual add_result AddEpochBlock(EBPtr block) = 0;
 
     /**
      * add a micro block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddMicroBlock(MBPtr block) = 0;
+    virtual add_result AddMicroBlock(MBPtr block) = 0;
 
     /**
      * add a request block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddRequestBlock(RBPtr block) = 0;
+    virtual add_result AddRequestBlock(RBPtr block) = 0;
 
     // should be called by consensus
     virtual void StoreEpochBlock(EBPtr block) = 0;
@@ -84,21 +91,21 @@ public:
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddEpochBlock(EBPtr block) override;
+    add_result AddEpochBlock(EBPtr block) override;
 
     /**
      * (inherited) add a micro block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddMicroBlock(MBPtr block) override;
+    add_result AddMicroBlock(MBPtr block) override;
 
     /**
      * (inherited) add a request block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddRequestBlock(RBPtr block) override;
+    add_result AddRequestBlock(RBPtr block) override;
 
     void StoreEpochBlock(EBPtr block) override;
     void StoreMicroBlock(MBPtr block) override;
