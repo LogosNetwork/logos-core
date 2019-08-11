@@ -1001,6 +1001,9 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         //
         // Message: propagate
         //
+        /* Do not send propagate messages if send queue is too long */
+        if (pto->fPauseSend)
+            return true;
         const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
         if (promess)
         {
