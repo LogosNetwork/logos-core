@@ -1275,8 +1275,8 @@ void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr,
     else
     {
         session->start();
-        session = std::make_shared<AsioSession>(*connman.io_service, connman);
     }
+    session = std::make_shared<AsioSession>(*connman.io_service, connman);
     if (!in_shutdown)
     {
         acceptor.async_accept(session->get_socket(),
