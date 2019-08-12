@@ -1807,11 +1807,12 @@ logos::BootstrapProgress logos::node::CreateBootstrapProgress()
 {
     LOG_DEBUG (log) << __func__;
     Bootstrap::TipSet my_bootstrap, others;
-    bool on_going = bootstrap_initiator.GetTipsets (my_bootstrap, others);
+    uint8_t mb_Qed, eb_Qed;
+    bool on_going = bootstrap_initiator.GetTipsets (my_bootstrap, others, mb_Qed, eb_Qed);
     if(on_going)
     {
         auto my_store = Bootstrap::TipSet::CreateTipSet(store);
-        return BootstrapProgress(my_store, my_bootstrap, others);
+        return BootstrapProgress(my_store, my_bootstrap, others, mb_Qed, eb_Qed);
     }
     else
     {

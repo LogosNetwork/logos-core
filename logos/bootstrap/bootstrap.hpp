@@ -74,7 +74,7 @@ namespace Bootstrap
 
         void notify(logos_global::BootstrapResult res);
 
-        bool GetTipsets(TipSet &my_tips, TipSet &others_tips);
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed);
 
     private:
         static logos::endpoint bad_address;
