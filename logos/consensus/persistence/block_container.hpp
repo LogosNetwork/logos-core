@@ -184,6 +184,7 @@ public:
     bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
 
     void DumpCachedBlocks();
+    void DumpChainTips();
 
 private:
     bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);

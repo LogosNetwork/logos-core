@@ -5,6 +5,7 @@
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/node/common.hpp>
+#include <logos/node/node.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
 //#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
@@ -842,13 +843,15 @@ using PullPtr = std::shared_ptr<Bootstrap::PullRequest>;
 TEST (bootstrap, puller)
 {
     UT_Cache cache;
+    boost::asio::io_service service;
+    logos::alarm alarm (service);
     {
-        Bootstrap::Puller puller(cache);
+        Bootstrap::Puller puller(cache, alarm);
         ASSERT_EQ(puller.GetNumWaitingPulls(), 0);
         ASSERT_TRUE(puller.AllDone());
     }
     {
-        Bootstrap::Puller puller(cache);
+        Bootstrap::Puller puller(cache, alarm);
         Bootstrap::TipSet tips = create_tip_set();
         Bootstrap::TipSet tips_other = create_tip_set();
         tips_other.eb.epoch++;
@@ -857,7 +860,7 @@ TEST (bootstrap, puller)
         ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
     }
     {
-        Bootstrap::Puller puller(cache);
+        Bootstrap::Puller puller(cache, alarm);
         Bootstrap::TipSet tips = create_tip_set();
         Bootstrap::TipSet tips_other = create_tip_set();
         tips_other.mb.sqn++;
@@ -865,7 +868,7 @@ TEST (bootstrap, puller)
         ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
     }
     {
-        Bootstrap::Puller puller(cache);
+        Bootstrap::Puller puller(cache, alarm);
         Bootstrap::TipSet tips = create_tip_set();
         Bootstrap::TipSet tips_other = create_tip_set();
         for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
@@ -877,7 +880,7 @@ TEST (bootstrap, puller)
     }
 
     {
-        Bootstrap::Puller puller(cache);
+        Bootstrap::Puller puller(cache, alarm);
         Bootstrap::TipSet tips = create_tip_set();
         Bootstrap::TipSet tips_other = create_tip_set();
         for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
