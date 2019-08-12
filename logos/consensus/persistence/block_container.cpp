@@ -12,7 +12,10 @@ bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
         in = _cached_blocks.find(hash) != _cached_blocks.end();
     }
     //TODO Peng: remove after integration
-    DumpChainTips();
+    {
+        std::lock_guard<std::mutex> lck (_chains_mutex);
+        DumpChainTips();
+    }
     return in;
 }
 
@@ -68,7 +71,7 @@ void PendingBlockContainer::DumpCachedBlocks()
 
 void PendingBlockContainer::DumpChainTips()
 {
-    std::lock_guard<std::mutex> lck (_chains_mutex);
+    //std::lock_guard<std::mutex> lck (_chains_mutex);
 
     if(! _epochs.empty())
     {
@@ -110,6 +113,8 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
     LOG_TRACE(_log) << "BlockCache:Add:E:{ " << block->CreateTip().to_string();
     EPtr ptr = std::make_shared<PendingEB>(block);
     bool found = false;
+    bool need_validate = false;
+
     std::lock_guard<std::mutex> lck (_chains_mutex);
 
     for (auto bi = _epochs.rbegin(); bi != _epochs.rend(); ++ bi)
@@ -119,6 +124,11 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
             //duplicate
             if (bi->eb == nullptr)
             {
+                if(bi->empty())
+                {
+                    auto temp_i = bi;
+                    need_validate = ++temp_i == _epochs.rend();
+                }
                 bi->eb = ptr;
             }
             found = true;
@@ -135,10 +145,11 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
     if (!found)
     {
         _epochs.emplace_front(EpochPeriod(ptr));
+        need_validate = true;
     }
 
-    LOG_TRACE(_log) << "BlockCache:Add:E:} " << (int)!found;
-    return !found;
+    LOG_TRACE(_log) << "BlockCache:Add:E:} " << (int)need_validate;
+    return need_validate;
 }
 
 bool PendingBlockContainer::AddMicroBlock(MBPtr block)
@@ -457,6 +468,7 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
     assert(rb_idx<=NUM_DELEGATES);
 
     std::lock_guard<std::mutex> lck (_chains_mutex);
+    DumpChainTips();//TODO Peng: remove
 
     auto e = _epochs.begin();
     while (e != _epochs.end())
