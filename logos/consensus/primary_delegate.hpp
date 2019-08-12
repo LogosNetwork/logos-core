@@ -35,6 +35,7 @@ class PrimaryDelegate : public Self<PrimaryDelegate>
     using Error      = boost::system::error_code;
     using Service    = boost::asio::io_service;
     using Seconds    = boost::posix_time::seconds;
+    using Minutes    = boost::posix_time::minutes;
     using Store      = logos::block_store;
     using Weights    = std::unordered_map<uint8_t, Weight>;
 
@@ -99,6 +100,7 @@ public:
         return _epoch_number;
     }
 
+
 protected:
 
     virtual bool SendP2p(const uint8_t *, uint32_t, MessageType, uint32_t, uint8_t) = 0;
@@ -107,7 +109,7 @@ protected:
     virtual void UpdateVotes();
 
     template<ConsensusType C>
-    void OnConsensusInitiated(const PrePrepareMessage<C> & block);
+    void OnConsensusInitiated(const PrePrepareMessage<C> & block, bool reproposing);
 
     bool StateReadyForConsensus();
     void CancelTimer();
@@ -146,8 +148,6 @@ protected:
 
 private:
 
-    static const Seconds PRIMARY_TIMEOUT;
-    static const Seconds RECALL_TIMEOUT;
 
     template<ConsensusType C>
     void ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id);
@@ -207,7 +207,7 @@ private:
                    ConsensusState expected_state);
 
     template<ConsensusType C>
-    void CycleTimers(bool cancel = false);
+    void CycleTimers(bool cancel = false,bool reproposing=false);
 
     bool ReachedQuorum();
     bool AllDelegatesResponded();
@@ -229,4 +229,5 @@ private:
     Timer              _primary_timer;
     uint8_t            _delegates_responded = 0;
     bool               _timer_cancelled     = false;
+    uint8_t _num_proposals                       = 0;
 };
