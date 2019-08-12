@@ -69,9 +69,9 @@ namespace Bootstrap
 
         logos::alarm & alarm;
 
-        bool GetTipsets(TipSet &my_tips, TipSet &others_tips)
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed)
         {
-            return puller->GetTipsets(my_tips, others_tips);
+            return puller->GetTipsets(my_tips, others_tips, mb_Qed, eb_Qed);
         }
 
         void wakeup();

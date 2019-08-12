@@ -74,7 +74,7 @@ namespace Bootstrap
          */
         void stop ();
 
-        bool GetTipsets(TipSet &my_tips, TipSet &others_tips);
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed);
 
     private:
         Service & service;

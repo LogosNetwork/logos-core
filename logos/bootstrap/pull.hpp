@@ -96,7 +96,7 @@ namespace Bootstrap
          */
         void PullFailed(PullPtr pull);
 
-        bool GetTipsets(TipSet &my, TipSet &others);
+        bool GetTipsets(TipSet &my, TipSet &others, uint8_t &mb_Qed, uint8_t &eb_Qed);
 
     private:
         void CreateMorePulls();

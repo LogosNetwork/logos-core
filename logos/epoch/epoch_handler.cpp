@@ -72,13 +72,12 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     //Note, we write epoch block with epoch number i at the beginning of epoch i+1
     epoch.is_extension = !_voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
 
-     if(EpochRewardsManager::GetInstance()->GetFeePool(epoch.epoch_number, epoch.transaction_fee_pool))
-     {
-         LOG_FATAL(_log) << "EpochHandler::Build failed to get fee pool for epoch: "
-                         << epoch.epoch_number;
-
-         trace_and_halt();
-     }
+    epoch.transaction_fee_pool = 0;
+    if(EpochRewardsManager::GetInstance()->GetFeePool(epoch.epoch_number, epoch.transaction_fee_pool))
+    {
+        LOG_WARN(_log) << "EpochHandler::Build failed to get fee pool for epoch: "
+                        << epoch.epoch_number;
+    }
 
     auto total_supply = (logos::uint256_t(previous_epoch.total_supply.number()) *
                          logos::uint256_t(LOGOS_INFLATION_RATE * INFLATION_RATE_FACTOR)) / INFLATION_RATE_FACTOR;
