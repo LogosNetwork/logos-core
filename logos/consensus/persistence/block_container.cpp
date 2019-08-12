@@ -4,10 +4,16 @@ namespace logos {
 
 bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
 {
-    std::lock_guard<std::mutex> lck (_cache_blocks_mutex);
+    bool in;
+    {
+        std::lock_guard<std::mutex> lck(_cache_blocks_mutex);
+        //TODO Peng: remove after integration
+        DumpCachedBlocks();
+        in = _cached_blocks.find(hash) != _cached_blocks.end();
+    }
     //TODO Peng: remove after integration
-    DumpCachedBlocks();
-    return _cached_blocks.find(hash) != _cached_blocks.end();
+    DumpChainTips();
+    return in;
 }
 
 bool PendingBlockContainer::BlockExistsAdd(EBPtr block)
@@ -58,6 +64,45 @@ void PendingBlockContainer::DumpCachedBlocks()
     LOG_TRACE(_log) << "BlockCache:Dump:count: " << _cached_blocks.size();
     for (auto & h : _cached_blocks)
         LOG_TRACE(_log) << "BlockCache:Dump:hash: " << h.to_string();
+}
+
+void PendingBlockContainer::DumpChainTips()
+{
+    std::lock_guard<std::mutex> lck (_chains_mutex);
+
+    if(! _epochs.empty())
+    {
+        auto e = _epochs.begin();
+        LOG_TRACE(_log) << "BlockCache:DumpChainTips: epoch_num=" << e->epoch_num;
+        if(e->eb != nullptr)
+        {
+            LOG_TRACE(_log) << "BlockCache:DumpChainTips: eb=" << e->eb->block->CreateTip().to_string();
+        } else{
+            LOG_TRACE(_log) << "BlockCache:DumpChainTips: no eb";
+        }
+
+        if(! e->mbs.empty())
+        {
+            auto m = e->mbs.begin();
+            LOG_TRACE(_log) << "BlockCache:DumpChainTips: mb=" << (*m)->block->CreateTip().to_string();
+        }else{
+            LOG_TRACE(_log) << "BlockCache:DumpChainTips: no mb";
+        }
+
+        for (int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            auto r = e->rbs[i].begin();
+            if(r != e->rbs[i].end())
+            {
+                LOG_TRACE(_log) << "BlockCache:DumpChainTips: rb[" << i << "]=" << (*r)->block->CreateTip().to_string();
+            } else{
+                LOG_TRACE(_log) << "BlockCache:DumpChainTips: no rb for chain # " << i;
+            }
+        }
+    }
+    else {
+        LOG_TRACE(_log) << "BlockCache:DumpChainTips: empty";
+    }
 }
 
 bool PendingBlockContainer::AddEpochBlock(EBPtr block)
