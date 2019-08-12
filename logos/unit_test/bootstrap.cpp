@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+#include <logos/bootstrap/attempt.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/tips.hpp>
@@ -8,6 +9,8 @@
 #include <logos/node/node.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
+
+
 //#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
 //#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
 //#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
@@ -845,6 +848,7 @@ TEST (bootstrap, puller)
     UT_Cache cache;
     boost::asio::io_service service;
     logos::alarm alarm (service);
+    std::shared_ptr<Bootstrap::BootstrapAttempt> attempt;
     {
         Bootstrap::Puller puller(cache, alarm);
         ASSERT_EQ(puller.GetNumWaitingPulls(), 0);
@@ -856,7 +860,7 @@ TEST (bootstrap, puller)
         Bootstrap::TipSet tips_other = create_tip_set();
         tips_other.eb.epoch++;
         tips_other.eb.sqn++;
-        puller.Init(tips, tips_other);
+        puller.Init(attempt, tips, tips_other);
         ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
     }
     {
@@ -864,7 +868,7 @@ TEST (bootstrap, puller)
         Bootstrap::TipSet tips = create_tip_set();
         Bootstrap::TipSet tips_other = create_tip_set();
         tips_other.mb.sqn++;
-        puller.Init(tips, tips_other);
+        puller.Init(attempt, tips, tips_other);
         ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
     }
     {
@@ -875,7 +879,7 @@ TEST (bootstrap, puller)
             tips_other.bsb_vec[i].sqn++;
             tips_other.bsb_vec[i].digest = 1;
         }
-        puller.Init(tips, tips_other);
+        puller.Init(attempt, tips, tips_other);
         ASSERT_EQ(puller.GetNumWaitingPulls(), NUM_DELEGATES);
     }
 
@@ -888,7 +892,7 @@ TEST (bootstrap, puller)
             tips_other.bsb_vec[i].digest = 1;
         }
 
-        puller.Init(tips, tips_other);
+        puller.Init(attempt, tips, tips_other);
         std::vector<PullPtr> pulls;
         for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
             pulls.push_back(puller.GetPull());
