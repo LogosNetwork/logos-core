@@ -1,19 +1,19 @@
 #!/bin/bash
 
-network='live'
+build='false'
 
 print_usage() {
-	echo 'build.sh [-h] [-n {live|beta|test}]'
+	echo 'build.sh [-h] [-b {true}]'
 }
 
-while getopts 'hn:' OPT; do
+while getopts 'hb:' OPT; do
 	case "${OPT}" in
 		h)
 			print_usage
 			exit 0
 			;;
-		n)
-			network="${OPTARG}"
+		b)
+			build="${OPTARG}"
 			;;
 		*)
 			print_usage >&2
@@ -30,13 +30,12 @@ case "${network}" in
 		network_tag="-${network}"
 		;;
 	*)
-		echo "Invalid network: ${network}" >&2
-		exit 1
+		network_tag=''
 		;;
 esac
 
 REPO_ROOT=`git rev-parse --show-toplevel`
 COMMIT_SHA=`git rev-parse --short HEAD`
 pushd $REPO_ROOT
-docker build --build-arg NETWORK="${network}" -f docker/node/Dockerfile -t logos-node${network_tag}:latest .
+docker build --build-arg build="${build}" -f docker/node/Dockerfile -t logos-node${network_tag}:latest .
 popd

@@ -6,60 +6,37 @@ export PATH
 set -euo pipefail
 IFS=$'\n\t'
 
-network="$(cat /etc/nano-network)"
-case "${network}" in
-        live|'')
-                network='live'
-                dirSuffix=''
-                ;;
-        beta)
-                dirSuffix='Beta'
-                ;;
-        test)
-                dirSuffix='Test'
-                ;;
-esac
+network="Test"
 
-nanodir="${HOME}/Logos${dirSuffix}"
+
+nanodir="${HOME}/LogosTest"
 dbFile="${nanodir}/data.ldb"
 mkdir -p "${nanodir}"
 if [ ! -f "${nanodir}/config.json" ]; then
         echo "Config File not found, adding default."
-        cp "/usr/share/logos/config/${network}.json" "${nanodir}/config.json"
+        cp "/usr/share/logos/config/config.json" "${nanodir}/config.json"
+fi
+
+if [ ! -f "${nanodir}/data.ldb" ]; then
+        echo "DB File not found, adding default."
+        cp "/usr/share/logos/config/data.ldb" "${nanodir}/data.ldb"
 fi
 
 pid=''
 firstTimeComplete=''
-while true; do
-	if [ -n "${firstTimeComplete}" ]; then
-		sleep 10
+
+if [ -n "${firstTimeComplete}" ]; then
+	sleep 10
+fi
+firstTimeComplete='true'
+
+if [ -n "${pid}" ]; then
+	if ! kill -0 "${pid}" >/dev/null 2>/dev/null; then
+		pid=''
 	fi
-	firstTimeComplete='true'
+fi
 
-	if [ -f "${dbFile}" ]; then
-		dbFileSize="$(stat -c %s "${dbFile}" 2>/dev/null)"
-		if [ "${dbFileSize}" -gt $[1024 * 1024 * 1024 * 20] ]; then
-			echo "ERROR: Database size grew above 20GB (size = ${dbFileSize})" >&2
-
-			while [ -n "${pid}" ]; do
-				kill "${pid}" >/dev/null 2>/dev/null || :
-				if ! kill -0 "${pid}" >/dev/null 2>/dev/null; then
-					pid=''
-				fi
-			done
-
-			logos_core --vacuum
-		fi
-	fi
-
-	if [ -n "${pid}" ]; then
-		if ! kill -0 "${pid}" >/dev/null 2>/dev/null; then
-			pid=''
-		fi
-	fi
-
-	if [ -z "${pid}" ]; then
-		logos_core --daemon &
-		pid="$!"
-	fi
-done
+if [ -z "${pid}" ]; then
+	logos_core --daemon &
+	pid="$!"
+fi

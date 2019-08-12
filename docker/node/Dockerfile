@@ -1,30 +1,26 @@
-FROM ubuntu:16.04
+FROM carlhua/logosbase:latest
+ARG build
 
-ARG NETWORK=live
+RUN apt-get update && \
+      apt-get -y install sudo
 
-ENV BOOST_ROOT=/tmp/boost_install
 
-ADD ci /tmp/ci
 
-RUN apt-get update -qq && apt-get install -yqq \
-    build-essential \
-    cmake \
-    g++ \
-    wget && \
-    /tmp/ci/bootstrap_boost.sh -m
+USER root
+CMD /bin/bash
+ADD ./ /tmp/
+RUN cd /tmp/build
 
-ADD ./ /tmp/src
+RUN if [ "$build" = "true" ]; then \
+    /tmp/build/build.sh; \
+  fi
 
-RUN mkdir /tmp/build && \
-    cd /tmp/build && \
-    cmake /tmp/src -DBOOST_ROOT=${BOOST_ROOT} -DACTIVE_NETWORK=rai_${NETWORK}_network && \
-    make logos_core && \
-    cd .. && \
-    echo ${NETWORK} > /etc/nano-network
+FROM carlhua/logosbase:latest
 
-FROM ubuntu:16.04
+RUN apt-get -y install vim 
+
 COPY --from=0 /tmp/build/logos_core /usr/bin
-COPY --from=0 /etc/nano-network /etc
+
 COPY docker/node/entry.sh /entry.sh
 COPY docker/node/config /usr/share/logos/config
 RUN chmod +x /entry.sh
