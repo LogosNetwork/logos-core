@@ -79,7 +79,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         micro_block.sequence = e;
         micro_block.timestamp = 0;
         micro_block.previous = microblock_hash;
-        micro_block.last_micro_block = 0;
+        micro_block.last_micro_block = 1;
         microblock_hash = micro_block.Hash();
         auto microblock_tip = micro_block.CreateTip();
         if (_store.micro_block_put(micro_block, transaction) ||
