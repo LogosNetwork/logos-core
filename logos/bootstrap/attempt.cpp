@@ -17,7 +17,7 @@ namespace Bootstrap
     , initiator(bi)
     , max_connected(max_connected)
     , session_id(PeerInfoProvider::GET_PEER_NEW_SESSION)
-    , puller(cache)
+    , puller(std::make_shared<Puller>(cache, alarm))
     , stopped(false)
     , completed(false)
     {
@@ -50,7 +50,7 @@ namespace Bootstrap
         {
             while (!stopped)
             {
-                if (!puller.AllDone())
+                if (!puller->AllDone())
                 {
                     request_pull();
                     LOG_TRACE(log) << "bootstrap_attempt::run, wait...";
@@ -96,7 +96,7 @@ namespace Bootstrap
                  * since it could be stale as saw in tests.
                  */
                 auto x = TipSet::CreateTipSet(store, true);
-                completed = puller.Init(x, client->response);
+                completed = puller->Init(x, client->response);
             }
         }
         return failed;
@@ -127,12 +127,12 @@ namespace Bootstrap
     void BootstrapAttempt::request_pull()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::request_pull: start";
-        while(puller.GetNumWaitingPulls() > 0)
+        while(puller->GetNumWaitingPulls() > 0)
         {
             auto connection_l = get_connection();
             if (connection_l)
             {
-                auto client(std::make_shared<PullClient>(connection_l, puller));
+                auto client(std::make_shared<PullClient>(connection_l, *puller));
                 client->run();
             }
             else
@@ -187,7 +187,7 @@ namespace Bootstrap
 
     size_t BootstrapAttempt::target_connections(size_t need)
     {
-        need = std::max(need, puller.GetNumWaitingPulls());
+        need = std::max(need, puller->GetNumWaitingPulls());
         auto num_con = working_clients.size() +
                 idle_clients.size() +
                 connecting_clients.size();
@@ -307,6 +307,12 @@ namespace Bootstrap
             lock.unlock();
             condition.notify_all();
         }
+    }
+
+    void BootstrapAttempt::wakeup()
+    {
+        LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
+        condition.notify_all();
     }
 
     void BootstrapAttempt::stop()
