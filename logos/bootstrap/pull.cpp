@@ -138,17 +138,17 @@ namespace Bootstrap
             {
                 return PullStatus::Done;
             }
-            bool eb_processed = !block_cache.IsBlockCached(block->Hash());
-            if(eb_processed)
-            {
-                UpdateMyEBTip(block);
-                state = PullerState::Epoch;
-                LOG_INFO(log) << "Puller::EBReceived: processed an epoch "
-                              << working_epoch.epoch_num;
-            } else {
+//            bool eb_processed = !block_cache.IsBlockCached(block->Hash());
+//            if(eb_processed)
+//            {
+//                UpdateMyEBTip(block);
+//                state = PullerState::Epoch;
+//                LOG_INFO(log) << "Puller::EBReceived: processed an epoch "
+//                              << working_epoch.epoch_num;
+//            } else {
                 working_epoch.eb = block;
                 state = PullerState::Micro;
-            }
+//            }
 
             CreateMorePulls();
             return PullStatus::Done;
@@ -197,7 +197,7 @@ namespace Bootstrap
             LOG_TRACE(log) << "Puller::"<<__func__ << MBRequestTips_to_string(*block);
 
             CreateMorePulls();
-             return PullStatus::Done;
+            return PullStatus::Done;
         }
         else
         {
