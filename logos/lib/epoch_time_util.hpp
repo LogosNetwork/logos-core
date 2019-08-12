@@ -10,6 +10,8 @@
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+#include <logos/consensus/messages/common.hpp>
+
 using Milliseconds = std::chrono::milliseconds;
 using Seconds = std::chrono::seconds;
 using Minutes = std::chrono::minutes;
@@ -36,7 +38,11 @@ static const Minutes MICROBLOCK_PROPOSAL_TIME(10); // 10 minutes
 static const Minutes MICROBLOCK_CUTOFF_TIME(10); // 10 minutes
 static const Seconds CLOCK_DRIFT(20); // 20 seconds
 static const Seconds SECONDARY_LIST_TIMEOUT(20); // 20 seconds
+static const Seconds ARCHIVAL_TIMEOUT_SEMI_IDLE(60); // 1 minute
+static const Seconds ARCHIVAL_TIMEOUT_IDLE(600); // 10 minutes
 static const Minutes SECONDARY_LIST_TIMEOUT_CAP(8); // 8 minutes
+static const Seconds PRIMARY_TIMEOUT(60);
+static const Seconds RECALL_TIMEOUT(300);
 
 template<typename C, typename T>
 C TConvert(T t)
@@ -64,6 +70,10 @@ public:
     /// Is this at or past epoch time (> 12h boundary  + 10min MB time - clock drift)
     /// @returns true if it is at or past epoch construction/transition time
     static bool IsPastEpochBlockTime();
+
+    /// Returns the number of seconds to wait until reproposing
+    template <ConsensusType CT>
+    static long GetTimeout(uint8_t num_proposals, uint8_t delegate_id=0);
 
 private:
     /// Get next timeout value

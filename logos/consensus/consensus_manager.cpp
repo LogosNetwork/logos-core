@@ -229,7 +229,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
     // mistakenly process previous consensus messages from backups in this new round,
     // since ProceedWithMessage checks _state first then _cur_hash).
-    OnConsensusInitiated(pre_prepare);
+    OnConsensusInitiated(pre_prepare,reproposing);
     AdvanceState(ConsensusState::PRE_PREPARE);
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
