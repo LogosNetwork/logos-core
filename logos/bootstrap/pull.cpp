@@ -5,6 +5,7 @@
 
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
+#include <logos/bootstrap/attempt.hpp>
 
 namespace Bootstrap
 {
@@ -20,19 +21,21 @@ namespace Bootstrap
         return stream.str ();
     }
 
-    Puller::Puller(logos::IBlockCache & block_cache)
+    Puller::Puller(logos::IBlockCache & block_cache, logos::alarm & alarm)
     : block_cache(block_cache)
+    , alarm(alarm)
     , num_blocks_to_download(0)
     , inited(false)
     {
         LOG_TRACE(log) << "Puller::"<<__func__;
     }
 
-    void Puller::Init(const TipSet & my, const TipSet & others)
+    void Puller::Init(AttemptPtr a, const TipSet & my, const TipSet & others)
     {
-        LOG_TRACE(log) << "Puller::"<<__func__;
+        LOG_INFO(log) << "Puller::"<<__func__;
         std::lock_guard<std::mutex> lck (mtx);
         inited = true;
+        this->attempt = a;
         this->my_tips = my;
         this->others_tips = others;
 
@@ -89,7 +92,7 @@ namespace Bootstrap
     bool Puller::AllDone()
     {
         std::lock_guard<std::mutex> lck (mtx);
-        LOG_DEBUG(log) << "Puller::"<<__func__ << ": done=" << (state == PullerState::Done);
+        LOG_INFO(log) << "Puller::"<<__func__ << ": done=" << (state == PullerState::Done);
         return state == PullerState::Done;
     }
 
@@ -255,8 +258,7 @@ namespace Bootstrap
                 if(working_mbp.bsb_targets.empty())//all BSBs and MB (if have one) in block_cache now
                 {
                     //check before go to next micro period
-                    CheckMicroProgress();
-                    CreateMorePulls();
+                    CheckMicroProgressAndCreateMorePulls();
                 }
                 //else: nothing to do
                 return PullStatus::Done;
@@ -307,48 +309,76 @@ namespace Bootstrap
     }
 
 
-    void Puller::CheckMicroProgress()
+    void Puller::CheckMicroProgressAndCreateMorePulls(bool wakeup)
     {
         LOG_TRACE(log) << "Puller::"<<__func__;
         /*
          * step 1: reduce two mbps to one mbp
          */
         assert(working_epoch.cur_mbp.bsb_targets.empty());
+        assert(wakeup ? !working_epoch.two_mbps : true);
+
         if(working_epoch.two_mbps)
         {
-            LOG_TRACE(log) << "Puller::"<<__func__<<": two_mbps";
+            LOG_TRACE(log) << "Puller::" << __func__ << ": two_mbps {";
 
             assert(working_epoch.cur_mbp.mb != nullptr);
             assert(working_epoch.next_mbp.bsb_targets.empty());
 
             auto digest(working_epoch.cur_mbp.mb->Hash());
-            bool mb_processed = false;
-            for(int i = 0; i < 20; ++i) //TODO Peng
+            auto reduce_mps = [](Puller *this_ptr, const BlockHash &digest) -> bool
             {
-                mb_processed = !block_cache.IsBlockCached(digest);
-                if (mb_processed) {
-                    UpdateMyMBTip(working_epoch.cur_mbp.mb);
-                    working_epoch.cur_mbp = working_epoch.next_mbp;
-                    working_epoch.two_mbps = false;
-                    working_epoch.next_mbp.Clean();
-                    break;
+                bool mb_processed = !this_ptr->block_cache.IsBlockCached(digest);
+                if (mb_processed)
+                {
+                    this_ptr->UpdateMyMBTip(this_ptr->working_epoch.cur_mbp.mb);
+                    this_ptr->working_epoch.cur_mbp = this_ptr->working_epoch.next_mbp;
+                    this_ptr->working_epoch.two_mbps = false;
+                    this_ptr->working_epoch.next_mbp.Clean();
                 }
-                usleep(1000*1000*1);
-            }
-            if(! mb_processed)
+                return mb_processed;
+            };
+
+            if (!reduce_mps(this, digest))
             {
-                /*
-                 * note that in case of two mbps, if the peer feed us bad tips,
-                 * we could stuck. so we cannot LOG_FATAL and trace_and_halt.
-                 * we LOG_ERROR and terminate this bootstrap attempt.
-                 */
-                LOG_ERROR(log) << "Puller::CheckMicroProgress: pulled two MB periods,"
-                                << " but first MB has not been processed."
-                                << " epoch_num=" << working_epoch.epoch_num
-                                << " first MB hash=" << digest.to_string ();
-                waiting_pulls.clear();
-                state = PullerState::Done;
+                std::chrono::steady_clock::time_point to = std::chrono::steady_clock::now() +
+                                                           std::chrono::milliseconds(BLOCK_CACHE_TIMEOUT_MS);
+                std::weak_ptr<Puller> this_w(shared_from_this());
+                LOG_INFO(log) << "Puller::CheckMicroProgress will delay reduce_mps "
+                              << digest.to_string();
+                alarm.add(to, [reduce_mps, this_w, digest]()
+                {
+                    if (auto puller_l = this_w.lock())
+                    {
+                        LOG_INFO(puller_l->log) << "Puller::CheckMicroProgress delayed reduce_mps "
+                                                << digest.to_string();
+                        if (reduce_mps(puller_l.get(), digest))
+                        {
+                            puller_l->CheckMicroProgressAndCreateMorePulls(true);
+                        }
+                        else
+                        {
+                            /*
+                             * note that in case of two mbps, if the peer feed us bad tips,
+                             * we could stuck. so we CANNOT LOG_FATAL and trace_and_halt.
+                             * we LOG_ERROR and terminate this bootstrap attempt.
+                             */
+                            LOG_ERROR(puller_l->log) << "Puller::CheckMicroProgress: pulled two MB periods,"
+                                                     << " but first MB has not been processed. Give up."
+                                                     << " epoch_num=" << puller_l->working_epoch.epoch_num
+                                                     << " first MB hash=" << digest.to_string();
+                            puller_l->waiting_pulls.clear();
+                            puller_l->state = PullerState::Done;
+                            return;
+                        }
+                    }
+                });
                 return;
+            }
+            else
+            {
+                LOG_TRACE(log) << "Puller::" << __func__ << ": two_mbps }";
+                //continue to one mbp case
             }
         }
 
@@ -357,7 +387,7 @@ namespace Bootstrap
          */
         if(working_epoch.cur_mbp.mb != nullptr)
         {
-            LOG_TRACE(log) << "Puller::"<<__func__<< ": one mbp";
+            LOG_TRACE(log) << "Puller::"<<__func__<< ": one mbp {";
             auto digest(working_epoch.cur_mbp.mb->Hash());
             bool mb_processed = !block_cache.IsBlockCached(digest);
             if(mb_processed)
@@ -367,24 +397,55 @@ namespace Bootstrap
                 {
                     if(working_epoch.eb != nullptr)
                     {
-                        bool eb_processed = false;
-                        for(int i = 0; i < 20; ++i)//TODO Peng
+                        auto eb_digest(working_epoch.eb->Hash());
+                        auto reduce_ep = [](Puller *this_ptr, const BlockHash &eb_digest) -> bool
                         {
-                            eb_processed = !block_cache.IsBlockCached(working_epoch.eb->Hash());
-                            if (eb_processed) {
-                                UpdateMyEBTip(working_epoch.eb);
-                                LOG_INFO(log) << "Puller::CheckMicroProgress: processed an epoch "
-                                              << working_epoch.epoch_num;
-                                break;
+                            bool eb_processed = ! this_ptr->block_cache.IsBlockCached(eb_digest);
+                            if (eb_processed)
+                            {
+                                this_ptr->UpdateMyEBTip(this_ptr->working_epoch.eb);
+                                LOG_INFO(this_ptr->log) << "Puller::CheckMicroProgress: processed an epoch "
+                                                        << this_ptr->working_epoch.epoch_num;
                             }
-                            usleep(1000*1000*1);
-                        }
-                        if( !eb_processed)
+                            return eb_processed;
+                        };
+
+                        if (!reduce_ep(this, eb_digest))
                         {
-                            LOG_ERROR(log) << "Puller::CheckMicroProgress: cannot process epoch block after last micro block "
-                                           << working_epoch.epoch_num;
-                            waiting_pulls.clear();
-                            state = PullerState::Done;
+                            std::chrono::steady_clock::time_point to = std::chrono::steady_clock::now() +
+                                                                       std::chrono::milliseconds(BLOCK_CACHE_TIMEOUT_MS);
+                            std::weak_ptr<Puller> this_w(shared_from_this());
+                            LOG_INFO(log) << "Puller::CheckMicroProgress will delay reduce_ep "
+                                          << eb_digest.to_string();
+                            alarm.add(to, [reduce_ep, this_w, eb_digest]()
+                            {
+                                if (auto puller_l = this_w.lock())
+                                {
+                                    LOG_INFO(puller_l->log) << "Puller::CheckMicroProgress delayed reduce_ep "
+                                                            << eb_digest.to_string();
+                                    if (reduce_ep(puller_l.get(), eb_digest))
+                                    {
+                                        puller_l->state = PullerState::Epoch;
+                                        puller_l->working_epoch.cur_mbp.Clean();
+                                        puller_l->CreateMorePulls();
+                                        puller_l->attempt->wakeup();
+                                    }
+                                    else
+                                    {
+                                        LOG_ERROR(puller_l->log) << "Puller::CheckMicroProgress: "
+                                                                 << "cannot process epoch block after last micro block "
+                                                                 << puller_l->working_epoch.epoch_num;
+                                        puller_l->waiting_pulls.clear();
+                                        puller_l->state = PullerState::Done;
+                                        return;
+                                    }
+                                }
+                            });
+                            return;
+                        }
+                        else
+                        {
+                            LOG_TRACE(log) << "Puller::" << __func__ << ": one mbp }";
                         }
                     }
                     else
@@ -404,10 +465,15 @@ namespace Bootstrap
             }
             else
             {
-                //assert(false);//TODO debug only
                 working_epoch.two_mbps = true;
                 state = PullerState::Micro;
             }
+        }
+
+        CreateMorePulls();
+        if(wakeup)
+        {
+            attempt->wakeup();
         }
         LOG_TRACE(log) << "Puller::"<<__func__ << ": state=" << (int)state;
     }
@@ -546,8 +612,7 @@ namespace Bootstrap
                 if(!added_pulls)
                 {
                     //no bsb to pull, check before go to next micro period
-                    CheckMicroProgress();
-                    CreateMorePulls();
+                    CheckMicroProgressAndCreateMorePulls();
                 }
                 break;
             }
@@ -560,11 +625,11 @@ namespace Bootstrap
                  * (1) my BSB tips are behind in the working epoch
                  */
                 assert(working_epoch.eb == nullptr);
-                auto & working_mbp = working_epoch.two_mbps?
-                                     working_epoch.next_mbp : working_epoch.cur_mbp;
-                for(uint i = 0; i < NUM_DELEGATES; ++i)
+                auto &working_mbp = working_epoch.two_mbps ?
+                                    working_epoch.next_mbp : working_epoch.cur_mbp;
+                for (uint i = 0; i < NUM_DELEGATES; ++i)
                 {
-                    if(my_tips.bsb_vec[i] < others_tips.bsb_vec[i])
+                    if (my_tips.bsb_vec[i] < others_tips.bsb_vec[i])
                     {
                         waiting_pulls.push_back(std::make_shared<PullRequest>(
                                 ConsensusType::Request,
@@ -572,14 +637,14 @@ namespace Bootstrap
                                 my_tips.bsb_vec[i].digest,
                                 others_tips.bsb_vec[i].digest));
 
-                        LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                                << waiting_pulls.back()->to_string();
+                        LOG_TRACE(log) << "Puller::" << __func__ << " added:"
+                                       << waiting_pulls.back()->to_string();
 
                         working_mbp.bsb_targets.insert(others_tips.bsb_vec[i].digest);
                         added_pulls = true;
                     }
                 }
-                if(added_pulls)
+                if (added_pulls)
                 {
                     //TODO remove after integration tests
                     //LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
@@ -588,14 +653,19 @@ namespace Bootstrap
                 else
                 {
                     //check before go to next epoch
-                    CheckMicroProgress();
+                    state = PullerState::Batch_No_MB_Next_Epoch;
+                    CheckMicroProgressAndCreateMorePulls();
                 }
+            }
+            case PullerState::Batch_No_MB_Next_Epoch:
+            {
                 /*
                  * (2) my BSB tips in bsb_vec_new_epoch is behind.
                  * Note that at this point, the current epoch's last MB and EB are not
                  * (created)received yet. No more to do for the current epoch.
                  * So for (2), we move to the new epoch
                  */
+                bool added_pulls = false;
                 working_epoch = {working_epoch.epoch_num+1};
                 for(uint i = 0; i < NUM_DELEGATES; ++i)
                 {

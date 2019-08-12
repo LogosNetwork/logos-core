@@ -71,8 +71,10 @@ namespace Bootstrap
 
         bool GetTipsets(TipSet &my_tips, TipSet &others_tips)
         {
-            return puller.GetTipsets(my_tips, others_tips);
+            return puller->GetTipsets(my_tips, others_tips);
         }
+
+        void wakeup();
 
     private:
 
@@ -98,7 +100,7 @@ namespace Bootstrap
         const uint8_t max_connected;
         int session_id;
 
-        Puller puller;
+        std::shared_ptr<Puller> puller;
         std::condition_variable condition;
         std::atomic<bool> stopped;
         Log log;

@@ -10,17 +10,17 @@ namespace Bootstrap
     , puller(puller)
     , request(puller.GetPull())
     {
-        LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
+        LOG_TRACE(log) << "PullClient::"<<__func__;
     }
 
     PullClient::~PullClient ()
     {
-        LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
+        LOG_TRACE(log) << "PullClient::"<<__func__;
     }
 
     void PullClient::run()
     {
-        LOG_TRACE(log) << "bulk_pull_client::run";
+        LOG_TRACE(log) << "PullClient::run";
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
         {
             logos::vectorstream stream (*send_buffer);
@@ -48,11 +48,11 @@ namespace Bootstrap
 
     void PullClient::receive_block ()
     {
-        LOG_TRACE(log) << "bulk_pull_client::"<<__func__<< ": waiting peer blocks...";
+        LOG_TRACE(log) << "PullClient::"<<__func__<< ": waiting peer blocks...";
         auto this_l = shared_from_this ();
         connection->AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
                 {
-                    LOG_TRACE(log) << "bulk_pull_client::"<<__func__ <<" good="<<good;
+                    LOG_TRACE(log) << "PullClient::"<<__func__ <<" good="<<good;
                     PullStatus pull_status = PullStatus::Unknown;
                     if(good)
                     {
@@ -99,7 +99,7 @@ namespace Bootstrap
 
     PullStatus PullClient::process_reply (ConsensusType ct, logos::bufferstream & stream)
     {
-        LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
+        LOG_TRACE(log) << "PullClient::"<<__func__;
         bool error = false;
         switch (ct) {
             case ConsensusType::Request:
@@ -145,17 +145,17 @@ namespace Bootstrap
     : connection(connection)
     , request_handler(pull, store)
     {
-        LOG_TRACE(log) << "bulk_pull_server::"<<__func__ << " " << pull.to_string();
+        LOG_TRACE(log) << "PullServer::"<<__func__ << " " << pull.to_string();
     }
 
     PullServer::~PullServer()
     {
-        LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
+        LOG_TRACE(log) << "PullServer::"<<__func__;
     }
 
     void PullServer::send_block ()
     {
-        LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
+        LOG_TRACE(log) << "PullServer::"<<__func__;
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
         auto more (request_handler.GetNextSerializedResponse(*send_buffer));
 
@@ -176,7 +176,7 @@ namespace Bootstrap
                 {
                     if (good)
                     {
-                        LOG_TRACE(log) << "bulk_pull_server::send_block: Sent a block";
+                        LOG_TRACE(log) << "PullServer::send_block: Sent a block";
                         if(more)
                         {
                             send_block();
@@ -189,7 +189,7 @@ namespace Bootstrap
                     }
                     else
                     {
-                        LOG_ERROR(log) << "Error sending tips";
+                        LOG_ERROR(log) << "PullServer::send_block: Error sending block";
                         connection->OnNetworkError();
                     }
                 });
