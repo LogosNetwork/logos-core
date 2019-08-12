@@ -120,6 +120,20 @@ public:
             rbs[block->block->primary_delegate].push_front(block);
         }
 
+        bool empty()
+        {
+            if (eb != nullptr)
+                return false;
+            if ( ! mbs.empty())
+                return false;
+            for(auto &x :rbs)
+            {
+                if( ! x.empty())
+                    return false;
+            }
+            return true;
+        }
+
         uint32_t                        epoch_num;
         EPtr                            eb;
         std::list<MPtr>                 mbs;
@@ -184,12 +198,13 @@ public:
     bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
 
     void DumpCachedBlocks();
-    void DumpChainTips();
 
 private:
     bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);
     void MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains);
     bool DeleteDependenciesAndMarkForRevalidation(const BlockHash &hash);
+
+    void DumpChainTips();
 
     BlockWriteQueue &                               _write_q;
     std::list<EpochPeriod>                          _epochs;
