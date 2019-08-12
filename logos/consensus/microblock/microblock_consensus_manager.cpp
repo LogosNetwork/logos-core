@@ -17,7 +17,7 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
 	      scheduler, validator, p2p, epoch_number)
     , _microblock_handler(handler)
     , _handler(MicroBlockMessageHandler::GetMessageHandler())
-    , _secondary_timeout(Seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()))
+    , _secondary_timeout(Seconds((_delegate_id+1) * SECONDARY_LIST_TIMEOUT.count()))
 {
     Tip tip;
     if (_store.micro_block_tip_get(tip))

@@ -3,13 +3,15 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
 #include <logos/lib/utility.hpp>
+#include <random>
+#include <logos/lib/epoch_time_util.hpp>
 
 // ConsensusType::Request
 //
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Request>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Request>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Request>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&,bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
@@ -19,7 +21,7 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Reques
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&,bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
@@ -29,13 +31,11 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroB
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&, bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 
-const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{20};
-const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
                                  MessageValidator & validator,
@@ -246,15 +246,37 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::CycleTimers(bool cancel)
+void PrimaryDelegate::CycleTimers(bool cancel, bool reproposing)
 {
     if(cancel)
     {
         CancelTimer();
     }
 
-    _primary_timer.expires_from_now(PRIMARY_TIMEOUT);
+    LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<" << ConsensusToName(C)
+        << ">-"
+        << "reproposing=" << reproposing
+        << "num_proposals=" << (int)_num_proposals;
 
+    if(reproposing)
+    {
+        Seconds seconds(EpochTimeUtil::GetTimeout<C>(_num_proposals,_delegate_id));
+
+        LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<"
+            << ConsensusToName(C) << ">-"
+            << "timeout is " << seconds
+            << ",_num_proposals=" << (int)_num_proposals;
+        _primary_timer.expires_from_now(seconds);
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<"
+            << ConsensusToName(C) << ">-"
+            << "timeout is " << PRIMARY_TIMEOUT.count()
+            << ",_num_proposals=" << (int)_num_proposals;
+        Seconds seconds((long)PRIMARY_TIMEOUT.count());
+        _primary_timer.expires_from_now(seconds);
+    }
     std::weak_ptr<PrimaryDelegate> this_w = shared_from_this();
     if(StateReadyForConsensus())
     {
@@ -322,7 +344,7 @@ void PrimaryDelegate::UpdateVotes()
 {}
 
 template<ConsensusType C>
-void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
+void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block, bool reproposing)
 {
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
@@ -334,8 +356,16 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _validator.Sign(_pre_prepare_hash, _pre_prepare_sig);
 
     _cur_batch_timestamp = block.timestamp;
+    if(reproposing)
+    {
+        _num_proposals++;
+    }
+    else
+    {
+        _num_proposals = 1;
+    }
 
-    CycleTimers<C>();
+    CycleTimers<C>(false,reproposing);
 }
 
 bool PrimaryDelegate::StateReadyForConsensus()
