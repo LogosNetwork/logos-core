@@ -191,7 +191,7 @@ MicroBlockHandler::Build(
     }
 
     // first micro block in this epoch
-    bool first_micro_block = epoch.micro_block_tip.digest == previous_micro_block_hash;
+    bool first_micro_block = previous_micro_block.last_micro_block;
 
     block.timestamp = GetStamp();
     block.previous = previous_micro_block_hash;

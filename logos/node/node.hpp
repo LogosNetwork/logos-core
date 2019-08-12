@@ -478,13 +478,20 @@ struct BootstrapProgress
 
     BootstrapProgress() = default;
 
-    BootstrapProgress(const Bootstrap::TipSet & my_store, const Bootstrap::TipSet & my_bootstrap, const Bootstrap::TipSet & other)
+    BootstrapProgress(const Bootstrap::TipSet & my_store, const Bootstrap::TipSet & my_bootstrap, const Bootstrap::TipSet & other, uint8_t mb_Qed, uint8_t eb_Qed)
     {
         eb_stored = my_store.eb.epoch;
         mb_stored = my_store.mb.sqn;
         rb_stored = my_store.ComputeNumberAllRBs();
         my_store.ComputeNumberBlocksBehind(my_bootstrap, eb_to_process, mb_to_process, rb_to_process);
         my_bootstrap.ComputeNumberBlocksBehind(other, eb_to_download, mb_to_download, rb_to_download);
+
+        //adjust to_process of eb and mb, since we download them 1st and update bootstrap_tips only after the right rbs are processed
+        mb_to_process += mb_Qed;
+        mb_to_download -= mb_Qed;
+        eb_to_process += eb_Qed;
+        eb_to_download -= eb_Qed;
+
         on_going = true;
     }
 

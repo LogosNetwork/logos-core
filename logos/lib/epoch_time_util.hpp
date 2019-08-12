@@ -19,6 +19,8 @@ using Clock = boost::asio::deadline_timer::traits_type;
 using TimePoint  = boost::posix_time::ptime;
 static const TimePoint Min_DT = TimePoint(boost::posix_time::min_date_time);
 
+//#define FAST_MB_EB_TEST
+#ifndef FAST_MB_EB_TEST
 /// Epoch transition starts every 12 hours
 /// Epoch events
 /// 1. Epoch start time: 12h
@@ -37,6 +39,27 @@ static const Minutes MICROBLOCK_CUTOFF_TIME(10); // 10 minutes
 static const Seconds CLOCK_DRIFT(20); // 20 seconds
 static const Seconds SECONDARY_LIST_TIMEOUT(20); // 20 seconds
 static const Minutes SECONDARY_LIST_TIMEOUT_CAP(8); // 8 minutes
+
+#else
+
+/// Epoch events
+/// 1. Epoch start time:
+static const Minutes EPOCH_PROPOSAL_TIME(20);
+/// 2. New delegates set connection time 20m - 2m
+static const Minutes EPOCH_DELEGATES_CONNECT(2);
+/// 3. Epoch transition start time: 20m - 20s
+static const Seconds EPOCH_TRANSITION_START(20);
+/// 4. Epoch start time: 20 seconds after epoch trans start
+static const Seconds EPOCH_START(20);
+/// 5. Epoch transition end time: 20 seconds after epoch start
+static const Seconds EPOCH_TRANSITION_END(20);
+static const Minutes MICROBLOCK_PROPOSAL_TIME(4);
+static const Minutes MICROBLOCK_CUTOFF_TIME(4);
+static const Seconds CLOCK_DRIFT(20); // 20 seconds
+static const Seconds SECONDARY_LIST_TIMEOUT(20); // 20 seconds
+static const Minutes SECONDARY_LIST_TIMEOUT_CAP(8); // 8 minutes
+
+#endif
 
 template<typename C, typename T>
 C TConvert(T t)

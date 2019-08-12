@@ -293,7 +293,7 @@ namespace Bootstrap
         waiting_pulls.push_front(pull);
     }
 
-    bool Puller::GetTipsets(TipSet &my, TipSet &others)
+    bool Puller::GetTipsets(TipSet &my, TipSet &others, uint8_t &mb_Qed, uint8_t &eb_Qed)
     {
         LOG_TRACE(log) <<"Puller::"<< __func__;
         std::lock_guard<std::mutex> lck (mtx);
@@ -305,6 +305,19 @@ namespace Bootstrap
 
         my = my_tips;
         others = others_tips;
+
+        if (working_epoch.two_mbps)
+            mb_Qed = 2;
+        else if (working_epoch.cur_mbp.mb != nullptr)
+            mb_Qed = 1;
+        else
+            mb_Qed = 0;
+
+        if (working_epoch.eb != nullptr)
+            eb_Qed = 1;
+        else
+            eb_Qed = 0;
+
         return true;
     }
 

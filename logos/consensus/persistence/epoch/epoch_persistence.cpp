@@ -130,8 +130,20 @@ PersistenceManager<ECT>::Validate(
 
     if (!status || status->progress < EVP_END)
     {
-        // verify transaction fee pool? TBD
-        LOG_WARN(_log) << "PersistenceManager::Validate  WARNING TRANSACTION POOL IS NOT VALIDATED";
+        Amount    transaction_fee_pool_local = 0;
+        if(EpochRewardsManager::GetInstance()->GetFeePool(epoch.epoch_number, transaction_fee_pool_local))
+        {
+            LOG_WARN(_log) << "PersistenceManager::Validate failed to get fee pool for epoch: "
+                            << epoch.epoch_number;
+        }
+        if(transaction_fee_pool_local != epoch.transaction_fee_pool)
+        {
+            LOG_ERROR(_log) << "PersistenceManager::Validate fee pool mismatch,"
+                            << " local=" << transaction_fee_pool_local.to_string_dec()
+                            << " other=" << epoch.transaction_fee_pool.to_string_dec();
+            UpdateStatusReason(status, process_result::invalid_fee);
+            return false;
+        }
 
         if (status)
             status->progress = EVP_END;

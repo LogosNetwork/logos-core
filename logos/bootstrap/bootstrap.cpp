@@ -62,7 +62,7 @@ namespace Bootstrap
         }
     }
 
-    bool BootstrapInitiator::GetTipsets(TipSet &my_tips, TipSet &others_tips)
+    bool BootstrapInitiator::GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed)
     {
         LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
@@ -79,7 +79,7 @@ namespace Bootstrap
         }
         else
         {
-            return attempt->GetTipsets(my_tips, others_tips);
+            return attempt->GetTipsets(my_tips, others_tips, mb_Qed, eb_Qed);
         }
     }
 
