@@ -82,6 +82,13 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 
+
+    void StartConsensusWithP2p();
+
+    bool DelegatesConnected()
+    {
+        return _delegates_connected;
+    }
 protected:
 
     /// Commit the block to the store.
@@ -146,8 +153,7 @@ protected:
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
     std::shared_ptr<BackupDelegate<ConsensusType::Request>>
-    MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                       const DelegateIdentities& ids) override;
+    MakeBackupDelegate(const DelegateIdentities& ids) override;
 
     /// Find Primary delegate index for this request
     /// @param message message
@@ -167,6 +173,7 @@ private:
     void OnPrePrepareRejected() override;
 
     void OnDelegatesConnected();
+    void StartConsensus(bool enable_p2p);
 
     bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
 
@@ -183,7 +190,9 @@ private:
     uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
     uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
     bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    //The below bool members should be accessed under a mutex
     bool                  _delegates_connected   = false;
+    bool                  _started_consensus     = false;
     // No need for mutex protecting request queue or curr batch as all accesses are serialized (only accessible when _ongoing)
     PrePrepare            _current_batch;
     RequestInternalQueue  _request_queue;

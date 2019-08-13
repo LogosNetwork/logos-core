@@ -358,6 +358,13 @@ ConsensusContainer::OnDelegateMessage(
 }
 
 bool
+ConsensusContainer::CanBind(uint32_t epoch_number)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _binding_map.find(epoch_number) != _binding_map.end();
+}
+
+bool
 ConsensusContainer::Bind(
     std::shared_ptr<Socket> socket,
     const Endpoint endpoint,
@@ -368,17 +375,18 @@ ConsensusContainer::Bind(
 
     if (_cur_epoch == nullptr && _trans_epoch == nullptr)
     {
-        socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
+                        << ", delegate = " << unsigned(delegate_id)
+                        << ", epoch_number = " << epoch_number;
         return false;
     }
 
     if (_binding_map.find(epoch_number) == _binding_map.end())
     {
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
-                        << " delegate " << (int)delegate_id
-                        << " epoch " << epoch_number;
+                        << " delegate =" << (int)delegate_id
+                        << " epoch =" << epoch_number;
         return false;
     }
 
@@ -388,7 +396,9 @@ ConsensusContainer::Bind(
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
                     << " state " << epoch->GetStateName()
-                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
+                    << ", delegate_id = " << unsigned(delegate_id)
+                    << ", epoch_number = " << epoch_number;
 
     epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, delegate_id);
 
@@ -463,6 +473,9 @@ ConsensusContainer::EpochTransitionEventsStart()
             CheckEpochNull(!_cur_epoch, "EpochTransitionEventsStart");
             _cur_epoch->_delegate = EpochTransitionDelegate::Persistent;
         }
+        LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart"
+            << " - binding epoch manager for epoch_number = " 
+            << _trans_epoch->_epoch_number;
 
         // New and Persistent delegates in the new delegate's set
         _binding_map[_trans_epoch->_epoch_number] = _trans_epoch;

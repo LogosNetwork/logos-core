@@ -73,7 +73,8 @@ public:
 
 };
 
-class ConsensusNetIOAssembler : public NetIOAssembler {
+class ConsensusNetIOAssembler : public NetIOAssembler
+{
     using Socket        = boost::asio::ip::tcp::socket;
     using Error         = boost::system::error_code;
 public:
@@ -119,51 +120,26 @@ class ConsensusNetIO: public IOChannel,
     using CreatedCb     = void (ConsensusNetIO::*)();
     template<typename T> 
     using SPTR          = std::shared_ptr<T>;
+    using Error         = boost::system::error_code;
 
 public:
 
-    /// Class constructor
-    ///
-    /// This constructor is called by ConsensusNetIOManager to initiate a client
-    /// connection to a peer acting as a server.
-    ///     @param service reference to boost asio service
-    ///     @param endpoint reference to peer's address
-    ///     @param alarm reference to alarm
-    ///     @param remote_delegate_id id of connected delegate
-    ///     @param binder callback for binding netio interface to a consensus manager
-    ///     @param local_ip local ip of this node's delegate
-    ///     @param epoch_info epoch transition info
-    ///     @param error_handler socket error handler
-    ConsensusNetIO(Service & service,
-                   const Endpoint & endpoint,
-                   logos::alarm & alarm,
-                   const uint8_t remote_delegate_id, 
-                   const uint8_t local_delegate_id, 
-                   IOBinder binder,
-                   std::shared_ptr<EpochInfo> epoch_info,
-                   NetIOErrorHandler & error_handler,
-                   CreatedCb &cb);
 
-    /// Class constructor.
-    ///
-    /// This constructor is called by ConsensusNetIOManager when the remote
-    /// peer being connected acts as the server.
-    ///     @param socket connected peer's socket
-    ///     @param endpoint reference to peer's address/port
-    ///     @param alarm reference to alarm
-    ///     @param remote_delegate_id id of connected delegate
-    ///     @param binder callback for binding netio interface to a consensus manager
-    ///     @param epoch_info epoch transition info
-    ///     @param error_handler socket error handler
-    ConsensusNetIO(std::shared_ptr<Socket> socket,
-                   const Endpoint endpoint,
+
+    /// Class constructor
+    //
+    // This constructor is used before an endpoint is known
+    // Later, call BindEndpoint() (and BindSocket() if acting as a server)
+    ConsensusNetIO(Service & service,
                    logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
                    IOBinder binder,
                    std::shared_ptr<EpochInfo> epoch_info,
                    NetIOErrorHandler & error_handler,
-                   CreatedCb &cb);
+                   bool is_client);
+
+
 
     virtual ~ConsensusNetIO()
     {
@@ -171,6 +147,12 @@ public:
                         << " remote delegate " << (int)_remote_delegate_id
                         << " ptr " << (uint64_t)this;
     }
+
+    // Only called after accepting connection if acting as server
+    void BindSocket(std::shared_ptr<Socket> socket);
+
+    // Called when endpoint is known
+    void BindEndpoint(Endpoint endpoint);
 
     /// Send data
     ///
@@ -211,6 +193,7 @@ public:
                    ReadCallback callback) override;
 
 
+    /// Close the socket
     void Close();
 
     /// Checks if delegate id is remote delegate id
@@ -266,7 +249,30 @@ public:
         }
     }
 
+
+    bool CheckAndHandleEpochOver();
+
+    /// returns the current epoch number stored in _epoch_info
+    /// if _epoch_info has been destroyed, returns zero
+    uint32_t GetEpochNumber();
+
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
+
+    /// Async connect to the peer.
+    ///
+    /// Asynchronously connect to the peer.
+    void Connect();
+
+    /// Connected call back.
+    ///
+    /// Async connect call back.
+    void OnConnect();
+
+    /// Check timestamp of connection and do one of three things:
+    /// Nothing
+    /// Send another heartbeat
+    /// Attempt a reconnect
+    void CheckHeartbeat();
 
 protected:
 
@@ -285,15 +291,9 @@ protected:
 
 private:
 
-    /// Async connect to the peer.
-    ///
-    /// Asynchronously connect to the peer.
-    void Connect();
 
-    /// Connected call back.
-    ///
-    /// Async connect call back.
-    void OnConnect();
+    std::string CommonInfoToLog();
+
 
     /// Connected call back with error code set.
     ///
@@ -333,8 +333,9 @@ private:
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
     SPTR<ConsensusNetIOAssembler>  _assembler;            ///< Assembles messages from TCP buffer
     std::weak_ptr<EpochInfo>       _epoch_info;           ///< Epoch transition info
-    NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
-    std::recursive_mutex           _error_mutex;          ///< Error handling mutex
-    bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
+    NetIOErrorHandler &            _error_handler;        ///< used to enable p2p on error 
+    std::recursive_mutex           _connecting_mutex;     ///< mutex used in connection sequence 
+    std::atomic_bool               _connecting;           ///< true if object is in the process of reconnecting
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
+    std::atomic_bool               _epoch_over;           ///< true if the epoch has ended. The object is scheduled for destruction
 };

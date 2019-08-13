@@ -132,9 +132,16 @@ DelegateBridge<CT>::PrimaryDirectlyConnected()
                                   ">::PrimaryDirectlyConnected, object destroyed");
     if (!iochannel)
     {
-        return true;
+        return false;
     }
     return std::dynamic_pointer_cast<ConsensusNetIO>(iochannel)->PrimaryDirectlyConnected();
+}
+
+template<ConsensusType CT>
+void
+DelegateBridge<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel)
+{
+    _iochannel = iochannel;
 }
 
 template class DelegateBridge<ConsensusType::Request>;

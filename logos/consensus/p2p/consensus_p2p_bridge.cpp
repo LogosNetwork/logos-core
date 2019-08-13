@@ -5,7 +5,14 @@
 #include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
 #include <logos/consensus/messages/common.hpp>
 
-const boost::posix_time::seconds ConsensusP2pBridge::P2P_TIMEOUT{60};
+//when p2p consensus is enabled, the p2p subsystem is flooded, and experiences
+//higher traffic than any other time. Usually, one round of consensus results 
+//in a single p2p message (the post-committed block). When p2p consensus is
+//enabled, one round of consensus results in:
+//1 PrePrepare + 31 Prepare + 1 PostPrepare + 31 Commit + 1 PostCommit +
+//1 Post Committed Block = 66 p2p messages
+//Therefore, we should turn off p2p consensus as quick as we can
+const boost::posix_time::seconds ConsensusP2pBridge::P2P_TIMEOUT{10};
 
 ConsensusP2pBridge::ConsensusP2pBridge(Service &service, p2p_interface &p2p, uint8_t delegate_id)
     : _p2p_output(p2p, delegate_id)

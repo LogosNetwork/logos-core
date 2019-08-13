@@ -34,6 +34,14 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
     virtual void OnNetIOError(uint8_t delegate_id) = 0;
+
+    virtual std::shared_ptr<MessageParser>
+        AddBackupDelegate(const DelegateIdentities&) = 0;
+    
+    virtual void DestroyAllBackups() = 0;
+
+    virtual bool CanReachQuorumViaDirectConnect() = 0;
+
 };
 
 template<ConsensusType CT>
@@ -100,6 +108,8 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
+    std::shared_ptr<MessageParser> AddBackupDelegate(const DelegateIdentities & ids) override;
+
     void OnNetIOError(uint8_t delegate_id) override;
 
     void ClearMessageList()
@@ -111,6 +121,14 @@ public:
     {
         _events_notifier = notifier;
     }
+
+
+    void EnableP2p(bool enable) override;
+
+    void DestroyAllBackups() override;
+
+    bool CanReachQuorumViaDirectConnect() override;
+
 
 protected:
 
@@ -155,7 +173,7 @@ protected:
     }
 
     virtual std::shared_ptr<BackupDelegate<CT>> MakeBackupDelegate(
-            std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
+            const DelegateIdentities&) = 0;
 
     bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
                  uint32_t epoch_number, uint8_t dest_delegate_id) override
@@ -163,7 +181,6 @@ protected:
         return ConsensusP2pBridge::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
     }
 
-    void EnableP2p(bool enable) override;
 
     void OnP2pTimeout(const ErrorCode &);
 

@@ -102,6 +102,7 @@ public:
                       const Endpoint endpoint,
                       uint32_t epoch_number,
                       uint8_t delegate_id) = 0;
+    virtual bool CanBind(uint32_t epoch_number) = 0;
 };
 
 /// Encapsulates consensus related objects.
@@ -199,6 +200,10 @@ public:
               const Endpoint endpoint,
               uint32_t epoch_number,
               uint8_t delegate_id) override;
+
+    /// Returns true if binding map contains an entry for the specified
+    //  epoch number
+    bool CanBind(uint32_t epoch_number);
 
     /// Get delegate identity manager reference
     /// @returns DelegateIdentityManager reference
