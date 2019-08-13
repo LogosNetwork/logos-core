@@ -9,7 +9,7 @@
 
 namespace Bootstrap
 {
-    std::string MBRequestTips_to_string (MBPtr block)//TODO remove?, debug only
+    std::string MBRequestTips_to_string (MBPtr block)
     {
         std::stringstream stream;
         stream << " MB tip:" << block->CreateTip().to_string() <<std::endl;
@@ -122,9 +122,6 @@ namespace Bootstrap
                 << " tip: " << block->CreateTip().to_string()
                 << " block->previous: " << block->previous.to_string()
                 << " pull->prev_hash: " << pull->prev_hash.to_string();
-        //TODO remove after integration tests
-        //        LOG_TRACE(log) << "Puller::"<<__func__
-        //                << " block " << block->ToJson();
 
         assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
         bool good_block = block->previous == pull->prev_hash &&
@@ -138,6 +135,7 @@ namespace Bootstrap
             {
                 return PullStatus::Done;
             }
+            //TODO Peng: move my_tips forward
 //            bool eb_processed = !block_cache.IsBlockCached(block->Hash());
 //            if(eb_processed)
 //            {
@@ -166,9 +164,6 @@ namespace Bootstrap
                 << " tip: " << block->CreateTip().to_string()
                 << " block->previous: " << block->previous.to_string()
                 << " pull->prev_hash: " << pull->prev_hash.to_string();
-        //TODO remove after integration tests
-        //        LOG_TRACE(log) << "Puller::"<<__func__
-        //                << " block " << block->ToJson();
 
         assert(state==PullerState::Micro);
         bool good_block = block->previous == pull->prev_hash &&
@@ -182,6 +177,10 @@ namespace Bootstrap
             {
                 return PullStatus::Done;
             }
+
+            //TODO Peng: move my_tips forward
+            // check MB in DB
+
             state = PullerState::Batch;
             if(!working_epoch.two_mbps)
             {
@@ -212,9 +211,6 @@ namespace Bootstrap
                 << " tip: " << block->CreateTip().to_string()
                 << " block->previous: " << block->previous.to_string()
                 << " pull->prev_hash: " << pull->prev_hash.to_string();
-        //TODO remove after integration tests
-        //        LOG_TRACE(log) << "Puller::"<<__func__
-        //                << " block " << block->ToJson();
 
         assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
         bool good_block = block->previous == pull->prev_hash &&
@@ -550,10 +546,6 @@ namespace Bootstrap
                             ConsensusType::Epoch,
                             working_epoch.epoch_num,
                             my_tips.eb.digest));
-                    //TODO remove after integration tests
-//                    LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-//                            << waiting_pulls.back()->to_string();
-//                    LOG_TRACE(log) << "Puller::"<<__func__<< " return Epoch";
                     return;
                 }else{
                     state = PullerState::Micro;
@@ -574,10 +566,6 @@ namespace Bootstrap
                             ConsensusType::MicroBlock,
                             working_epoch.epoch_num,
                             mb_tip.digest));
-                    //TODO remove after integration tests
-//                    LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-//                            << waiting_pulls.back()->to_string();
-//                    LOG_TRACE(log) << "Puller::"<<__func__<< " return Micro";
                     return;
                 }else{
                     state = PullerState::Batch_No_MB;
@@ -614,9 +602,6 @@ namespace Bootstrap
                                 working_epoch.epoch_num,
                                 my_tips.bsb_vec[i].digest,
                                 working_mbp.mb->tips[i].digest));
-                        //TODO remove after integration tests
-//                        LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-//                                << waiting_pulls.back()->to_string();
 
                         working_mbp.bsb_targets.insert(working_mbp.mb->tips[i].digest);
                         added_pulls = true;
@@ -659,8 +644,7 @@ namespace Bootstrap
                 }
                 if (added_pulls)
                 {
-                    //TODO remove after integration tests
-                    //LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
+                    LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
                     return;
                 }
                 else
@@ -689,9 +673,6 @@ namespace Bootstrap
                                 working_epoch.epoch_num,
                                 my_tips.bsb_vec_new_epoch[i].digest,
                                 others_tips.bsb_vec_new_epoch[i].digest));
-                        //TODO remove after integration tests
-                        //LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                        //        << waiting_pulls.back()->to_string();
 
                         working_epoch.cur_mbp.bsb_targets.insert(others_tips.bsb_vec_new_epoch[i].digest);
                         added_pulls = true;
@@ -759,12 +740,6 @@ namespace Bootstrap
             else
             {
                 next = block.next;
-
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " block " << block.ToJson();
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " next=" << next.to_string();
-
                 buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
                 return block.Serialize(stream, true, true);
@@ -781,12 +756,6 @@ namespace Bootstrap
             else
             {
                 next = block.next;
-
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " block " << block.ToJson();
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " next=" << next.to_string();
-
                 buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
                 return block.Serialize(stream, true, true);
@@ -803,12 +772,6 @@ namespace Bootstrap
             else
             {
                 next = block.next;
-
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " block " << block.ToJson();
-//                LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-//                        << " next=" << next.to_string();
-
                 buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
                 return block.Serialize(stream, true, true);
@@ -831,9 +794,6 @@ namespace Bootstrap
                 next = 0;
                 return;
             }
-
-//            LOG_TRACE(log) << "PullRequestHandler::"<<__func__ << " work on block with tip: "
-//                    << block.CreateTip().to_string();
 
             if(block.previous.is_zero())
             {

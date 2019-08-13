@@ -7,14 +7,15 @@ bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
     bool in;
     {
         std::lock_guard<std::mutex> lck(_cache_blocks_mutex);
-        //TODO Peng: remove after integration
-        DumpCachedBlocks();
         in = _cached_blocks.find(hash) != _cached_blocks.end();
+
+#ifdef DUMP_CACHED_BLOCKS
+        DumpCachedBlocks();
     }
-    //TODO Peng: remove after integration
     {
         std::lock_guard<std::mutex> lck (_chains_mutex);
         DumpChainTips();
+#endif
     }
     return in;
 }
@@ -468,7 +469,10 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
     assert(rb_idx<=NUM_DELEGATES);
 
     std::lock_guard<std::mutex> lck (_chains_mutex);
-    DumpChainTips();//TODO Peng: remove
+
+#ifdef DUMP_CACHED_BLOCKS
+    DumpChainTips();
+#endif
 
     auto e = _epochs.begin();
     while (e != _epochs.end())
@@ -515,7 +519,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                     else
                     {
                         ptr.rptr = *to_validate;
-                        //TODO Peng: safe to ignore? ptr.rptr->reliances = false;
                         ptr.rptr->lock = true;
                         LOG_TRACE(_log) << "BlockCache:Next:R: "
                                 << ptr.rptr->block->CreateTip().to_string();
@@ -550,7 +553,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                     && !e->mbs.front()->lock)
             {
                 ptr.mptr = e->mbs.front();
-                //TODO Peng: safe to ignore? ptr.mptr->reliances = false;
                 ptr.mptr->lock = true;
                 LOG_TRACE(_log) << "BlockCache:Next:M: "
                         << ptr.mptr->block->CreateTip().to_string();
@@ -582,7 +584,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 !e->eb->lock)               /* and it is not located by another validation thread */
         {                                   /* then return this epoch block and next for validation */
             ptr.eptr = e->eb;
-            //TODO Peng: safe to ignore? ptr.eptr->reliances = false;
             ptr.eptr->lock = true;
             LOG_TRACE(_log) << "BlockCache:Next:E: "
                     << ptr.eptr->block->CreateTip().to_string();

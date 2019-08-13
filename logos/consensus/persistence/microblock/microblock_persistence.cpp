@@ -119,19 +119,6 @@ PersistenceManager<MBCT>::Validate(
             return false;
         }
 
-//        /// verify can iterate the chain and the number of blocks checks out
-//        BatchTipHashes start, end;
-//        for (int del = 0; del < NUM_DELEGATES; ++del)
-//        {
-//            start[del] = block.tips[del].digest;
-//            end[del] = previous_microblock.tips[del].digest;
-//        }
-//        int number_batch_blocks = 0;
-//        _store.BatchBlocksIterator(start, end,
-//                [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
-//            ++number_batch_blocks;
-//        });
-
         /// verify the number of blocks
         int number_batch_blocks = 0;
         for (int del = 0; del < NUM_DELEGATES; ++del)
