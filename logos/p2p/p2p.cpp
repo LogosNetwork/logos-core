@@ -674,6 +674,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
         return false;
     }
 
+    BCLog::Logger &logger_ = p2p->logger_;
     struct PropagateMessage mess(message, size);
     bool bfind=false;
     bool brecv=false;
@@ -682,6 +683,8 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
             || (brecv=!(output || ReceiveMessageCallback(message, size)))
             || (bprop=!p2p->Propagate(mess)))
     {
+
+        LogPrintf("p2p_interface::PropagateMessage-Hash=%s-bfind=%d-brecv=%d-output=%d-bprop=%d", mess.hash.ToString(),bfind, brecv, output, bprop);
         if (!bfind)
         {
             BCLog::Logger &logger_ = p2p->logger_;
@@ -690,6 +693,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
         return false;
     }
 
+    LogPrintf("p2p_interface::PropagateMessage-Hash=%s-bfind=%d-brecv=%d-output=%d-bprop=%d", mess.hash.ToString(),bfind, brecv, output, bprop);
     return true;
 }
 
