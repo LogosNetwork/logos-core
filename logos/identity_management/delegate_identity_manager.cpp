@@ -316,7 +316,6 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::genesis_delegates.push_back(delegate);
 
         logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MinTransactionFee(RequestType::Send));
-        uint64_t work = 0;
 
         Send request(logos::logos_test_account,   // account
                      genesis_account.head,        // previous
@@ -325,8 +324,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                      amount,
                      0,                           // transaction fee
                      logos::test_genesis_key.prv.data, // SG: Sign with correct key
-                     logos::test_genesis_key.pub,
-                     work);
+                     logos::test_genesis_key.pub);
 
         genesis_account.SetBalance(genesis_account.GetBalance() - amount,0,transaction);
         genesis_account.head = request.GetHash();

@@ -496,8 +496,7 @@ TEST (Request_Serialization, json_deserialization)
                  "destination": "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
                  "amount": "3"
             }
-        ],
-        "work": "0"
+        ]
      })%%%";
 
     tree = get_tree(logos_send_json);
@@ -533,8 +532,7 @@ TEST (Request_Serialization, json_deserialization)
         "epoch_num": "5",
         "governance_subchain_previous": "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4",
         "lock_proxy": "454545",
-        "representative": "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8",
-        "work": "6"
+        "representative": "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8"
      })%%%";
 
     tree = get_tree(proxy_json);
@@ -551,7 +549,6 @@ TEST (Request_Serialization, json_deserialization)
               "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4");
     ASSERT_EQ(proxy.lock_proxy.number(), 454545);
     ASSERT_EQ(proxy.rep.to_account(), "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8");
-    ASSERT_EQ(proxy.work, 6);
 
     // Stake
     //
@@ -583,7 +580,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(stake.governance_subchain_prev.to_string(),
               "E9D4A8BC6F03EA28F097D8DA7DFF085D3E2812EC31786AD800B8468F1CBAADA4");
     ASSERT_EQ(stake.stake.number(), 111111);
-    ASSERT_EQ(stake.work, 6);
 
     // Unstake
     //
@@ -597,8 +593,7 @@ TEST (Request_Serialization, json_deserialization)
         "sequence": "100",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "epoch_num": "222",
-        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
-        "work": "100"
+        "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9"
      })%%%";
 
     tree = get_tree(unstake_json);
@@ -613,7 +608,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(unstake.epoch_num, 222);
     ASSERT_EQ(unstake.governance_subchain_prev.to_string(),
               "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9");
-    ASSERT_EQ(unstake.work, 0x100);
 
     // ElectionVote
     //
@@ -641,8 +635,7 @@ TEST (Request_Serialization, json_deserialization)
                  "account" : "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
                  "num_votes" : "1"
             }
-        ],
-        "work": "100"
+        ]
      })%%%";
 
     tree = get_tree(vote_json);
@@ -665,7 +658,6 @@ TEST (Request_Serialization, json_deserialization)
               CandidateVotePair("lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h", 2));
     ASSERT_EQ(vote.votes[2],
               CandidateVotePair("lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6", 1));
-    ASSERT_EQ(vote.work, 0x100);
 
     // AnnounceCandidacy
     //
@@ -684,8 +676,7 @@ TEST (Request_Serialization, json_deserialization)
         "stake": "100009",
         "bls_key": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "ecies_key": "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3",
-        "levy_percentage": "4",
-        "work": "100"
+        "levy_percentage": "4"
      })%%%";
 
     tree = get_tree(announce_json);
@@ -707,7 +698,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(announce.bls_key, DelegatePubKey(std::string(128, '0')));
     ASSERT_EQ(announce.ecies_key, ECIESPublicKey(ecies, true));
     ASSERT_EQ(announce.levy_percentage, 4);
-    ASSERT_EQ(announce.work, 0x100);
 
     // RenounceCandidacy
     //
@@ -723,8 +713,7 @@ TEST (Request_Serialization, json_deserialization)
         "epoch_num": "222",
         "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
         "set_stake": "false",
-        "stake": "100009",
-        "work": "100"
+        "stake": "100009"
      })%%%";
 
     tree = get_tree(renounce_json);
@@ -739,7 +728,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(renounce.epoch_num, 222);
     ASSERT_EQ(renounce.set_stake, false);
     ASSERT_EQ(renounce.stake.number(), 100009);
-    ASSERT_EQ(renounce.work, 0x100);
 
     // StartRepresenting
     //
@@ -756,8 +744,7 @@ TEST (Request_Serialization, json_deserialization)
         "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
         "set_stake": "true",
         "stake": "20",
-        "levy_percentage": "90",
-        "work": "50"
+        "levy_percentage": "90"
      })%%%";
 
     tree = get_tree(start_json);
@@ -773,7 +760,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(start.set_stake, true);
     ASSERT_EQ(start.stake.number(), 20);
     ASSERT_EQ(start.levy_percentage, 90);
-    ASSERT_EQ(start.work, 0x50);
 
     // StopRepresenting
     //
@@ -788,8 +774,7 @@ TEST (Request_Serialization, json_deserialization)
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "epoch_num": "9001",
         "governance_subchain_previous": "D07FA4A78CFDAE9E86C746F4A42449FEA564E86D44D41AFC133A14080E8735E9",
-        "stake": "20000",
-        "work": "22222"
+        "stake": "20000"
      })%%%";
 
     tree = get_tree(stop_json);
@@ -804,7 +789,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(stop.epoch_num, 9001);
     ASSERT_EQ(stop.set_stake, true);
     ASSERT_EQ(stop.stake.number(), 20000);
-    ASSERT_EQ(stop.work, 0x22222);
 
     // Claim
     //
@@ -818,8 +802,7 @@ TEST (Request_Serialization, json_deserialization)
         "sequence": "5",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "epoch_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-        "epoch_number": "23",
-        "work": "6"
+        "epoch_number": "23"
      })%%%";
 
     tree = get_tree(claim_json);
@@ -833,7 +816,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(claim.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
     ASSERT_EQ(claim.epoch_hash.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
     ASSERT_EQ(claim.epoch_number, 23);
-    ASSERT_EQ(claim.work, 6);
 }
 
 auto DoGetStreamedData = [](const auto & data, auto & buf)

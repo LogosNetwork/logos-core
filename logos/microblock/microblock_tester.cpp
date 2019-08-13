@@ -5,7 +5,6 @@
 #include <logos/lib/epoch_time_util.hpp>
 #include <logos/node/utility.hpp>
 #include <logos/blockstore.hpp>
-#include <logos/lib/blocks.hpp>
 
 boost::property_tree::ptree MicroBlockTester::_request;
 
@@ -125,7 +124,6 @@ MicroBlockTester::precreate_account(
 
     logos::amount amount(std::numeric_limits<logos::uint128_t>::max());
     logos::amount fee(0);
-    uint64_t work = 0;
 
     AccountAddress account = pair.pub;
     AccountPubKey pub_key = pair.pub;
@@ -138,8 +136,7 @@ MicroBlockTester::precreate_account(
                  amount,
                  fee,
                  priv_key,
-                 pub_key,
-                 work);
+                 pub_key);
 
     std::string contents = request.ToJson();
     boost::log::sources::logger_mt log;

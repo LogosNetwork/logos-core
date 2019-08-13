@@ -258,17 +258,14 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     set (PLATFORM_LIB_SOURCE logos/plat/windows/priority.cpp)
     set (PLATFORM_SECURE_SOURCE logos/plat/windows/working.cpp)
-    set (PLATFORM_NODE_SOURCE logos/plat/windows/openclapi.cpp)
     set (PLATFORM_WALLET_SOURCE logos/plat/windows/icon.cpp Logos.rc)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set (PLATFORM_LIB_SOURCE logos/plat/linux/priority.cpp)
     set (PLATFORM_SECURE_SOURCE logos/plat/posix/working.cpp)
-    set (PLATFORM_NODE_SOURCE logos/plat/posix/openclapi.cpp)
     set (PLATFORM_WALLET_SOURCE logos/plat/default/icon.cpp)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set (PLATFORM_LIB_SOURCE logos/plat/default/priority.cpp)
     set (PLATFORM_SECURE_SOURCE logos/plat/posix/working.cpp)
-    set (PLATFORM_NODE_SOURCE logos/plat/posix/openclapi.cpp)
     set (PLATFORM_WALLET_SOURCE logos/plat/default/icon.cpp)
 else ()
     error ("Unknown platform: ${CMAKE_SYSTEM_NAME}")
@@ -285,10 +282,6 @@ add_library (secure
     logos/common.hpp
     logos/blockstore.cpp
     logos/blockstore.hpp
-    logos/ledger.cpp
-    logos/ledger.hpp
-    logos/lib/utility.cpp
-    logos/lib/utility.hpp
     logos/node/utility.cpp
     logos/node/utility.hpp
     logos/rewards/epoch_rewards.cpp
@@ -301,8 +294,6 @@ add_library (secure
 
 SET (LOGOS_LIB_SOURCES
     ${PLATFORM_LIB_SOURCE}
-    logos/lib/blocks.cpp
-    logos/lib/blocks.hpp
     logos/lib/interface.cpp
     logos/lib/interface.h
     logos/lib/merkle.cpp
@@ -312,9 +303,7 @@ SET (LOGOS_LIB_SOURCES
     logos/lib/epoch_time_util.cpp
     logos/lib/epoch_time_util.hpp
     logos/lib/utility.cpp
-    logos/lib/utility.hpp
-    logos/lib/work.hpp
-    logos/lib/work.cpp)
+    logos/lib/utility.hpp)
 
 add_library (logos_lib SHARED ${LOGOS_LIB_SOURCES})
 add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
@@ -388,24 +377,16 @@ add_library (node
     logos/network/epoch_peer_manager.cpp
     logos/node/client_callback.cpp
     logos/node/client_callback.hpp
-    logos/node/common.cpp
     logos/node/common.hpp
     logos/node/node.hpp
     logos/node/node.cpp
-    logos/node/openclwork.cpp
-    logos/node/openclwork.hpp
     logos/node/rpc.hpp
     logos/node/rpc.cpp
     logos/node/rpc_logic.hpp
     logos/node/rpc_logic.cpp
-    logos/node/testing.hpp
-    logos/node/testing.cpp
-    logos/node/wallet.hpp
-    logos/node/wallet.cpp
     logos/node/stats.hpp
     logos/node/stats.cpp
     logos/node/working.hpp
-    logos/node/xorshift.hpp
     logos/request/requests.cpp
     logos/request/utility.cpp
     logos/request/utility.cpp

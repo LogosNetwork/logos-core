@@ -1,5 +1,4 @@
 #include <logos/consensus/message_handler.hpp>
-#include <logos/lib/blocks.hpp>
 
 template<ConsensusType CT>
 MessageHandler<CT>::MessageHandler()

@@ -244,18 +244,6 @@ void Proxy::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
 }
 
 void Proxy::DeserializeDB(bool & error, logos::stream & stream)
@@ -387,19 +375,6 @@ void Stake::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
-
 }
 
 void Stake::DeserializeDB(bool & error, logos::stream & stream)
@@ -503,19 +478,6 @@ void Unstake::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
-
 }
 
 void Unstake::DeserializeDB(bool & error, logos::stream & stream)
@@ -758,18 +720,6 @@ void ElectionVote::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
 }
 
 void ElectionVote::DeserializeDB(bool & error, logos::stream & stream)
@@ -932,18 +882,6 @@ void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
 }
 
 void AnnounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
@@ -1089,18 +1027,6 @@ void RenounceCandidacy::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
 }
 
 void RenounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
@@ -1243,18 +1169,6 @@ void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-    }
 }
 
 void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
@@ -1386,18 +1300,6 @@ void StopRepresenting::Deserialize(bool& error, logos::stream& stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
     }
 }
 

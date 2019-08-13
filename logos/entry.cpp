@@ -1,5 +1,4 @@
 #include <logos/node/node.hpp>
-#include <logos/node/testing.hpp>
 #include <logos/daemon.hpp>
 
 #include <argon2.h>
@@ -102,12 +101,6 @@ int main (int argc, char * const * argv)
         logos_daemon::daemon daemon;
         daemon.run_tx_acceptor (data_path);
     }
-    else if (vm.count ("debug_block_count"))
-    {
-        logos::inactive_node node (data_path);
-        logos::transaction transaction (node.node->store.environment, nullptr, false);
-        std::cout << boost::str (boost::format ("Block count: %1%\n") % node.node->store.block_count (transaction).sum ());
-    }
     else if (vm.count ("debug_bootstrap_generate"))
     {
         //CH fix later.
@@ -163,188 +156,6 @@ int main (int argc, char * const * argv)
             result = -1;
         }*/
     }
-    else if (vm.count ("debug_dump_representatives"))
-    {
-        logos::inactive_node node (data_path);
-        logos::transaction transaction (node.node->store.environment, nullptr, false);
-        logos::uint128_t total;
-        for (auto i (node.node->store.representation_begin (transaction)), n (node.node->store.representation_end ()); i != n; ++i)
-        {
-            logos::account account (i->first.uint256 ());
-            auto amount (node.node->store.representation_get (transaction, account));
-            total += amount;
-            std::cout << boost::str (boost::format ("%1% %2% %3%\n") % account.to_account () % amount.convert_to<std::string> () % total.convert_to<std::string> ());
-        }
-        std::map<logos::account, logos::uint128_t> calculated;
-        for (auto i (node.node->store.latest_begin (transaction)), n (node.node->store.latest_end ()); i != n; ++i)
-        {
-            bool error = false;
-            logos::account_info info (error, i->second);
-            if(error)
-            {
-                std::cerr << "account_info deserialize error" << std::endl;
-                exit(-1);
-            }
-            logos::block_hash staking_subchain_head (node.node->ledger.representative_calculated (transaction, info.head));
-            std::unique_ptr<logos::block> block (node.node->store.block_get (transaction, staking_subchain_head));
-            calculated[block->representative ()] += info.GetBalance().number ();
-        }
-        total = 0;
-        for (auto i (calculated.begin ()), n (calculated.end ()); i != n; ++i)
-        {
-            total += i->second;
-            std::cout << boost::str (boost::format ("%1% %2% %3%\n") % i->first.to_account () % i->second.convert_to<std::string> () % total.convert_to<std::string> ());
-        }
-    }
-    else if (vm.count ("debug_account_count"))
-    {
-        logos::inactive_node node (data_path);
-        logos::transaction transaction (node.node->store.environment, nullptr, false);
-        std::cout << boost::str (boost::format ("Frontier count: %1%\n") % node.node->store.account_count (transaction));
-    }
-    else if (vm.count ("debug_mass_activity"))
-    {
-        logos::system system (24000, 1);
-        size_t count (1000000);
-        system.generate_mass_activity (count, *system.nodes[0]);
-    }
-    else if (vm.count ("debug_profile_kdf"))
-    {
-        logos::uint256_union result;
-        logos::uint256_union salt (0);
-        std::string password ("");
-        for (; true;)
-        {
-            auto begin1 (std::chrono::high_resolution_clock::now ());
-            auto success (argon2_hash (1, logos::wallet_store::kdf_work, 1, password.data (), password.size (), salt.bytes.data (), salt.bytes.size (), result.bytes.data (), result.bytes.size (), NULL, 0, Argon2_d, 0x10));
-            auto end1 (std::chrono::high_resolution_clock::now ());
-            std::cerr << boost::str (boost::format ("Derivation time: %1%us\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
-        }
-    }
-    else if (vm.count ("debug_profile_generate"))
-    {
-        /*logos::work_pool work (std::numeric_limits<unsigned>::max (), nullptr);
-        logos::change_block block (0, 0, logos::keypair ().prv, 0, 0);
-        std::cerr << "Starting generation profiling\n";
-        for (uint64_t i (0); true; ++i)
-        {
-            block.hashables.previous.qwords[0] += 1;
-            auto begin1 (std::chrono::high_resolution_clock::now ());
-            block.block_work_set (work.generate (block.root ()));
-            auto end1 (std::chrono::high_resolution_clock::now ());
-            std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
-        }*/
-    }
-    else if (vm.count ("debug_opencl"))
-    {
-    /*    bool error (false);
-        logos::opencl_environment environment (error);
-        if (!error)
-        {
-            unsigned short platform (0);
-            if (vm.count ("platform") == 1)
-            {
-                try
-                {
-                    platform = boost::lexical_cast<unsigned short> (vm["platform"].as<std::string> ());
-                }
-                catch (boost::bad_lexical_cast & e)
-                {
-                    std::cerr << "Invalid platform id\n";
-                    result = -1;
-                }
-            }
-            unsigned short device (0);
-            if (vm.count ("device") == 1)
-            {
-                try
-                {
-                    device = boost::lexical_cast<unsigned short> (vm["device"].as<std::string> ());
-                }
-                catch (boost::bad_lexical_cast & e)
-                {
-                    std::cerr << "Invalid device id\n";
-                    result = -1;
-                }
-            }
-            unsigned threads (1024 * 1024);
-            if (vm.count ("threads") == 1)
-            {
-                try
-                {
-                    threads = boost::lexical_cast<unsigned> (vm["threads"].as<std::string> ());
-                }
-                catch (boost::bad_lexical_cast & e)
-                {
-                    std::cerr << "Invalid threads count\n";
-                    result = -1;
-                }
-            }
-            if (!result)
-            {
-                error |= platform >= environment.platforms.size ();
-                if (!error)
-                {
-                    error |= device >= environment.platforms[platform].devices.size ();
-                    if (!error)
-                    {
-                        logos::logging logging;
-                        auto opencl (logos::opencl_work::create (true, { platform, device, threads }, logging));
-                        logos::work_pool work_pool (std::numeric_limits<unsigned>::max (), opencl ? [&opencl](logos::uint256_union const & root_a) {
-                            return opencl->generate_work (root_a);
-                        }
-                                                                                                : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
-                        logos::change_block block (0, 0, logos::keypair ().prv, 0, 0);
-                        std::cerr << boost::str (boost::format ("Starting OpenCL generation profiling. Platform: %1%. Device: %2%. Threads: %3%\n") % platform % device % threads);
-                        for (uint64_t i (0); true; ++i)
-                        {
-                            block.hashables.previous.qwords[0] += 1;
-                            auto begin1 (std::chrono::high_resolution_clock::now ());
-                            block.block_work_set (work_pool.generate (block.root ()));
-                            auto end1 (std::chrono::high_resolution_clock::now ());
-                            std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
-                        }
-                    }
-                    else
-                    {
-                        std::cout << "Not available device id\n"
-                                  << std::endl;
-                        result = -1;
-                    }
-                }
-                else
-                {
-                    std::cout << "Not available platform id\n"
-                              << std::endl;
-                    result = -1;
-                }
-            }
-        }
-        else
-        {
-            std::cout << "Error initializing OpenCL" << std::endl;
-            result = -1;
-        }*/
-    }
-    else if (vm.count ("debug_profile_verify"))
-    {
-        /*logos::work_pool work (std::numeric_limits<unsigned>::max (), nullptr);
-        logos::change_block block (0, 0, logos::keypair ().prv, 0, 0);
-        std::cerr << "Starting verification profiling\n";
-        for (uint64_t i (0); true; ++i)
-        {
-            block.hashables.previous.qwords[0] += 1;
-            auto begin1 (std::chrono::high_resolution_clock::now ());
-            for (uint64_t t (0); t < 1000000; ++t)
-            {
-                block.hashables.previous.qwords[0] += 1;
-                block.block_work_set (t);
-                logos::work_validate (block);
-            }
-            auto end1 (std::chrono::high_resolution_clock::now ());
-            std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
-        }*/
-    }
     else if (vm.count ("debug_verify_profile"))
     {
         logos::keypair key;
@@ -358,23 +169,6 @@ int main (int argc, char * const * argv)
         }
         auto end (std::chrono::high_resolution_clock::now ());
         std::cerr << "Signature verifications " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count () << std::endl;
-    }
-    else if (vm.count ("debug_profile_sign"))
-    {
-        /*std::cerr << "Starting blocks signing profiling\n";
-        for (uint64_t i (0); true; ++i)
-        {
-            logos::keypair key;
-            logos::block_hash latest (0);
-            auto begin1 (std::chrono::high_resolution_clock::now ());
-            for (uint64_t balance (0); balance < 1000; ++balance)
-            {
-                logos::send_block send (latest, key.pub, balance, key.prv, key.pub, 0);
-                latest = send.hash ();
-            }
-            auto end1 (std::chrono::high_resolution_clock::now ());
-            std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
-        }*/
     }
     else if (vm.count ("version"))
     {
