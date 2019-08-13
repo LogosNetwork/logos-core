@@ -20,8 +20,6 @@ public:
     bool rpc_enable;
     logos::rpc_config rpc;
     logos::node_config node;
-    bool opencl_enable;
-    logos::opencl_config opencl;
     p2p_config p2p_conf;
 };
 }

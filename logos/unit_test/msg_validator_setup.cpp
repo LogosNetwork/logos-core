@@ -61,7 +61,7 @@ void clear_dbs()
     store->clear(store->epoch_tip_db);
     store->clear(store->remove_candidates_db);
     store->clear(store->remove_reps_db);
-    store->clear(store->state_db);
+    store->clear(store->request_db);
     store->clear(store->leading_candidates_db);
     store->clear(store->voting_power_db);
     store->clear(store->staking_db);

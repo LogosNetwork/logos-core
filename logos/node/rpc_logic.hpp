@@ -1,7 +1,6 @@
 #pragma once
+
 #include <logos/blockstore.hpp>
-#include <logos/ledger.hpp>
-#include <logos/node/wallet.hpp>
 
 namespace rpclogic
 {

@@ -4,8 +4,10 @@
 ///
 #pragma once
 
+#include <logos/lib/numbers.hpp>
+
 #include <endian.h>
-#include <logos/lib/blocks.hpp>
+#include <assert.h>
 
 static const size_t HASH_SIZE                   = 32;
 static const size_t ACCOUNT_ADDRESS_SIZE        = 32;

@@ -7,7 +7,6 @@
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
-#include <logos/lib/blocks.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/lib/ecies.hpp>

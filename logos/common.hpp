@@ -1,7 +1,6 @@
 #pragma once
 
 #include <logos/lib/ecies.hpp>
-#include <logos/lib/blocks.hpp>
 #include <logos/token/entry.hpp>
 #include <logos/node/utility.hpp>
 
@@ -32,54 +31,6 @@ const uint8_t protocol_version = 0x0a;
 const uint8_t protocol_version_min = 0x07;
 
 class block_store;
-/**
- * Determine the balance as of this block
- */
-class balance_visitor : public logos::block_visitor
-{
-public:
-    balance_visitor (MDB_txn *, logos::block_store &);
-    virtual ~balance_visitor () = default;
-    void compute (logos::block_hash const &);
-    void state_block (logos::state_block const &) override;
-    MDB_txn * transaction;
-    logos::block_store & store;
-    logos::block_hash current;
-    logos::uint128_t result;
-};
-
-/**
- * Determine the amount delta resultant from this block
- */
-class amount_visitor : public logos::block_visitor
-{
-public:
-    amount_visitor (MDB_txn *, logos::block_store &);
-    virtual ~amount_visitor () = default;
-    void compute (logos::block_hash const &);
-    void state_block (logos::state_block const &) override;
-    void from_send (logos::block_hash const &);
-    MDB_txn * transaction;
-    logos::block_store & store;
-    logos::block_hash current;
-    logos::uint128_t result;
-};
-
-/**
- * Determine the representative for this block
- */
-class representative_visitor : public logos::block_visitor
-{
-public:
-    representative_visitor (MDB_txn * transaction_a, logos::block_store & store_a);
-    virtual ~representative_visitor () = default;
-    void compute (logos::block_hash const & hash_a);
-    void state_block (logos::state_block const & block_a) override;
-    MDB_txn * transaction;
-    logos::block_store & store;
-    logos::block_hash current;
-    logos::block_hash result;
-};
 
 /**
  * A key pair. The private key is generated from the random pool, or passed in
@@ -94,8 +45,6 @@ public:
     logos::public_key pub;
     logos::raw_key prv;
 };
-
-std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 
 enum class AccountType : uint8_t
 {
@@ -270,89 +219,6 @@ struct reservation_info
     uint32_t            reservation_epoch;  /// epoch in which account was reserved
 };
 
-/**
- * Information on an uncollected send
- */
-class pending_info
-{
-public:
-    pending_info ();
-    pending_info (MDB_val const &);
-    pending_info (logos::account const &, logos::amount const &);
-    void serialize (logos::stream &) const;
-    bool deserialize (logos::stream &);
-    bool operator== (logos::pending_info const &) const;
-    logos::mdb_val val () const;
-    logos::account source;
-    logos::amount amount;
-};
-class pending_key
-{
-public:
-    pending_key (logos::account const &, logos::block_hash const &);
-    pending_key (MDB_val const &);
-    void serialize (logos::stream &) const;
-    bool deserialize (logos::stream &);
-    bool operator== (logos::pending_key const &) const;
-    logos::mdb_val val () const;
-    logos::account account;
-    logos::block_hash hash;
-};
-class block_info
-{
-public:
-    block_info ();
-    block_info (MDB_val const &);
-    block_info (logos::account const &, logos::amount const &);
-    void serialize (logos::stream &) const;
-    bool deserialize (logos::stream &);
-    bool operator== (logos::block_info const &) const;
-    logos::mdb_val val () const;
-    logos::account account;
-    logos::amount balance;
-};
-class block_counts
-{
-public:
-    block_counts ();
-    size_t sum ();
-    size_t send;
-    size_t receive;
-    size_t open;
-    size_t change;
-    size_t state;
-};
-class vote
-{
-public:
-    vote () = default;
-    vote (logos::vote const &);
-    vote (bool &, logos::stream &);
-    vote (bool &, logos::stream &, logos::block_type);
-    vote (logos::account const &, logos::raw_key const &, uint64_t, std::shared_ptr<logos::block>);
-    vote (MDB_val const &);
-    logos::uint256_union hash () const;
-    bool operator== (logos::vote const &) const;
-    bool operator!= (logos::vote const &) const;
-    void serialize (logos::stream &, logos::block_type);
-    void serialize (logos::stream &);
-    bool deserialize (logos::stream &);
-    std::string to_json () const;
-    // Vote round sequence number
-    uint64_t sequence;
-    std::shared_ptr<logos::block> block;
-    // Account that's voting
-    logos::account account;
-    // Signature of sequence + block hash
-    logos::signature signature;
-};
-enum class vote_code
-{
-    invalid, // Vote is not signed correctly
-    replay, // Vote does not have the highest sequence number, it's a replay
-    vote // Vote has the highest sequence number
-};
-
 // TODO: Remove unused enums and perhaps separate
 //       these enums based on the validation class.
 //
@@ -457,26 +323,8 @@ public:
     logos::process_result code;
     logos::account account;
     logos::amount amount;
-    logos::account pending_account;
-    boost::optional<bool> state_is_send;
 };
-enum class tally_result
-{
-    vote,
-    changed,
-    confirm
-};
-class votes
-{
-public:
-    votes (std::shared_ptr<logos::block>);
-    logos::tally_result vote (std::shared_ptr<logos::vote>);
-    bool uncontested ();
-    // Root block of fork
-    logos::block_hash id;
-    // All votes received by account
-    std::unordered_map<logos::account, std::shared_ptr<logos::block>> rep_votes;
-};
+
 struct genesis_delegate
 {
    logos::keypair  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
@@ -502,14 +350,6 @@ extern std::vector<genesis_delegate> genesis_delegates;
 extern logos::block_hash const & not_a_block;
 // An account number that compares inequal to any real account number
 extern logos::block_hash const & not_an_account;
-class genesis
-{
-public:
-    explicit genesis ();
-    void initialize (MDB_txn *, logos::block_store &) const;
-    logos::block_hash hash () const;
-    //CH std::unique_ptr<logos::open_block> open;
-};
 
 class node;
 }

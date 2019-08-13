@@ -7,8 +7,7 @@
 #include <logos/tx_acceptor/tx_acceptor.hpp>
 
 logos_daemon::daemon_config::daemon_config (boost::filesystem::path const & application_path_a) :
-rpc_enable (false),
-opencl_enable (false)
+rpc_enable (false)
 {
 }
 
@@ -22,10 +21,6 @@ void logos_daemon::daemon_config::serialize_json (boost::property_tree::ptree & 
     boost::property_tree::ptree node_l;
     node.serialize_json (node_l);
     tree_a.add_child ("node", node_l);
-    tree_a.put ("opencl_enable", opencl_enable);
-    boost::property_tree::ptree opencl_l;
-    opencl.serialize_json (opencl_l);
-    tree_a.add_child ("opencl", opencl_l);
 }
 
 bool logos_daemon::daemon_config::deserialize_json (bool & upgraded_a, boost::property_tree::ptree & tree_a)
@@ -47,9 +42,6 @@ bool logos_daemon::daemon_config::deserialize_json (bool & upgraded_a, boost::pr
             error |= rpc.deserialize_json (rpc_l);
             auto & node_l (tree_a.get_child ("node"));
             error |= node.deserialize_json (upgraded_a, node_l);
-            opencl_enable = tree_a.get<bool> ("opencl_enable");
-            auto & opencl_l (tree_a.get_child ("opencl"));
-            error |= opencl.deserialize_json (opencl_l);
         }
         else
         {
@@ -71,18 +63,6 @@ bool logos_daemon::daemon_config::upgrade_json (unsigned version_a, boost::prope
     {
         case 1:
         {
-            auto opencl_enable_l (tree_a.get_optional<bool> ("opencl_enable"));
-            if (!opencl_enable_l)
-            {
-                tree_a.put ("opencl_enable", "false");
-            }
-            auto opencl_l (tree_a.get_child_optional ("opencl"));
-            if (!opencl_l)
-            {
-                boost::property_tree::ptree opencl_l;
-                opencl.serialize_json (opencl_l);
-                tree_a.put_child ("opencl", opencl_l);
-            }
             tree_a.put ("version", "2");
             result = true;
         }
@@ -139,11 +119,11 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path, const
         config.node.logging.init (data_path);
         config_file.close ();
         boost::asio::io_service service;
-        auto opencl (logos::opencl_work::create (config.opencl_enable, config.opencl, config.node.logging));
-        logos::work_pool opencl_work (config.node.work_threads,
-                opencl
-                ? [&opencl](logos::uint256_union const & root_a) { return opencl->generate_work (root_a); }
-                : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
+//        auto opencl (logos::opencl_work::create (config.opencl_enable, config.opencl, config.node.logging));
+//        logos::work_pool opencl_work (config.node.work_threads,
+//                opencl
+//                ? [&opencl](logos::uint256_union const & root_a) { return opencl->generate_work (root_a); }
+//                : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
         logos::alarm alarm (service);
         logos::node_init init;
         try
@@ -158,7 +138,7 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path, const
                 }
             };
             config.node.p2p_conf = config.p2p_conf;
-            auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node, opencl_work));
+            auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node/*, opencl_work*/));
             if (!init.error ())
             {
                 node->start ();

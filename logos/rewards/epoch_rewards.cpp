@@ -57,4 +57,6 @@ bool GlobalRewardsInfo::Deserialize(logos::stream & stream)
     auto result = logos::read(stream, total_stake)
                   || logos::read(stream, remaining_reward)
                   || logos::read(stream, total_reward);
+
+    return result;
 }

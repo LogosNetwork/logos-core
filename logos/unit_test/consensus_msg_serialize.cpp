@@ -68,7 +68,7 @@ create_bsb_preprepare(uint16_t num_sb)
     block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddRequest(std::make_shared<Send>(Send(1, 2, i, 5, 6, 7, 8, 9)));
+        block.AddRequest(std::make_shared<Send>(Send(1, 2, i, 5, 6, 7, 8)));
     }
 
     return block;
@@ -501,7 +501,7 @@ TEST (blocks, receive_block)
 
 TEST (blocks, state_block)
 {
-    Send send_a(1,2,3,5,6,7,8,9);
+    Send send_a(1,2,3,5,6,7,8);
 
     std::vector<uint8_t> buf;
     auto db_val = send_a.ToDatabase(buf);
@@ -521,7 +521,6 @@ void create_real_StateBlock(Send & request)
     logos::keypair pair(std::string("34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4"));
     Amount amount(std::numeric_limits<logos::uint128_t>::max());
     Amount fee(0);
-    uint64_t work = 0;
 
     AccountAddress account = pair.pub;
     AccountPubKey pub_key = pair.pub;
@@ -534,8 +533,7 @@ void create_real_StateBlock(Send & request)
                         amount,
                         fee,
                         priv_key,
-                        pub_key,
-                        work);
+                        pub_key);
 }
 
 TEST (blocks, state_block_json)
@@ -583,7 +581,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddRequest(std::make_shared<Send>(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9))));
+    ASSERT_FALSE(block.AddRequest(std::make_shared<Send>(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8))));
     ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -1015,7 +1013,7 @@ TEST (DB, state_block)
         return;
     logos::transaction txn(store->environment, nullptr, true);
 
-    Send send_a(1,2,3,5,6,7,8,9);
+    Send send_a(1,2,3,5,6,7,8);
     std::vector<uint8_t> buf;
     ASSERT_FALSE(store->request_put(static_cast<Request&>(send_a), txn));
 

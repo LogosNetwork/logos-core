@@ -76,7 +76,6 @@ const char UNFROZEN[]        = "unfrozen";
 const char WHITELISTED[]     = "whitelisted";
 const char NOT_WHITELISTED[] = "not_whitelisted";
 const char STATUS[]          = "status";
-const char WORK[]            = "work";
 const char VOTES[]           = "votes";
 const char REQUEST[]         = "request";
 const char EPOCH_NUM[]       = "epoch_num";

@@ -11,7 +11,7 @@ TEST(Proxy, Serialization)
     logos::block_store* store(get_db());
     logos::transaction txn(store->environment, nullptr, true);
 
-    store->clear(store->state_db, txn);
+    store->clear(store->request_db, txn);
 
     Proxy req;
     req.lock_proxy = 4267;

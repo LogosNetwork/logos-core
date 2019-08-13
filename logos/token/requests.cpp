@@ -341,22 +341,6 @@ void Issuance::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void Issuance::DeserializeDB(bool & error, logos::stream & stream)
@@ -569,22 +553,6 @@ void IssueAdditional::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void IssueAdditional::DeserializeDB(bool & error, logos::stream & stream)
@@ -742,22 +710,6 @@ void ChangeSetting::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
@@ -924,22 +876,6 @@ void ImmuteSetting::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
@@ -1155,22 +1091,6 @@ void Revoke::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void Revoke::DeserializeDB(bool & error, logos::stream & stream)
@@ -1334,22 +1254,6 @@ void AdjustUserStatus::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
@@ -1531,22 +1435,6 @@ void AdjustFee::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void AdjustFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -1707,22 +1595,6 @@ void UpdateIssuerInfo::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
@@ -1937,22 +1809,6 @@ void UpdateController::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void UpdateController::DeserializeDB(bool & error, logos::stream & stream)
@@ -2143,22 +1999,6 @@ void Burn::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void Burn::DeserializeDB(bool & error, logos::stream & stream)
@@ -2335,22 +2175,6 @@ void Distribute::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void Distribute::DeserializeDB(bool & error, logos::stream & stream)
@@ -2525,22 +2349,6 @@ void WithdrawFee::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void WithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -2703,22 +2511,6 @@ void WithdrawLogos::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
@@ -2988,22 +2780,6 @@ void TokenSend::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 
