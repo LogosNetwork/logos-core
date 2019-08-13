@@ -82,7 +82,7 @@ public:
                 {
                     Log log;
                     LOG_TRACE(log) << "PersistenceP2p::Pushing to sink - "
-                    << unsigned(delegate_id) << " - " << message.epoch_number
+                    << unsigned(message.primary_delegate) << " - " << message.epoch_number
                         << " - " << message.Hash().to_string();
                     sink->Push(message);
                 }
@@ -90,7 +90,7 @@ public:
                 {
                     Log log;
                     LOG_TRACE(log) << "PersistenceP2p:Sink is null"
-                        << unsigned(delegate_id) << " - " << message.epoch_number
+                        << unsigned(message.primary_delegate) << " - " << message.epoch_number
                         << " - " << message.Hash().to_string();
                 }
 
