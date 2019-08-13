@@ -1,6 +1,5 @@
 #include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/wallet_server/client/callback_manager.hpp>
-#include <logos/lib/blocks.hpp>
 
 #include <boost/property_tree/ptree_fwd.hpp>
 #include <boost/format/free_funcs.hpp>

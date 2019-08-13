@@ -1,6 +1,5 @@
 #pragma once
 
-#include <logos/lib/blocks.hpp>
 #include <logos/node/utility.hpp>
 
 namespace logos

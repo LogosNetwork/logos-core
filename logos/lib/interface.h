@@ -41,7 +41,7 @@ void lgs_seed_key(lgs_uint256 seed, int index, lgs_uint256);
 void lgs_key_account(lgs_uint256 const key, lgs_uint256 pub);
 
 // Sign 'transaction' using 'private_key' and write to 'signature'
-char * lgs_sign_transaction(const char *transaction, const lgs_uint256 private_key);
+//char * lgs_sign_transaction(const char *transaction, const lgs_uint256 private_key);
 // Generate work for 'transaction'
 char * lgs_work_transaction(const char *transaction);
 

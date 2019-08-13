@@ -95,8 +95,7 @@ RpcResponse<BoostJson> account_info(
                 logos::account_info info = 
                     *static_pointer_cast<logos::account_info>(account_ptr);
 
-                MDB_dbi db = store.account_db;
-                res.error = store.account_get (transaction, account, info, db);
+                res.error = store.account_get (account, info, transaction);
                 if (!res.error)
                 {
                     response.put("type","LogosAccount");

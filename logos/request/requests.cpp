@@ -48,14 +48,12 @@ Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
                  const Amount & fee,
-                 uint32_t sequence,
-                 uint64_t work)
+                 uint32_t sequence)
     : type(type)
     , origin(origin)
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
-    , work(work)
 {}
 
 Request::Request(RequestType type,
@@ -63,14 +61,12 @@ Request::Request(RequestType type,
                  const BlockHash & previous,
                  const Amount & fee,
                  uint32_t sequence,
-                 uint64_t work,
                  const AccountSig & signature)
     : type(type)
     , origin(origin)
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
-    , work(work)
     , signature(signature)
 {}
 
@@ -120,12 +116,6 @@ Request::Request(bool & error,
         }
 
         sequence = std::stoul(tree.get<std::string>(SEQUENCE));
-
-        error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
-        if(error)
-        {
-            return;
-        }
 
         Hash();
     }
@@ -231,13 +221,6 @@ uint64_t Request::ToStream(logos::stream & stream, bool with_work) const
     bytes_written += DoSerialize(stream);
     bytes_written += Serialize(stream);
 
-    bytes_written += logos::write(stream, with_work);
-
-    if(with_work)
-    {
-        bytes_written += logos::write(stream, work);
-    }
-
     return bytes_written;
 }
 
@@ -251,13 +234,6 @@ logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf, bool with_work) c
         DoSerialize(stream);
         locator.Serialize(stream);
         Serialize(stream);
-
-        logos::write(stream, with_work);
-
-        if(with_work)
-        {
-            logos::write(stream, work);
-        }
 
         logos::write(stream, next);
     }
@@ -287,7 +263,6 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(FEE, fee.to_string_dec());
     tree.put(SEQUENCE, std::to_string(sequence));
     tree.put(SIGNATURE, signature.to_string());
-    tree.put(WORK, std::to_string(work));
     tree.put(NEXT, next.to_string());
 
     tree.put(HASH, digest.to_string());
@@ -435,14 +410,12 @@ Send::Send(const AccountAddress & account,
            const Amount & amount,
            const Amount & transaction_fee,
            const AccountPrivKey & priv,
-           const AccountPubKey & pub,
-           uint64_t work)
+           const AccountPubKey & pub)
     : Request(RequestType::Send,
               account,
               previous,
               transaction_fee,
-              sequence,
-              work)
+              sequence)
 {
     transactions.push_back(Transaction(to, amount));
     Sign(priv, pub);
@@ -454,14 +427,12 @@ Send::Send(AccountAddress const & account,
            AccountAddress const & to,
            Amount const & amount,
            Amount const & transaction_fee,
-           const AccountSig & sig,
-           uint64_t work)
+           const AccountSig & sig)
     : Request(RequestType::Send,
               account,
               previous,
               transaction_fee,
               sequence,
-              work,
               sig)
 {
     transactions.push_back(Transaction(to, amount));
@@ -637,22 +608,6 @@ void Send::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 }
 

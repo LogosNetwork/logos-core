@@ -8,6 +8,7 @@
 
 #include <blake2/blake2.h>
 
+#include <logos/lib/utility.hpp>
 #include <logos/consensus/messages/byte_arrays.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
 

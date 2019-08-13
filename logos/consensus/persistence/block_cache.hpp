@@ -6,7 +6,6 @@
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/hash.hpp>
-#include <logos/lib/blocks.hpp>
 #include <logos/lib/trace.hpp>
 
 #include <logos/blockstore.hpp>

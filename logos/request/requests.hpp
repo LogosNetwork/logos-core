@@ -82,15 +82,13 @@ struct Request
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            uint64_t work);
+            uint32_t sequence);
 
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
             uint32_t sequence,
-            uint64_t work,
             const AccountSig & signature);
 
     Request(bool & error,
@@ -192,8 +190,7 @@ struct Send : Request
            Amount const & amount,
            Amount const & transaction_fee,
            AccountPrivKey const & priv,
-           AccountPubKey const & pub,
-           uint64_t work = 0);
+           AccountPubKey const & pub);
 
     /// Class constructor
     /// Note that if additional transaction is added after construction, the StateBlock must be re-signed
@@ -211,8 +208,7 @@ struct Send : Request
            AccountAddress const & to,
            Amount const & amount,
            Amount const & transaction_fee,
-           AccountSig const & sig,
-           uint64_t work = 0);
+           AccountSig const & sig);
 
     /// Class constructor
     /// construct from deserializing a property_tree which was decoded from a Json string

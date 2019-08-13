@@ -102,22 +102,6 @@ void Claim::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
-    }
 }
 
 void Claim::DeserializeDB(bool & error, logos::stream & stream)

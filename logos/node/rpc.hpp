@@ -142,8 +142,6 @@ public:
     void blocks ();
     void blocks_exist ();
     void block_account ();
-    void block_count ();
-    void block_count_type ();
     void block_create ();
     void block_hash ();
     void bootstrap ();
@@ -160,7 +158,6 @@ public:
     void epochs_latest ();
     void frontiers ();
     void history ();
-    void keepalive ();
     void key_create ();
     void key_expand ();
     void krai_to_raw ();
@@ -177,7 +174,6 @@ public:
     void payment_init ();
     void payment_end ();
     void payment_wait ();
-    void peers ();
     void pending ();
     void pending_exists ();
     void process ();
