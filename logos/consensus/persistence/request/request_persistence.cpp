@@ -1623,6 +1623,11 @@ void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
     uint16_t transaction_index = 0;
     for(auto & t : request->transactions)
     {
+        if(request->type == RequestType::Send
+                && t.destination == request->origin)
+        {
+            continue;
+        }
         ApplySend(t,
                   timestamp,
                   transaction,
