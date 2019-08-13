@@ -1298,7 +1298,7 @@ DelegateIdentityManager::ScheduleAd()
     {
         msec = tomsec(lapse - r2);
     }
-    //TODO Peng: at least 5 minutes
+    //TODO Peng: at least 5 minutes, revisit after IM merge
     msec = std::max(msec, boost::posix_time::milliseconds(1000*60*5));
 
     auto t = boost::posix_time::microsec_clock::local_time() + msec;

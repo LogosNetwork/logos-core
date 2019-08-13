@@ -197,13 +197,12 @@ public:
      */
     bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
 
-    void DumpCachedBlocks();
-
 private:
     bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);
     void MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains);
     bool DeleteDependenciesAndMarkForRevalidation(const BlockHash &hash);
 
+    void DumpCachedBlocks();
     void DumpChainTips();
 
     BlockWriteQueue &                               _write_q;
