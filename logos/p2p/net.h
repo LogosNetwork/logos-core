@@ -723,6 +723,7 @@ public:
     const uint64_t                          nKeyedNetGroup;
     std::atomic_bool                        fPauseRecv;
     std::atomic_bool                        fPauseSend;
+    uint64_t                                first_propagate_index;
     uint64_t                                next_propagate_index;
     std::atomic_bool                        sendCompleted;
 protected:

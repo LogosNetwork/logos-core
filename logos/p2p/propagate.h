@@ -78,15 +78,18 @@ struct PropagateMessage
     std::vector<uint8_t>    message;
     uint64_t                label;
     uint256                 hash;
+    bool                    important;
     struct ByHash {};
     struct ByLabel {};
 
     PropagateMessage(const void *mess,
-                     unsigned size)
+                     unsigned size,
+                     bool is_important = false)
     {
         message.resize(size);
         memcpy(message.data(), mess, size);
         hash = Hash(message.begin(), message.end());
+        important = is_important;
     }
 };
 
@@ -161,7 +164,7 @@ public:
         return next_label;
     }
 
-    const PropagateMessage *GetNext(uint64_t &current_label)
+    const PropagateMessage *GetNext(uint64_t &current_label, bool important_only = false)
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (current_label < first_label)
@@ -174,7 +177,8 @@ public:
             if (iter != store.get<PropagateMessage::ByLabel>().end())
             {
                 const PropagateMessage &mess = *iter;
-                return &mess;
+                if (!important_only || mess.important)
+                    return &mess;
             }
         }
 
