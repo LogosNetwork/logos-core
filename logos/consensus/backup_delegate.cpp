@@ -203,7 +203,10 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
 
     auto hash = block.Hash();
 
-    if(_pre_prepare && _pre_prepare_hash == hash)
+    //even if we haven't received the preprepare at all for this block
+    //advance the consensus state if we know it must be the next block from
+    //the remote delegate
+    if((_pre_prepare && _pre_prepare_hash == hash) || _prev_pre_prepare_hash == block.previous)
     {
 
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
