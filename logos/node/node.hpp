@@ -457,6 +457,7 @@ public:
         : _node(node)
     {}
     virtual bool ReceiveMessageCallback(const void *message, unsigned size);
+    virtual bool IsMessageImportant(const void *message, unsigned size);
     friend class logos::node;
 };
 
