@@ -169,7 +169,7 @@ namespace Bootstrap
         std::unique_lock<std::mutex> lock(mtx);
         one_more = false;
         auto to_call(std::move(cbq));
-        assert(cbq.empty());
+        attempt = nullptr;
         lock.unlock();
 
         LOG_TRACE(log) << "bootstrap_initiator::notify, # of callback=" << to_call.size();
