@@ -87,6 +87,16 @@ public:
         return false;
     }
 
+    /*
+     * Important means that the message need to be propagated to nodes
+     * which were connected after the message was sent.
+     * This is for advertisement-like messages.
+     */
+    virtual bool IsMessageImportant(const void *message, unsigned size)
+    {
+        return false;
+    }
+
     static void TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback);
 };
 

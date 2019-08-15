@@ -675,7 +675,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
     }
 
     BCLog::Logger &logger_ = p2p->logger_;
-    struct PropagateMessage mess(message, size, ((uint8_t *)message)[1] != 0);
+    struct PropagateMessage mess(message, size, IsMessageImportant(message, size));
     bool bfind=false;
     bool brecv=false;
     bool bprop=false;

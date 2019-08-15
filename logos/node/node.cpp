@@ -830,6 +830,31 @@ bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, uns
     return _node._consensus_container->OnP2pReceive(message, size);
 }
 
+bool logos::Logos_p2p_interface::IsMessageImportant(const void *message, unsigned size) {
+    P2pHeader head(0, P2pAppType::Consensus);
+    bool error = false;
+
+    logos::bufferstream stream((const unsigned char *)message, size);
+    head.Deserialize(error, stream);
+    if (error)
+    {
+        return false;
+    }
+
+    /* return true for advertisement messages */
+    switch (head.app_type)
+    {
+    case P2pAppType::Consensus:
+        return false;
+    case P2pAppType::AddressAd:
+        return true;
+    case P2pAppType::AddressAdTxAcceptor:
+        return true;
+    }
+
+    return false;
+}
+
 void logos::node::ongoing_bootstrap ()
 {
     LOG_TRACE(log) << "node::ongoing_bootstrap";
