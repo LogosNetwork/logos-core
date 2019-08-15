@@ -1313,7 +1313,7 @@ void logos::rpc_handler::bootstrap ()
         uint16_t port;
         if (!logos::parse_port (port_text, port))
         {
-            node.bootstrap_initiator.bootstrap (logos::endpoint (address, port));
+            node.bootstrap_initiator.bootstrap ({}, logos::endpoint (address, port));
             boost::property_tree::ptree response_l;
             response_l.put ("success", "");
             response (response_l);

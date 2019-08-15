@@ -22,6 +22,7 @@ namespace Bootstrap
     constexpr uint8_t max_accept_connection = 16;
 
     using Service = boost::asio::io_service;
+    using CallbackQueue = std::vector<logos_global::BootstrapCompleteCB>;
 
     class BootstrapAttempt;
     class BootstrapInitiator
@@ -47,15 +48,12 @@ namespace Bootstrap
         ~BootstrapInitiator ();
 
         /**
-         * create bootstrap attempt and try to bootstrap from the peer
+         * create bootstrap attempt
+         * @param cb callback called when a bootstrap attempt completes
          * @param peer endpoint to bootstrap from
          */
-        void bootstrap (logos::endpoint const & peer);
-
-        /**
-         * create bootstrap attempt
-         */
-        void bootstrap ();
+        void bootstrap (logos_global::BootstrapCompleteCB cb = {},
+                        logos::endpoint const & peer = bad_address);
 
         /**
          * starting function of the dedicated bootstrap kick off thread
@@ -74,7 +72,11 @@ namespace Bootstrap
          */
         void stop ();
 
+        void notify(logos_global::BootstrapResult res);
+
     private:
+        static logos::endpoint bad_address;
+
         Service & service;
         logos::alarm & alarm;
         Store & store;
@@ -84,6 +86,8 @@ namespace Bootstrap
         std::shared_ptr<BootstrapAttempt> attempt;
         bool stopped;
         bool one_more;
+        CallbackQueue cbq;
+
         std::mutex mtx;
         std::condition_variable condition;
         uint8_t max_connected;

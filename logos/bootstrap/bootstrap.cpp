@@ -7,12 +7,14 @@
 #include <logos/node/node.hpp>
 
 #include <boost/log/trivial.hpp>
-#include <logos/bootstrap/pull.hpp>
 #include <logos/lib/trace.hpp>
 
 
 namespace Bootstrap
 {
+    logos::endpoint
+    BootstrapInitiator::bad_address(boost::asio::ip::make_address("0.0.0.0"), 0);
+
     BootstrapInitiator::BootstrapInitiator(logos::alarm & alarm,
                Store & store,
             logos::BlockCache & cache,
@@ -38,64 +40,54 @@ namespace Bootstrap
         thread.join();
     }
 
-    void BootstrapInitiator::bootstrap()
+    void BootstrapInitiator::bootstrap(logos_global::BootstrapCompleteCB cb,
+                                       logos::endpoint const & peer)
     {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
+
+#ifdef BOOTSTRAP_INITIATOR_DEBUG
+        static uint call_count = 0;
+        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__ << " call_count=" << call_count;
+#endif
         if (stopped)
         {
-            LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+            LOG_WARN(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+            lock.unlock();
+            if(cb)
+                cb(logos_global::BootstrapResult::BootstrapInitiatorStopped);
             return;
         }
 
-        if (attempt == nullptr) {
+        if(cb)
+        {
+            cbq.push_back(cb);
+        }
+
+#ifdef BOOTSTRAP_INITIATOR_DEBUG
+        auto cc = call_count++;
+        auto self_cb = [this, cc](logos_global::BootstrapResult res){
+            LOG_DEBUG(log) << "bootstrap_initiator::bootstrap"
+                           << " call_count=" << cc
+                           << " callback res=" << logos_global::BootstrapResultToString(res);
+        };
+        cbq.push_back(self_cb);
+#endif
+
+        if (attempt == nullptr)
+        {
+            one_more = true;
             attempt = std::make_shared<BootstrapAttempt>(alarm,
                     store,
                     cache,
                     peer_provider,
+                    *this,
                     max_connected);
             condition.notify_all();
         }
-        else
-        {
-            one_more = true;
-        }
-    }
 
-    void BootstrapInitiator::bootstrap(logos::endpoint const &peer)
-    {
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
-        //cannot add endpoint_a to peer list, since it could be
-        //one of the delegate
-        for(;;)
-        {
-            std::unique_lock<std::mutex> lock(mtx);
-            if (stopped)
-            {
-                LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
-                return;
-            }
-
-            if(attempt == nullptr)
-            {
-                attempt = std::make_shared<BootstrapAttempt>(alarm,
-                        store,
-                        cache,
-                        peer_provider,
-                        max_connected);
-                attempt->add_connection(peer);
-                condition.notify_all();
-                return;
-            }
-            else
-            {
-                if(attempt->add_connection(peer))
-                {
-                    one_more = true;
-                    return;
-                }
-            }
-        }
+        //cannot add endpoint_a to peer list, since it could be one of the delegate
+        if (peer != bad_address)
+            attempt->add_connection(peer);
     }
 
     void BootstrapInitiator::run_bootstrap()
@@ -113,12 +105,12 @@ namespace Bootstrap
                 lock.lock();
                 if( one_more )
                 {
-                    one_more = false;
                     LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__<<" one more";
                     attempt = std::make_shared<BootstrapAttempt>(alarm,
                             store,
                             cache,
                             peer_provider,
+                            *this,
                             max_connected);
                 }
                 else
@@ -136,7 +128,7 @@ namespace Bootstrap
     bool BootstrapInitiator::check_progress()
     {
         LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         if(attempt == nullptr)
         {
             return false;
@@ -146,8 +138,11 @@ namespace Bootstrap
         if(get_block_progress() == 0)//TODO how many blocks?
         {
             LOG_DEBUG(log) <<"bootstrap_initiator::check_progress calling attempt::stop";
-            attempt->stop();
+            auto attempt_ref = attempt;
             attempt = nullptr;
+            lock.unlock();
+            attempt_ref->stop();
+            notify(logos_global::BootstrapResult::Incomplete);
         }
 #endif
         return true;
@@ -166,6 +161,27 @@ namespace Bootstrap
         condition.notify_all();
     }
 
+    void BootstrapInitiator::notify(logos_global::BootstrapResult res)
+    {
+        LOG_INFO(log) << "bootstrap_initiator::notify, result="
+                      << logos_global::BootstrapResultToString(res);
+
+        std::unique_lock<std::mutex> lock(mtx);
+        one_more = false;
+        auto to_call(std::move(cbq));
+        assert(cbq.empty());
+        lock.unlock();
+
+        LOG_TRACE(log) << "bootstrap_initiator::notify, # of callback=" << to_call.size();
+        for(auto & c : to_call)
+        {
+            service.post([this, c, res]()
+            {
+                LOG_TRACE(log) << "bootstrap_initiator::notify, calling ";
+                c(res);
+            });
+        }
+    }
     //////////////////////////////////////////////////////////////////////////////////
 
     boost::asio::ip::tcp::endpoint get_endpoint(std::string & address)

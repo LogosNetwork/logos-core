@@ -1477,6 +1477,28 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
 
 namespace logos_global
 {
+    std::string BootstrapResultToString(BootstrapResult result)
+    {
+        std::string ret;
+
+        switch(result)
+        {
+            case BootstrapResult::Completed:
+                ret = "Completed";
+                break;
+            case BootstrapResult::NoNode:
+                ret = "No Node Object";
+                break;
+            case BootstrapResult::BootstrapInitiatorStopped:
+                ret = "BootstrapInitiator stopped";
+                break;
+            case BootstrapResult::Incomplete:
+                ret = "Incomplete";
+                break;
+        }
+        return ret;
+    }
+
     std::mutex mtx;
     std::shared_ptr<logos::node> node = nullptr;
 
@@ -1490,12 +1512,17 @@ namespace logos_global
         std::lock_guard<std::mutex> lock(mtx);
         return node;
     }
-    void Bootstrap()
+    void Bootstrap(BootstrapCompleteCB cb)
     {
         auto n = GetNode();
         if(n != nullptr)
         {
-            n->on_demand_bootstrap();
+            n->on_demand_bootstrap(cb);
+        }
+        else
+        {
+            if(cb)
+                cb(BootstrapResult::NoNode);
         }
     }
 }
