@@ -1776,10 +1776,16 @@ void logos::node::ongoing_keepalive ()
 
 void logos::node::ongoing_bootstrap ()
 {
+    LOG_TRACE(log) << "node::ongoing_bootstrap";
+    auto cb = [this](logos_global::BootstrapResult res){
+        LOG_DEBUG(log) << "node::ongoing_bootstrap, callback res="
+                       << logos_global::BootstrapResultToString(res);
+    };
+
     auto next_wakeup (60);
     if (! bootstrap_initiator.check_progress ())
     {
-        bootstrap_initiator.bootstrap ();
+        bootstrap_initiator.bootstrap(cb);
     }
 
     std::weak_ptr<logos::node> node_w (shared_from_this ());
@@ -1790,10 +1796,11 @@ void logos::node::ongoing_bootstrap ()
         }
     });
 }
-void logos::node::on_demand_bootstrap ()
+
+void logos::node::on_demand_bootstrap (logos_global::BootstrapCompleteCB cb)
 {
     LOG_DEBUG (log) << __func__;
-    bootstrap_initiator.bootstrap ();
+    bootstrap_initiator.bootstrap (cb);
 }
 
 void logos::node::backup_wallet ()

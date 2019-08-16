@@ -12,6 +12,7 @@ class PeerInfoProvider;
 
 namespace Bootstrap
 {
+    class BootstrapInitiator;
     class BootstrapClient;
     class BootstrapAttempt : public std::enable_shared_from_this<BootstrapAttempt>
     {
@@ -28,6 +29,7 @@ namespace Bootstrap
                 Store & store,
                 logos::BlockCache & cache,
                 PeerInfoProvider &peer_provider,
+                BootstrapInitiator & bi,
                 uint8_t max_connected);
 
         /**
@@ -84,6 +86,7 @@ namespace Bootstrap
 
         Store & store;
         PeerInfoProvider & peer_provider;
+        BootstrapInitiator & initiator;
 
         std::mutex mtx;
         std::unordered_set<std::shared_ptr<BootstrapClient>> working_clients;
@@ -95,6 +98,7 @@ namespace Bootstrap
         Puller puller;
         std::condition_variable condition;
         std::atomic<bool> stopped;
+        std::atomic<bool> completed;
         Log log;
     };
 }

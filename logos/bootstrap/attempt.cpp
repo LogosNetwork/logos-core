@@ -9,14 +9,17 @@ namespace Bootstrap
             Store & store,
             logos::BlockCache & cache,
             PeerInfoProvider &peer_provider,
+            BootstrapInitiator & bi,
             uint8_t max_connected)
     : alarm(alarm)
     , store(store)
     , peer_provider(peer_provider)
+    , initiator(bi)
     , max_connected(max_connected)
     , session_id(PeerInfoProvider::GET_PEER_NEW_SESSION)
     , puller(cache)
     , stopped(false)
+    , completed(false)
     {
         LOG_DEBUG(log) << "Starting bootstrap_attempt";
     }
@@ -39,26 +42,33 @@ namespace Bootstrap
             tips_failure = request_tips();
         }
 
-        while (!stopped)
+        if(completed)
         {
-            if (!puller.AllDone())
-            {
-                request_pull();
-                LOG_TRACE(log) << "bootstrap_attempt::run, wait...";
-                std::unique_lock<std::mutex> lock(mtx);
-                condition.wait(lock);
-                LOG_TRACE(log) << "bootstrap_attempt::run, wakeup";
-            }
-            else
-            {
-                break;
-            }
+            initiator.notify(logos_global::BootstrapResult::Completed);
         }
-
-        if (!stopped)
-            LOG_DEBUG(log) << "bootstrap_attempt::run end. Completed pulls}";
         else
-            LOG_DEBUG(log) << "bootstrap_attempt::run end. Stopped pulls}";
+        {
+            while (!stopped)
+            {
+                if (!puller.AllDone())
+                {
+                    request_pull();
+                    LOG_TRACE(log) << "bootstrap_attempt::run, wait...";
+                    std::unique_lock<std::mutex> lock(mtx);
+                    condition.wait(lock);
+                    LOG_TRACE(log) << "bootstrap_attempt::run, wakeup";
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (!stopped)
+                LOG_DEBUG(log) << "bootstrap_attempt::run end. Completed pulls}";
+            else
+                LOG_DEBUG(log) << "bootstrap_attempt::run end. Stopped pulls}";
+        }
     }
 
     bool BootstrapAttempt::request_tips()
@@ -81,7 +91,7 @@ namespace Bootstrap
 #ifdef BOOTSTRAP_PROGRESS
                 block_progressed();
 #endif
-                puller.Init(client->request, client->response);
+                completed = puller.Init(client->request, client->response);
             }
         }
         return failed;

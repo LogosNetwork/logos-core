@@ -489,7 +489,21 @@ class node;
 
 namespace logos_global
 {
+    /*
+     * Bootstrap is best effort.
+     * A "Completed" result only means most likely catch up with the network.
+     */
+    enum BootstrapResult{
+        Completed,                       // good
+        NoNode,                          // no node object
+        BootstrapInitiatorStopped,       // BootstrapInitiator stopped
+        Incomplete                       // gived up
+    };
+    std::string BootstrapResultToString(BootstrapResult result);
+
+    using BootstrapCompleteCB = std::function<void(BootstrapResult)>;
+
     void AssignNode(std::shared_ptr<logos::node> &n);
     std::shared_ptr<logos::node> GetNode();
-    void Bootstrap();
+    void Bootstrap(BootstrapCompleteCB cb = {});
 }

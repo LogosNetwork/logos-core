@@ -27,7 +27,7 @@ namespace Bootstrap
         LOG_TRACE(log) << "Puller::"<<__func__;
     }
 
-    void Puller::Init(TipSet & my_tips, TipSet & others_tips)
+    bool Puller::Init(TipSet & my_tips, TipSet & others_tips)
     {
         LOG_TRACE(log) << "Puller::"<<__func__;
         std::lock_guard<std::mutex> lck (mtx);
@@ -44,11 +44,15 @@ namespace Bootstrap
                     my_tips.GetLatestEpochNumber(),
                     others_tips.GetLatestEpochNumber());
             CreateMorePulls();
-            LOG_TRACE(log) <<"Puller::"<< __func__ << " I am behind, current # of pull=" << waiting_pulls.size();
+            LOG_TRACE(log) <<"Puller::"<< __func__
+                           << " I am behind, current # of pull=" << waiting_pulls.size();
+            return false;
         }
         else
         {
             state = PullerState::Done;
+            LOG_TRACE(log) <<"Puller::"<< __func__ << " I am not behind.";
+            return true;
         }
     }
 
