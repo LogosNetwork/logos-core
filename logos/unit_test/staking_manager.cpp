@@ -28,7 +28,9 @@ TEST(Staking_Manager, Stake)
         req.Hash();
         store->request_put(req,txn);
         info.governance_subchain_head = req.Hash();
-        info.rep = rep;
+        info.old_rep = info.new_rep;
+        info.new_rep.rep = rep;
+        info.new_rep.epoch_first_active = epoch;
     };
 
 
@@ -284,7 +286,9 @@ TEST(Staking_Manager, StakeEpochTransition)
         req.Hash();
         store->request_put(req,txn);
         info.governance_subchain_head = req.Hash();
-        info.rep = rep;
+        info.old_rep = info.new_rep;
+        info.new_rep.rep = rep;
+        info.new_rep.epoch_first_active = epoch;
     };
     AccountAddress target = 84;
     voting_power_mgr.AddSelfStake(target, 10, epoch, txn);
@@ -424,7 +428,10 @@ TEST(Staking_Manager, Validate)
         req.Hash();
         store->request_put(req,txn);
         info.governance_subchain_head = req.Hash();
-        info.rep = rep;
+
+        info.old_rep = info.new_rep;
+        info.new_rep.rep = rep;
+        info.new_rep.epoch_first_active = epoch;
     };
 
 

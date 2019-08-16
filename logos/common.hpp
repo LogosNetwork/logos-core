@@ -152,6 +152,29 @@ public:
     amount balance;
 };
 
+struct RepRecord
+{
+    //0 means no rep. Note, reps themselves have this field set to 0
+    AccountAddress rep = 0;
+    uint32_t epoch_first_active = 0;
+    uint32_t Serialize(stream &stream) const
+    {
+        auto s = 0;
+        s += write(stream,rep);
+        s += write(stream,epoch_first_active);
+        return s;
+    }
+    bool Deserialize(stream &stream)
+    {
+        return read(stream, rep)|| read(stream, epoch_first_active);
+    }
+    bool operator==(RepRecord const & other) const
+    {
+        return rep == other.rep && epoch_first_active == other.epoch_first_active;
+    }
+
+};
+
 /**
  * Latest information about an account
  */
@@ -200,13 +223,15 @@ struct account_info : Account
             uint32_t const & epoch,
             MDB_txn* txn);
 
+    AccountAddress GetRepForEpoch(uint32_t epoch) const;
+
     Rational GetFullAvailableBalance() const;
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
 
     block_hash governance_subchain_head;
-    //0 means no rep. Note, reps themselves have this field set to 0
-    AccountAddress rep;
+    RepRecord old_rep;
+    RepRecord new_rep;
     block_hash open_block;
     Entries    entries;
     //the last epoch in which thawing funds were checked for expiration for this account

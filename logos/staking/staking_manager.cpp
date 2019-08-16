@@ -399,7 +399,20 @@ StakedFunds StakingManager::ChangeTarget(
     return new_stake;
 }
 
-
+//Updates old_rep and new_rep for info if applicable
+void UpdateRep(uint32_t epoch, logos::account_info & info, AccountAddress const & rep)
+{
+    //note, updates in epoch i are active in epoch i+1
+    assert(epoch+1 >= info.new_rep.epoch_first_active);
+    //if updating rep twice in same epoch, don't overwrite info.old_rep
+    if(epoch+1 > info.new_rep.epoch_first_active)
+    {
+        info.old_rep = info.new_rep;
+    }
+    info.new_rep.rep = rep;
+    //takes effect next epoch
+    info.new_rep.epoch_first_active = epoch+1;
+}
 
 
 //Note, this function sets the rep of account_info based on target
@@ -487,9 +500,15 @@ void StakingManager::Stake(
             _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
         }
         //subtract unlocked proxy from old rep, if one exists
-        if(account_info.rep != 0)
+        //we care about the rep for next epoch, because all actions that affect
+        //voting power take effect in the next epoch.
+        //If the rep for next epoch is different than the rep for this epoch,
+        //our account balance was already affecting the voting power of the rep
+        //for next epoch
+        auto rep = account_info.GetRepForEpoch(epoch+1);
+        if(rep != 0)
         {
-            _voting_power_mgr.SubtractUnlockedProxied(account_info.rep,account_info.GetAvailableBalance(), epoch, txn);
+            _voting_power_mgr.SubtractUnlockedProxied(rep,account_info.GetAvailableBalance(), epoch, txn);
         }
     }
 
@@ -497,7 +516,8 @@ void StakingManager::Stake(
     //Needs to be done before StakeAvailableFunds is called, else updates
     //to unlocked proxy voting power will be wrong
     //But needs to be done after handling each of the 4 cases above
-    account_info.rep = target == origin ? 0 : target;
+    auto new_rep = target == origin ? 0 : target;
+    UpdateRep(epoch, account_info, new_rep);
 
     
    /* Handle the case where the software needs to use ThawingFunds or

@@ -328,7 +328,8 @@ TEST(Voting_Power, AccountBalance)
         for(size_t i  = 0; i < 1000; ++i)
         {
             accounts[i].second.governance_subchain_head = proxy_hash;
-            accounts[i].second.rep = rep;
+            accounts[i].second.new_rep.rep = rep;
+            accounts[i].second.new_rep.epoch_first_active = epoch;
             accounts[i].second.SetBalance(100, epoch, txn);
             ASSERT_EQ(accounts[i].second.GetBalance(),100);
             ASSERT_EQ(accounts[i].second.GetAvailableBalance(),100);

@@ -328,12 +328,28 @@ Amount const & logos::account_info::GetBalance() const
     return balance;
 }
 
+AccountAddress logos::account_info::GetRepForEpoch(uint32_t epoch) const
+{
+    if(new_rep.rep != 0 && epoch>= new_rep.epoch_first_active)
+    {
+        return new_rep.rep;
+    }
+    else
+    {
+        assert(epoch >= old_rep.epoch_first_active);
+        return old_rep.rep;
+    }
+}
+
 void logos::account_info::SetBalance(
         Amount const & new_balance,
         uint32_t const & epoch, 
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    AccountAddress rep = GetRepForEpoch(epoch+1);
+    AccountAddress next_rep = GetRepForEpoch(epoch+2);
+    
     if(new_balance > balance)
     {
         Amount diff = new_balance - balance;
@@ -344,6 +360,25 @@ void logos::account_info::SetBalance(
                     rep,
                     diff,
                     epoch,
+                    txn);
+        }
+
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+            //need to undo update to rep voting power in epoch + 2
+            vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            //need to add voting power for next_rep in epoch + 2
+            vpm->AddUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
                     txn);
         }
     }
@@ -365,6 +400,26 @@ void logos::account_info::SetBalance(
                     epoch,
                     txn);
         }
+
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+
+            //need to undo update to rep voting power in epoch + 2
+            vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            //need to subtract voting power for next_rep in epoch + 2
+            vpm->SubtractUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
+                    txn);
+        }
     }
     balance = new_balance;
 }
@@ -375,6 +430,10 @@ void logos::account_info::SetAvailableBalance(
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    AccountAddress rep = GetRepForEpoch(epoch+1);
+
+    AccountAddress next_rep = GetRepForEpoch(epoch+2);
+
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;
@@ -386,6 +445,26 @@ void logos::account_info::SetAvailableBalance(
                     diff,
                     epoch,
                     txn);
+        }
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+            
+            //need to undo update to rep voting power in epoch + 2
+            vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            //need to add voting power for next_rep in epoch + 2
+            vpm->AddUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
+                    txn);
+
         }
     }
     else
@@ -401,6 +480,24 @@ void logos::account_info::SetAvailableBalance(
                     epoch,
                     txn);
         }
+        //if next_rep and rep are different, then this balance update is for the
+        //previous epoch, and the accounts rep has changed in the current epoch
+        if(next_rep != 0 && next_rep != rep)
+        {
+            //need to undo update to rep voting power in epoch + 2
+            vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch+1,
+                    txn);       
+
+            //need to subtract voting power for next_rep in epoch + 2
+            vpm->SubtractUnlockedProxied(
+                    next_rep,
+                    diff,
+                    epoch+1,
+                    txn);
+        }
     }
     if(available_balance > balance)
     {
@@ -414,7 +511,8 @@ void logos::account_info::SetAvailableBalance(
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
     , governance_subchain_head (0)
-    , rep(0)
+    , old_rep()
+    , new_rep()
     , open_block (0)
     , available_balance (balance)
     , epoch_thawing_updated(0)
@@ -451,7 +549,8 @@ logos::account_info::account_info (
               receive_head,
               receive_count)
     , governance_subchain_head (staking_subchain_head)
-    , rep(0)
+    , old_rep()
+    , new_rep()
     , open_block (open_block)
     , available_balance (balance)
     , epoch_thawing_updated(0)
@@ -464,7 +563,8 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     auto s = Account::Serialize(stream_a);
 
     s += write (stream_a, governance_subchain_head.bytes);
-    s += write (stream_a, rep);
+    s += new_rep.Serialize(stream_a);
+    s += old_rep.Serialize(stream_a);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
 
@@ -488,7 +588,8 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
     auto error = Account::Deserialize(stream_a)
         || read (stream_a, governance_subchain_head.bytes)
-        || read (stream_a, rep)
+        || new_rep.Deserialize(stream_a)
+        || old_rep.Deserialize(stream_a)
         || read (stream_a, open_block.bytes)
         || read (stream_a, count);
 
@@ -514,7 +615,8 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
     return governance_subchain_head == other_a.governance_subchain_head &&
-           rep == other_a.rep &&
+           old_rep == other_a.old_rep &&
+           new_rep == other_a.new_rep &&
            open_block == other_a.open_block &&
            available_balance == other_a.available_balance &&
            epoch_thawing_updated  == other_a.epoch_thawing_updated &&
