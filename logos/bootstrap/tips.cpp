@@ -82,10 +82,6 @@ namespace Bootstrap
     ////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////
-//    uint32_t n_th_block(const Tip & t, uint32_t expected_epoch)
-//    {
-//        return (expected_epoch == t.epoch && !t.digest.is_zero()) ? t.sqn+1 : 0;
-//    }
 
     uint32_t compute_num_RBs_in_epoch(const std::array<Tip, NUM_DELEGATES> & rb_vec, uint32_t expected_epoch)
     {
@@ -108,18 +104,21 @@ namespace Bootstrap
 
     bool TipSet::ValidTips() const
     {
+        //the epoch # of MB can be greater than the epoch # of EB by at most 1.
         if(mb.epoch > eb.epoch + 1)
         {
             LOG_DEBUG(log) << "TipSet::"<<__func__ << " bad tips, MB and EB epoch number mismatch";
             return false;
         }
 
+        //valid EB's digest cannot be 0
         if (eb.epoch != 0 && eb.digest == 0)
         {
             LOG_DEBUG(log) << "TipSet::" << __func__ << " bad tips, eb sqn != 0, but digest == 0";
             return false;
         }
 
+        //valid MB's digest cannot be 0
         if (mb.sqn != 0 && mb.digest == 0)
         {
             LOG_DEBUG(log) << "TipSet::" << __func__ << " bad tips, mb sqn != 0, but digest == 0";
@@ -128,6 +127,7 @@ namespace Bootstrap
 
         for(uint i = 0; i < NUM_DELEGATES; ++i)
         {
+            //the epoch # of RBs in bsb_vec or bsb_vec_new_epoch cannot be too far from the epoch # of the EB
             if(bsb_vec[i].epoch > eb.epoch + 1 ||
                bsb_vec_new_epoch[i].epoch > eb.epoch + 2 )
             {
@@ -135,6 +135,7 @@ namespace Bootstrap
                 return false;
             }
 
+            //the epoch # of RBs in bsb_vec or bsb_vec_new_epoch cannot be too far from the epoch # of the MB
             if(bsb_vec[i].epoch > mb.epoch  + 1 ||
                bsb_vec_new_epoch[i].epoch > mb.epoch + 2 )
             {
@@ -142,18 +143,20 @@ namespace Bootstrap
                 return false;
             }
 
+            //the tips in bsb_vec cannot be behind comparing to tips in bsb_vec_new_epoch
             if ((! bsb_vec_new_epoch[i].digest.is_zero()) && bsb_vec_new_epoch[i] < bsb_vec[i])
             {
                 LOG_DEBUG(log) << "TipSet::" << __func__ << " bad tips, tip in new epoch is behind";
                 return false;
             }
 
+            //valid RB's digest cannot be 0
             if (bsb_vec[i].sqn != 0 && bsb_vec[i].digest == 0)
             {
                 LOG_DEBUG(log) << "TipSet::" << __func__ << " bad tips, rb sqn != 0, but digest == 0";
                 return false;
             }
-
+            //valid RB's digest cannot be 0
             if (bsb_vec_new_epoch[i].sqn != 0 && bsb_vec_new_epoch[i].digest == 0)
             {
                 LOG_DEBUG(log) << "TipSet::" << __func__ << " bad tips, rb sqn != 0, but digest == 0";
@@ -226,8 +229,14 @@ namespace Bootstrap
          * -- usually 32 chains, but 64 chains during epoch transition
          * -- sqn reset at beginning of epoch
          * -- A could have more on chain_1, and B could have more on chain_2
+         *
+         * case 1) other has two or more EBs
+         * case 2) other has one more EB
+         * case 3) we have the same EB
+         * case 4) we have one more EB
+         * case 5) we have two or more EBs
          */
-        if(eb.epoch <= other.eb.epoch - 2)
+        if(eb.epoch <= other.eb.epoch - 2) //case 1
         {
             /*
              * impossible for any chain being longer than other's
@@ -237,10 +246,14 @@ namespace Bootstrap
             // assert(other.ComputeNumberAllRBs() >= ComputeNumberAllRBs());
             num_rb = other.ComputeNumberAllRBs() - ComputeNumberAllRBs();
         }
-        else if (eb.epoch == other.eb.epoch - 1) {
+        else if (eb.epoch == other.eb.epoch - 1) //case 2
+        {
             /*
              * let i = eb.epoch
-             * need to consider 3 cases: 1) <= i+1, 2) == i+2, 3) == i+3
+             * need to consider 3 cases:
+             * 1) epochs <= i+1,
+             * 2) epoch == i+2,
+             * 3) epoch == i+3
              */
             // case 1
             auto my_1 = eb_tip_total_RBs;
@@ -272,7 +285,7 @@ namespace Bootstrap
 
             num_rb = diff_1 + diff_2 + diff_3;
         }
-        else if (eb.epoch == other.eb.epoch)
+        else if (eb.epoch == other.eb.epoch) //case 3
         {
             /*
              * only need to compare the two sets of tips
@@ -297,7 +310,7 @@ namespace Bootstrap
                 }
             }
         }
-        else if (eb.epoch == other.eb.epoch + 1)
+        else if (eb.epoch == other.eb.epoch + 1) //case 4
         {
             /*
              * only need to consider eb.epoch+1, because other does not have eb.epoch+2
@@ -313,7 +326,7 @@ namespace Bootstrap
                 }
             }
         }
-        else
+        else //case 5
         {
             num_rb = 0;
         }

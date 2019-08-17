@@ -131,7 +131,8 @@ PersistenceManager<MBCT>::Validate(
         {
             LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
                             << " hash " << block.Hash().to_string()
-                            << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
+                            << " number in block received=" << block.number_batch_blocks
+                            << " locally expect=" << number_batch_blocks;
             UpdateStatusReason(status, process_result::invalid_number_blocks);
             return false;
         }

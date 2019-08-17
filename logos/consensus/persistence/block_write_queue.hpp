@@ -46,9 +46,10 @@ public:
     bool BlockExists(MBPtr block);
     bool BlockExists(RBPtr block);
 
-    bool StoreBlock(EBPtr block);
-    bool StoreBlock(MBPtr block);
-    bool StoreBlock(RBPtr block);
+    void StoreBlock(EBPtr block);
+    void StoreBlock(MBPtr block);
+    void StoreBlock(RBPtr block);
+
 private:
     struct BlockPtr
     {
@@ -99,7 +100,7 @@ private:
         unsigned long           _count = 0; // Initialized as locked.
     };
 
-    bool StoreBlock(BlockPtr ptr);
+    void StoreBlock(BlockPtr ptr);
     void WriteThread();
 
     boost::asio::io_service &           _service;

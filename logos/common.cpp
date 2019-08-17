@@ -1577,186 +1577,31 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
     return ret;
 }
 
-//TODO Peng, revisit once we fix the validation order issue
 bool logos::MissingBlock(logos::process_result result)
 {
-	bool ret = false;
-    switch(result)
+    bool ret = false;
+    switch (ProcessResultToDependency(result))
     {
-        case process_result::progress:
+        case process_result_dependency::progress:
             break;
-        case process_result::bad_signature:
+        case process_result_dependency::not_applied:
             break;
-        case process_result::old:
+        case process_result_dependency::bad_block:
             break;
-        case process_result::negative_spend:
-            break;
-        case process_result::fork:
-            break;
-        case process_result::unreceivable:
-            break;
-        case process_result::gap_previous:
+        case process_result_dependency::general_error_code:
             ret = true;
             break;
-        case process_result::gap_source:
+        case process_result_dependency::previous_block:
             ret = true;
             break;
-        case process_result::state_block_disabled:
-            break;
-        case process_result::not_receive_from_send:
-            break;
-        case process_result::account_mismatch:
-            break;
-        case process_result::opened_burn_account:
-            break;
-        case process_result::balance_mismatch:
-            break;
-        case process_result::block_position:
-        	ret = true;
-            break;
-        case process_result::invalid_block_type:
-            break;
-        case process_result::unknown_source_account:
+        case process_result_dependency::sender_account:
             ret = true;
             break;
-        case process_result::unknown_origin:
+        case process_result_dependency::last_microblock:
             ret = true;
             break;
-        case process_result::buffered:
-            break;
-        case process_result::buffering_done:
-            break;
-        case process_result::pending:
-            break;
-        case process_result::already_reserved:
+        case process_result_dependency::previous_epoch:
             ret = true;
-            break;
-        case process_result::initializing:
-            break;
-        case process_result::insufficient_fee:
-            break;
-        case process_result::insufficient_balance:
-            ret = true;
-            break;
-        case process_result::not_delegate:
-            break;
-        case process_result::clock_drift:
-            break;
-        case process_result::wrong_sequence_number:
-            break;
-        case process_result::invalid_request:
-            break;
-        case process_result::invalid_tip:
-            ret = true;
-            break;
-        case process_result::invalid_number_blocks:
-            break;
-        case process_result::revert_immutability:
-            break;
-        case process_result::immutable:
-            break;
-        case process_result::redundant:
-            break;
-        case process_result::insufficient_token_balance:
-            ret = true;
-            break;
-        case process_result::invalid_token_id:
-            ret = true;
-            break;
-        case process_result::untethered_account:
-            ret = true;
-            break;
-        case process_result::invalid_controller:
-            ret = true;
-            break;
-        case process_result::controller_capacity:
-            ret = true;
-            break;
-        case process_result::invalid_controller_action:
-            ret = true;
-            break;
-        case process_result::unauthorized_request:
-            ret = true;
-            break;
-        case process_result::prohibitted_request:
-            ret = true;
-            break;
-        case process_result::not_whitelisted:
-            ret = true;
-            break;
-        case process_result::frozen:
-            ret = true;
-            break;
-        case process_result::insufficient_token_fee:
-            ret = true;
-            break;
-        case process_result::invalid_token_symbol:
-            break;
-        case process_result::invalid_token_name:
-            break;
-        case process_result::invalid_token_amount:
-            break;
-        case process_result::total_supply_overflow:
-            break;
-        case process_result::key_collision:
-            break;
-        case process_result::invalid_fee:
-            break;
-        case process_result::invalid_issuer_info:
-            break;
-        case process_result::too_many_token_entries:
-        	break;
-        case process_result::elections_dead_period:
-            break;
-        case process_result::not_a_rep:
-            ret = true;
-            break;
-        case process_result::already_voted:
-            break;
-        case process_result::invalid_candidate:
-            ret = true;
-            break;
-        case process_result::not_enough_stake:
-            ret = true;
-            break;
-        case process_result::never_announced_candidacy:
-            ret = true;
-            break;
-        case process_result::already_renounced_candidacy:
-            ret = true;
-            break;
-        case process_result::already_announced_candidacy:
-            ret = true;
-            break;
-        case process_result::is_rep:
-            ret = true;
-            break;
-        case process_result::is_candidate:
-            ret = true;
-            break;
-        case process_result::is_delegate:
-            ret = true;
-            break;
-        case process_result::wrong_epoch_number:
-            break;
-        case process_result::no_elections:
-            break;
-        case process_result::pending_rep_action:
-            break;
-        case process_result::pending_candidacy_action:
-            break;
-        case process_result::insufficient_funds_for_stake:
-            ret = true;
-            break;
-        case process_result::invalid_governance_subchain:
-            ret = true;
-            break;
-        case process_result::invalid_account_type:
-            ret = true;
-            break;
-        case process_result::proxy_to_self:
-            break;
-        case process_result::invalid_epoch_hash:
             break;
     }
     return ret;

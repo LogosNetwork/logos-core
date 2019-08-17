@@ -22,13 +22,13 @@ bool BlockCache::AddEpochBlock(EBPtr block)
     //safe to ignore the block for both p2p and bootstrap
     if (_block_container.BlockExistsAdd(block))
     {
-        LOG_DEBUG(_log) << "BlockCache::AAddEpochBlock: BlockExists";
+        LOG_DEBUG(_log) << "BlockCache::AddEpochBlock: BlockExists";
         return true;
     }
 
-    if (_block_container.AddEpochBlock(block))
+    if (_block_container.AddEpochBlock(block, false))
     {
-        Validate();//TODO optimize: Validate eb first
+        Validate();
     }
 
     return true;
@@ -51,9 +51,9 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         return true;
     }
 
-    if (_block_container.AddMicroBlock(block))
+    if (_block_container.AddMicroBlock(block, false))
     {
-        Validate();//TODO optimize: Validate mb first
+        Validate();
     }
 
     return true;
@@ -76,7 +76,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         return true;
     }
 
-    if (_block_container.AddRequestBlock(block))
+    if (_block_container.AddRequestBlock(block, false))
     {
         Validate(block->primary_delegate);
     }
@@ -88,42 +88,45 @@ void BlockCache::StoreEpochBlock(EBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:E:" << block->CreateTip().to_string();
 
-//    if (_block_container.BlockExistsAdd(block))
-//    {
-//        LOG_DEBUG(_log) << "BlockCache::StoreEpochBlock: BlockExists";
-//        return;
-//    }
-
-    _write_q.StoreBlock(block);
-//    _block_container.BlockDelete(block->Hash());
+    if (_block_container.BlockExistsAdd(block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreEpochBlock: BlockExists";
+        return;
+    }
+    if (_block_container.AddEpochBlock(block, true))
+    {
+        Validate();
+    }
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:M:" << block->CreateTip().to_string();
 
-//    if (_block_container.BlockExistsAdd(block))
-//    {
-//        LOG_DEBUG(_log) << "BlockCache::StoreMicroBlock: BlockExists";
-//        return;
-//    }
-
-    _write_q.StoreBlock(block);
-//    _block_container.BlockDelete(block->Hash());
+    if (_block_container.BlockExistsAdd(block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreMicroBlock: BlockExists";
+        return;
+    }
+    if (_block_container.AddMicroBlock(block, true))
+    {
+        Validate();
+    }
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Store:R:" << block->CreateTip().to_string();
 
-//    if (_block_container.BlockExistsAdd(block))
-//    {
-//        LOG_DEBUG(_log) << "BlockCache::StoreRequestBlock: BlockExists";
-//        return;
-//    }
-
-    _write_q.StoreBlock(block);
-//    _block_container.BlockDelete(block->Hash());
+    if (_block_container.BlockExistsAdd(block))
+    {
+        LOG_DEBUG(_log) << "BlockCache::StoreRequestBlock: BlockExists";
+        return;
+    }
+    if (_block_container.AddRequestBlock(block, true))
+    {
+        Validate(block->primary_delegate);
+    }
 }
 
 void BlockCache::ProcessDependencies(EBPtr block)
@@ -170,10 +173,11 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             RBPtr &block = ptr.rptr->block;
             ValidationStatus &status = ptr.rptr->status;
-            LOG_TRACE(_log) << "BlockCache::"<<__func__<<":R:verifying "
-                    << block->CreateTip().to_string();
+            LOG_TRACE(_log) << "BlockCache::"<<__func__
+                            << (ptr.rptr->direct_write ? ":R:direct writing " : ":R:verifying ")
+                            << block->CreateTip().to_string();
 
-            if ((success = _write_q.VerifyContent(block, &status)))
+            if ((success = ptr.rptr->direct_write || _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
                 _block_container.BlockDelete(block->Hash());
@@ -233,9 +237,10 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             MBPtr &block = ptr.mptr->block;
             ValidationStatus &status = ptr.mptr->status;
-            LOG_TRACE(_log) << "BlockCache::"<<__func__<<":M:verifying "
-                    << block->CreateTip().to_string();
-            if ((success = _write_q.VerifyContent(block, &status)))
+            LOG_TRACE(_log) << "BlockCache::"<<__func__
+                            << (ptr.mptr->direct_write ? ":M:direct writing " : ":M:verifying ")
+                            << block->CreateTip().to_string();
+            if ((success = ptr.mptr->direct_write || _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
                 _block_container.BlockDelete(block->Hash());
@@ -263,11 +268,12 @@ void BlockCache::Validate(uint8_t rb_idx)
                     }
                     break;
                 default:
-                    LOG_ERROR(_log) << "BlockCache::Validate MB status: "
+                    LOG_FATAL(_log) << "BlockCache::Validate MB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
-                    _block_container.BlockDelete(block->Hash());
-                    success = true;
+                    trace_and_halt();
+//                    _block_container.BlockDelete(block->Hash());
+//                    success = true;
                     //TODO recall?
                     break;
                 }
@@ -277,13 +283,14 @@ void BlockCache::Validate(uint8_t rb_idx)
         {
             EBPtr &block = ptr.eptr->block;
             ValidationStatus &status = ptr.eptr->status;
-            LOG_TRACE(_log) << "BlockCache::"<<__func__<<":E:verifying "
-                    << block->CreateTip().to_string();
-            if ((success = _write_q.VerifyContent(block, &status)))
+            LOG_TRACE(_log) << "BlockCache::"<<__func__
+                            << (ptr.eptr->direct_write ? ":E:direct writing " : ":E:verifying ")
+                            << block->CreateTip().to_string();
+            if ((success = ptr.eptr->direct_write || _write_q.VerifyContent(block, &status)))
             {
                 _write_q.StoreBlock(block);
                 _block_container.BlockDelete(block->Hash());
-                LOG_INFO(_log) << "BlockCache::Validated EB, block: "
+                LOG_INFO(_log) << "BlockCache::Validate, store EB, block: "
                         << block->CreateTip().to_string();
             }
             else
@@ -299,11 +306,12 @@ void BlockCache::Validate(uint8_t rb_idx)
                     _block_container.AddHashDependency(block->micro_block_tip.digest, ptr);
                     break;
                 default:
-                    LOG_ERROR(_log) << "BlockCache::Validate EB status: "
+                    LOG_FATAL(_log) << "BlockCache::Validate EB status: "
                             << ProcessResultToString(status.reason)
                             << " block " << block->CreateTip().to_string();
-                    _block_container.BlockDelete(block->Hash());
-                    success = true;
+                    trace_and_halt();
+//                    _block_container.BlockDelete(block->Hash());
+//                    success = true;
                     //TODO recall?
                     break;
                 }
