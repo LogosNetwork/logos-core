@@ -109,10 +109,10 @@ void PendingBlockContainer::DumpChainTips()
     }
 }
 
-bool PendingBlockContainer::AddEpochBlock(EBPtr block)
+bool PendingBlockContainer::AddEpochBlock(EBPtr block, bool verified)
 {
     LOG_TRACE(_log) << "BlockCache:Add:E:{ " << block->CreateTip().to_string();
-    EPtr ptr = std::make_shared<PendingEB>(block);
+    EPtr ptr = std::make_shared<PendingEB>(block, verified);
     bool found = false;
     bool need_validate = false;
 
@@ -153,10 +153,10 @@ bool PendingBlockContainer::AddEpochBlock(EBPtr block)
     return need_validate;
 }
 
-bool PendingBlockContainer::AddMicroBlock(MBPtr block)
+bool PendingBlockContainer::AddMicroBlock(MBPtr block, bool verified)
 {
     LOG_TRACE(_log) << "BlockCache:Add:M:{ " << block->CreateTip().to_string();
-    MPtr ptr = std::make_shared<PendingMB>(block);
+    MPtr ptr = std::make_shared<PendingMB>(block, verified);
     bool add2begin = false;
     bool found = false;
     std::lock_guard<std::mutex> lck (_chains_mutex);
@@ -211,10 +211,10 @@ bool PendingBlockContainer::AddMicroBlock(MBPtr block)
     return add2begin;
 }
 
-bool PendingBlockContainer::AddRequestBlock(RBPtr block)
+bool PendingBlockContainer::AddRequestBlock(RBPtr block, bool verified)
 {
     LOG_TRACE(_log) << "BlockCache:Add:R:{ " << block->CreateTip().to_string();
-    RPtr ptr = std::make_shared<PendingRB>(block);
+    RPtr ptr = std::make_shared<PendingRB>(block, verified);
     bool add2begin = false;
     bool found = false;
     std::lock_guard<std::mutex> lck (_chains_mutex);

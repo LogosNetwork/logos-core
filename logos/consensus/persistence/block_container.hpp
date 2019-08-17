@@ -32,13 +32,15 @@ public:
             : block()
             , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingRB(const RBPtr &block_)
+        PendingRB(const RBPtr &block_, bool verified)
             : block(block_)
             , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
@@ -46,6 +48,7 @@ public:
         ValidationStatus    status;
         RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     struct PendingMB {
@@ -53,13 +56,15 @@ public:
             : block()
             , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingMB(const MBPtr &block_)
+        PendingMB(const MBPtr &block_, bool verified)
             : block(block_)
             , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
@@ -67,6 +72,7 @@ public:
         ValidationStatus    status;
         RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     struct PendingEB {
@@ -74,13 +80,15 @@ public:
             : block()
             , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingEB(const EBPtr &block_)
+        PendingEB(const EBPtr &block_, bool verified)
             : block(block_)
             , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
@@ -88,6 +96,7 @@ public:
         ValidationStatus    status;
         RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     using RPtr = std::shared_ptr<PendingRB>;
@@ -179,9 +188,9 @@ public:
 
     void BlockDelete(const BlockHash &hash);
 
-    bool AddEpochBlock(EBPtr block);
-    bool AddMicroBlock(MBPtr block);
-    bool AddRequestBlock(RBPtr block);
+    bool AddEpochBlock(EBPtr block, bool verified);
+    bool AddMicroBlock(MBPtr block, bool verified);
+    bool AddRequestBlock(RBPtr block, bool verified);
 
     void AddHashDependency(const BlockHash &hash, ChainPtr ptr);
 

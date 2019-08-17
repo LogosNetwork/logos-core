@@ -1799,6 +1799,17 @@ void logos::node::on_demand_bootstrap ()
 logos::BootstrapProgress logos::node::CreateBootstrapProgress()
 {
     LOG_DEBUG (log) << __func__;
+    /*
+     * A BootstrapProgress object describes
+     * (1) how many blocks are stored in the DB,
+     * (2) how many blocks have been downloaded and currently precessing
+     * (3) how many blocks yet to be downloaded
+     *
+     * To compute those numbers, we need 3 sets of tips, namely stored_tips, my_tips of the current bootstrap session,
+     * and others_tips of the current bootstrap session if there is a session.
+     * In addition, because of the way logical bootstrap works, we also need to adjust the number of MB and EB queued
+     * in the BlockCache.
+     */
     Bootstrap::TipSet my_bootstrap, others;
     uint8_t mb_Qed, eb_Qed;
     bool on_going = bootstrap_initiator.GetTipsets (my_bootstrap, others, mb_Qed, eb_Qed);
