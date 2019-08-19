@@ -1276,9 +1276,9 @@ void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr,
     {
         session->start();
     }
-    session = std::make_shared<AsioSession>(*connman.io_service, connman);
     if (!in_shutdown)
     {
+        session = std::make_shared<AsioSession>(*connman.io_service, connman);
         acceptor.async_accept(session->get_socket(),
                               boost::bind(&AsioServer::handle_accept, this, ptr, session,
                                           boost::asio::placeholders::error));
