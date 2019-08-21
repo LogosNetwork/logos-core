@@ -1,3 +1,11 @@
+#define __USE_GNU
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <unistd.h>
+#include <execinfo.h>
+#include <ucontext.h>
+
 #include <logos/node/node.hpp>
 #include <logos/daemon.hpp>
 
@@ -7,6 +15,51 @@
 #include <boost/program_options.hpp>
 
 #include <bls/bls.hpp>
+
+#define REG_(name) sprintf(buf + strlen(buf), #name "=%llx, ", (unsigned long long)uc->uc_mcontext.gregs[REG_##name])
+
+static void sigCatch(int signum, siginfo_t *info, void *context) {
+    static void *callstack[100];
+    int frames, i;
+    char **strs;
+    FILE *f = fopen("counters.log", "a");
+    time_t t = time(0);
+    fprintf(f, "%.24s  Signal %d delivered\n", ctime(&t), signum);
+#ifdef __x86_64__
+    {
+    static char buf[0x100]; *buf = 0;
+    ucontext_t *uc = (ucontext_t *)context;
+    REG_(RIP); REG_(EFL); REG_(ERR); REG_(CR2);
+    fprintf(f, "%s\n", buf); *buf = 0;
+    REG_(RAX); REG_(RBX); REG_(RCX); REG_(RDX); REG_(RSI); REG_(RDI); REG_(RBP); REG_(RSP);
+    fprintf(f, "%s\n", buf); *buf = 0;
+    REG_(R8); REG_(R9); REG_(R10); REG_(R11); REG_(R12); REG_(R13); REG_(R14); REG_(R15);
+    fprintf(f, "%s\n", buf);
+    }
+#endif
+    frames = backtrace(callstack, 100);
+    strs = backtrace_symbols(callstack, frames);
+    for (i = 0; i < frames; ++i)
+        fprintf(f, "%s\n", strs[i]);
+    fclose(f);
+    signal(signum, SIG_DFL);
+    kill(getpid(), signum);
+    exit(-1);
+}
+
+int sig_init(void) {
+    int i;
+    struct sigaction sa;
+    sa.sa_sigaction = sigCatch;
+    sigemptyset (&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    for (i = 1; i < 32; ++i) {
+        if (i != SIGURG && i != SIGCHLD && i != SIGCONT && i != SIGPIPE && i != SIGINT && i != SIGTERM && i != SIGWINCH && i != SIGHUP) {
+            sigaction(i, &sa, 0);
+        }
+    }
+    return 0;
+}
 
 static uint64_t new_counter = 0, delete_counter = 0;
 
@@ -44,6 +97,7 @@ static void *out_counters_thread(void *arg) {
 int main (int argc, char * const * argv)
 {
     pthread_t t;
+    sig_init();
     pthread_create(&t, 0, out_counters_thread, 0);
 
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
