@@ -1,7 +1,7 @@
 #include "block_container.hpp"
 
 namespace logos {
-
+#define DUMP_CACHED_BLOCKS
 bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
 {
     bool in;
@@ -269,11 +269,17 @@ bool PendingBlockContainer::AddRequestBlock(RBPtr block, bool verified)
     return add2begin;
 }
 
-void PendingBlockContainer::AddHashDependency(const BlockHash &hash, ChainPtr ptr)
+bool PendingBlockContainer::AddHashDependency(const BlockHash &hash, ChainPtr ptr)
 {
     LOG_TRACE(_log) << "BlockCache:AddHashDependency " << hash.to_string();
     {
         std::lock_guard<std::mutex> lck (_hash_dependency_table_mutex);
+        if(_recent_DB_writes. template get<1>().find(hash) != _recent_DB_writes. template get<1>().end())
+        {
+            LOG_TRACE(_log) << "BlockCache:AddHashDependency: Dependency is in _recent_DB_writes, hash="
+                            << hash.to_string();
+            return false;
+        }
         _hash_dependency_table.insert(std::make_pair(hash, ptr));
     }
     {
@@ -291,6 +297,7 @@ void PendingBlockContainer::AddHashDependency(const BlockHash &hash, ChainPtr pt
             ptr.rptr->reliances.insert(hash);
         }
     }
+    return true;
 }
 
 void PendingBlockContainer::MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains)
@@ -303,31 +310,38 @@ void PendingBlockContainer::MarkForRevalidation(const BlockHash &hash, std::list
         if (ptr.eptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:E:"
-                    << ptr.eptr->block->CreateTip().to_string();
+                    << ptr.eptr->block->CreateTip().to_string()
+                    << " has one less dependency: " << hash.to_string();
             ptr.eptr->reliances.erase(hash);
         }
         else if (ptr.mptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:M:"
-                    << ptr.mptr->block->CreateTip().to_string();
+                    << ptr.mptr->block->CreateTip().to_string()
+                    << " has one less dependency: " << hash.to_string();
             ptr.mptr->reliances.erase(hash);
-            //TODO remove after integration
-            LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.mptr->reliances.size();
-            for( auto & h : ptr.mptr->reliances)
             {
-                LOG_TRACE(_log) << "BlockCache:Mark reliance hash " << h.to_string();
+                //TODO remove after integration
+                LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.mptr->reliances.size();
+                for( auto & h : ptr.mptr->reliances)
+                {
+                    LOG_TRACE(_log) << "BlockCache:Mark remaining reliance hash " << h.to_string();
+                }
             }
         }
         else if (ptr.rptr)
         {
             LOG_TRACE(_log) << "BlockCache:Mark:R:"
-                    << ptr.rptr->block->CreateTip().to_string();
+                    << ptr.rptr->block->CreateTip().to_string()
+                    << " has one less dependency: " << hash.to_string();
             ptr.rptr->reliances.erase(hash);
-            //TODO remove after integration
-            LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.rptr->reliances.size();
-            for( auto & h : ptr.rptr->reliances)
             {
-                LOG_TRACE(_log) << "BlockCache:Mark reliance hash " << h.to_string();
+                //TODO remove after integration
+                LOG_TRACE(_log) << "BlockCache:Mark # reliance " << ptr.rptr->reliances.size();
+                for( auto & h : ptr.rptr->reliances)
+                {
+                    LOG_TRACE(_log) << "BlockCache:Mark remaining reliance hash " << h.to_string();
+                }
             }
         }
     }
@@ -338,6 +352,12 @@ bool PendingBlockContainer::DeleteHashDependencies(const BlockHash &hash, std::l
     LOG_TRACE(_log) << "BlockCache:DeleteHashDependencies " << hash.to_string();
 
     std::lock_guard<std::mutex> lck (_hash_dependency_table_mutex);
+
+    _recent_DB_writes.push_back(hash);
+    if(_recent_DB_writes.size() > Max_Recent_DB_Writes)
+    {
+        _recent_DB_writes.pop_front();
+    }
 
     if (!_hash_dependency_table.count(hash))
     {
@@ -447,19 +467,22 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
             << ":idx " << (int)rb_idx << ":success " << (int)success;
 
     uint32_t epoch_number;
-
+    std::lock_guard<std::mutex> lck (_chains_mutex);
     if (ptr.rptr)
     {
         epoch_number = ptr.rptr->block->epoch_number;
         rb_idx = ptr.rptr->block->primary_delegate;
+        ptr.rptr->lock = false;
     }
     else if (ptr.mptr)
     {
         epoch_number = ptr.mptr->block->epoch_number;
+        ptr.mptr->lock = false;
     }
     else if (ptr.eptr)
     {
         epoch_number = ptr.eptr->block->epoch_number;
+        ptr.eptr->lock = false;
     }
     else
     {
@@ -467,8 +490,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
     }
 
     assert(rb_idx<=NUM_DELEGATES);
-
-    std::lock_guard<std::mutex> lck (_chains_mutex);
 
 #ifdef DUMP_CACHED_BLOCKS
     DumpChainTips();
@@ -492,10 +513,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 if (success)
                 {
                     e->rbs[rb_idx].pop_front();
-                }
-                else
-                {
-                    e->rbs[rb_idx].front()->lock = false;
                 }
                 ptr.rptr = nullptr;
             }
@@ -541,10 +558,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                     if (last_mb)
                         assert(e->mbs.empty());
                 }
-                else
-                {
-                    e->mbs.front()->lock = false;
-                }
                 ptr.mptr = nullptr;
             }
 
@@ -570,10 +583,6 @@ bool PendingBlockContainer::GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool su
                 ++e;
                 _epochs.erase(e_old);
                 continue;
-            }
-            else
-            {
-                e->eb->lock = false;
             }
         }
 

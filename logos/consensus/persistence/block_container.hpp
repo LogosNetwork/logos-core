@@ -5,6 +5,11 @@
 #include <list>
 #include <unordered_set>
 #include <unordered_map>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/hash.hpp>
@@ -17,6 +22,10 @@
 
 namespace logos
 {
+using boost::multi_index::indexed_by;
+using boost::multi_index::sequenced;
+using boost::multi_index::hashed_unique;
+using boost::multi_index::identity;
 
 class PendingBlockContainer
 {
@@ -26,6 +35,16 @@ public:
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
     using RelianceSet = std::unordered_set<BlockHash>;
+    using BlockHashSearchQueue =
+    boost::multi_index_container<
+        BlockHash,
+        indexed_by<
+                sequenced<>,
+                hashed_unique<
+                        identity<BlockHash> >
+        >
+    >;
+    static constexpr uint Max_Recent_DB_Writes = 512;
 
     struct PendingRB {
         PendingRB()
@@ -192,7 +211,7 @@ public:
     bool AddMicroBlock(MBPtr block, bool verified);
     bool AddRequestBlock(RBPtr block, bool verified);
 
-    void AddHashDependency(const BlockHash &hash, ChainPtr ptr);
+    bool AddHashDependency(const BlockHash &hash, ChainPtr ptr);
 
     bool MarkAsValidated(EBPtr block);
     bool MarkAsValidated(MBPtr block);
@@ -222,6 +241,18 @@ private:
     std::mutex                                      _cache_blocks_mutex;
     std::mutex                                      _hash_dependency_table_mutex;
     Log                                             _log;
+
+    /*
+     * We use the _recent_DB_writes to record the hashes of blocks recently written
+     * to the DB. We need it to deal with a race condition between two threads, one
+     * try to add a hash to the _hash_dependency_table basing on out dated information
+     * and the other try to clear the same hash from the table.
+     *
+     * This is a quick and dirty fix. Alternative solutions such as lock the BlockCache
+     * (together with block validation) with a single lock, or develop a proper read cache
+     * will kill the performance or take too long to finish.
+     */
+    BlockHashSearchQueue                            _recent_DB_writes;
 };
 
 }
