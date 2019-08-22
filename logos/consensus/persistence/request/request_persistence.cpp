@@ -71,7 +71,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
         // post-commit, the block already exists. Need to release reservation
         for(uint16_t i = 0; i < message.requests.size(); ++i)
         {
-            _reservations->Release(message.requests[i]->GetAccount());
+            Release(message.requests[i]);
         }
 
         return;
@@ -109,7 +109,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
 
 void PersistenceManager<R>::Release(RequestPtr request)
 {
-    _reservations->Release(request->GetAccount());
+    _reservations->Release(request->GetAccount(),request->digest);
 
     if(request->type == RequestType::Revoke || request->type == RequestType::TokenSend)
     {
@@ -120,7 +120,7 @@ void PersistenceManager<R>::Release(RequestPtr request)
                                             token_request->GetSource());
 
         // Also release the TokenUserID reservation.
-        _reservations->Release(token_user_id);
+        _reservations->Release(token_user_id,request->digest);
     }
 }
 

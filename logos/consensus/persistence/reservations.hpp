@@ -36,7 +36,8 @@ public:
                             const BlockHash & hash,
                             bool allow_duplicates) {return true;}
 
-    virtual void Release(const AccountAddress & account);
+    virtual void Release(const AccountAddress & account,
+                         const BlockHash& hash);
 
     virtual void UpdateReservation(const BlockHash & hash,
                                    const AccountAddress & account) {}

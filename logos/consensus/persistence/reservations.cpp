@@ -8,9 +8,28 @@
 ReservationCache Reservations::_cache;
 
 void
-Reservations::Release(const AccountAddress & account)
+Reservations::Release(
+        const AccountAddress & account, const BlockHash& hash)
 {
-    _cache.erase(account);
+    auto iter = _cache.find(account);
+    if(iter!= _cache.end())
+    {
+        if(iter->second.reservation == hash)
+        {
+            _cache.erase(account);
+        }
+        else
+        {
+            LOG_WARN(_log) << "Reservations::Release - "
+                << "reservation in cache has different hash."
+                << " hash in cache = "
+                << iter->second.reservation.to_string()
+                << ", hash attempting to release = "
+                << hash.to_string()
+                << ", account = " << account.to_string();
+        
+        }
+    }
 }
 
 // TODO: We should only write to database when the program terminates on an uncaught exception;
