@@ -153,18 +153,14 @@ void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remot
     //Integration Fix: Need to check that we didn't already tally for this 
     //remote_delegate. Could be a re-broadcast, or could have received message 
     //via direct connection and p2p
-    for(size_t i = 0; i < _signatures.size(); ++i)
+    if(_signatures.find(remote_delegate_id) != _signatures.end())
     {
-        if(_signatures[i].delegate_id == remote_delegate_id)
-        {
-            return;
-        }
-    } 
+        return;
+    }
     _prepare_vote += _weights[remote_delegate_id].vote_weight;
     _prepare_stake += _weights[remote_delegate_id].stake_weight;
-
-    _signatures.push_back({remote_delegate_id,
-                           message.signature});
+    MessageValidator::DelegateSignature sig{remote_delegate_id, message.signature};
+    _signatures[remote_delegate_id] = sig;
 }
 
 void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Request> & message, uint8_t remote_delegate_id)
@@ -475,7 +471,8 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
             // need my own sig
-            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            MessageValidator::DelegateSignature sig{_delegate_id, _pre_prepare_sig};
+            _signatures[_delegate_id] = sig;
             _post_prepare_sig.map.reset();
             sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
         }
@@ -484,7 +481,8 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
             // need my own sig
             DelegateSig my_commit_sig;
             _validator.Sign(_post_prepare_hash, my_commit_sig);
-            _signatures.push_back({_delegate_id, my_commit_sig});
+            MessageValidator::DelegateSignature sig{_delegate_id, my_commit_sig};
+            _signatures[_delegate_id] = sig;
             _post_commit_sig.map.reset();
             sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
         }
