@@ -1,7 +1,7 @@
 #include "block_container.hpp"
 
 namespace logos {
-#define DUMP_CACHED_BLOCKS
+
 bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
 {
     bool in;

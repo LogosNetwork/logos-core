@@ -30,7 +30,7 @@ namespace Bootstrap
         LOG_TRACE(log) << "Puller::"<<__func__;
     }
 
-    void Puller::Init(AttemptPtr a, const TipSet & my, const TipSet & others)
+    bool Puller::Init(AttemptPtr a, const TipSet & my, const TipSet & others)
     {
         LOG_INFO(log) << "Puller::"<<__func__;
         std::lock_guard<std::mutex> lck (mtx);
@@ -46,7 +46,7 @@ namespace Bootstrap
         {
             LOG_WARN(log) << "Puller::"<<__func__ << " bad peer tips";
             state = PullerState::Done;
-            return ;
+            return false;
         }
 
         if(my_tips.IsBehind(others_tips))

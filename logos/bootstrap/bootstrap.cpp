@@ -129,7 +129,6 @@ namespace Bootstrap
                 lock.lock();
                 if( one_more )
                 {
-                    one_more = false;
                     LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__<<" one more";
                     attempt = std::make_shared<BootstrapAttempt>(alarm,
                             store,

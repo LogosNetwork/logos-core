@@ -96,7 +96,7 @@ namespace Bootstrap
                  * since it could be stale as saw in tests.
                  */
                 auto x = TipSet::CreateTipSet(store, true);
-                completed = puller->Init(x, client->response);
+                completed = puller->Init(shared_from_this(), x, client->response);
             }
         }
         return failed;
