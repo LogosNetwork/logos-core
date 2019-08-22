@@ -60,15 +60,16 @@ public:
         return sig_real.verify(pub_key, hash_str);
     }
     //aggregate
-    bool AggregateSignature(const std::vector<DelegateSignature> & signatures, AggSignature & agg_sig)
+    bool AggregateSignature(const std::unordered_map<uint8_t,DelegateSignature> & signatures, AggSignature & agg_sig)
     {
         PublicKeyVec keyvec;
         SignatureVec sigvec;
 
         std::set<uint8_t> participants;
 
-        for(auto & sig : signatures)
+        for(auto & iter : signatures)
         {
+            auto sig = iter.second;
             auto did = sig.delegate_id;
             if(participants.find(did) != participants.end())
             {

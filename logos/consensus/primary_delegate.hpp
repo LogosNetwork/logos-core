@@ -30,7 +30,7 @@ class PrimaryDelegate : public Self<PrimaryDelegate>
     template <ConsensusType CT>
     friend class BackupDelegate;
 
-    using Signatures = std::vector<MessageValidator::DelegateSignature>;
+    using Signatures = std::unordered_map<uint8_t, MessageValidator::DelegateSignature>;
     using Timer      = boost::asio::deadline_timer;
     using Error      = boost::system::error_code;
     using Service    = boost::asio::io_service;

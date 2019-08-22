@@ -177,7 +177,12 @@ TEST (crypto, bls)
     //aggregate
     uint8_t primary = 7;
     AggSignature agg_sig;
-    nodes[primary]->validator.AggregateSignature(sigs, agg_sig);
+    std::unordered_map<uint8_t,MessageValidator::DelegateSignature> map;
+    for(auto& x: sigs)
+    {
+        map[x.delegate_id] = x;
+    }
+    nodes[primary]->validator.AggregateSignature(map, agg_sig);
     //verify
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
@@ -816,7 +821,12 @@ TEST (message_validator, consensus_session)
             signatures[i].delegate_id = i;
             signatures[i].signature = prepare.signature;
         }
-        ASSERT_TRUE(primary.AggregateSignature(signatures, postprepare_agg_sig));
+        std::unordered_map<uint8_t,MessageValidator::DelegateSignature> map;
+        for(auto& x: signatures)
+        {
+            map[x.delegate_id] = x;
+        }
+        ASSERT_TRUE(primary.AggregateSignature(map, postprepare_agg_sig));
         ASSERT_TRUE(primary.Validate(preprepare_hash, postprepare_agg_sig));
     }
     PostPrepareMessage<ConsensusType::Epoch> postprepare(preprepare_hash, postprepare_agg_sig);
@@ -867,7 +877,12 @@ TEST (message_validator, consensus_session)
             signatures[i].delegate_id = i;
             signatures[i].signature = commit.signature;
         }
-        ASSERT_TRUE(primary.AggregateSignature(signatures, postcommit_agg_sig));
+        std::unordered_map<uint8_t,MessageValidator::DelegateSignature> map;
+        for(auto& x: signatures)
+        {
+            map[x.delegate_id] = x;
+        }
+        ASSERT_TRUE(primary.AggregateSignature(map, postcommit_agg_sig));
         ASSERT_TRUE(primary.Validate(postprepare_hash, postcommit_agg_sig));
     }
     PostCommitMessage<ConsensusType::Epoch> postcommit(preprepare_hash, postcommit_agg_sig);
@@ -948,7 +963,12 @@ TEST (message_validator, signature_order_twoThirds)
                 signatures_copy.push_back(xx);
             }
 
-            ASSERT_TRUE(primary.AggregateSignature(signatures_copy, postprepare_agg_sig));
+            std::unordered_map<uint8_t,MessageValidator::DelegateSignature> map;
+            for(auto& x: signatures_copy)
+            {
+                map[x.delegate_id] = x;
+            }
+            ASSERT_TRUE(primary.AggregateSignature(map, postprepare_agg_sig));
             ASSERT_TRUE(primary.Validate(preprepare_hash, postprepare_agg_sig));
         }
         PostPrepareMessage<ConsensusType::Epoch> postprepare(preprepare_hash, postprepare_agg_sig);
