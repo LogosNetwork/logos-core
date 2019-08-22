@@ -348,12 +348,7 @@ bool BackupDelegate<CT>::Validate(const M & message)
             return false;
         }
 
-        //Verify that enough delegates signed the message and quorum was
-        //actually reached
-        if(!ValidateQuorum(message))
-        {
-            return false;
-        }
+
 
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
@@ -364,7 +359,8 @@ bool BackupDelegate<CT>::Validate(const M & message)
                     << message.signature.sig.to_string() << " "
                     << message.signature.map.to_string();
         }
-        return good;
+        //only validate quorum if sig is valid
+        return good && ValidateQuorum(message);
     }
 
     if(message.type == MessageType::Post_Commit)
@@ -380,13 +376,9 @@ bool BackupDelegate<CT>::Validate(const M & message)
             return false;
         }
 
-        //Verify that enough delegates signed the message and quorum was
-        //actually reached
-        if(!ValidateQuorum(message))
-        {
-            return false;
-        }
-        return _validator.Validate(_post_prepare_hash, message.signature);
+        //only validate quorum if sig is valid
+        return _validator.Validate(_post_prepare_hash, message.signature)
+            && ValidateQuorum(message);
 
         // We received the PostCommit without
         // having sent a commit message. We're
