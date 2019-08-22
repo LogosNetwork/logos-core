@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-
+#include <iostream>
 #include <functional>
 #include <cstdint>
 #include <cstdio>
@@ -314,9 +314,9 @@ TEST (BlockCache, RequestsSquaredTest)
 #undef N_BLOCKS
 #undef N_DELEGATES
 #undef N_TOTAL
-#define N_RBLOCKS 4
+#define N_RBLOCKS 3
 #define N_MBLOCKS 2
-#define N_DELEGATES 4
+#define N_DELEGATES 2
 #define N_EPOCHS 2
 
 
@@ -425,7 +425,16 @@ TEST (BlockCache, MixedBlocksTest)
 
     for (int i = 0; i < 10 && t.store_q.size() != size + N_EPOCHS * NUM_DELEGATES; ++i)
     {
+        std::cout << "t.store_q.size()=" << t.store_q.size()
+                  << ", size + N_EPOCHS * NUM_DELEGATES=" << size + N_EPOCHS * NUM_DELEGATES
+                  << std::endl;
         sleep(1);
+    }
+
+    if(t.store_q.size() != size + N_EPOCHS * NUM_DELEGATES)
+    {
+        c.IsBlockCached(0);
+        exit(-1);
     }
 
     EXPECT_EQ(size + N_EPOCHS * NUM_DELEGATES, t.store_q.size());
