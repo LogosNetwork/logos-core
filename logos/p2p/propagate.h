@@ -73,9 +73,11 @@ private:
     cheap_hash *    _data;
 };
 
+typedef std::shared_ptr<std::vector<uint8_t>> PropagateMessageHandle;
+
 struct PropagateMessage
 {
-    std::vector<uint8_t>    message;
+    PropagateMessageHandle  message;
     uint64_t                label;
     uint256                 hash;
     bool                    important;
@@ -86,9 +88,10 @@ struct PropagateMessage
                      unsigned size,
                      bool is_important = false)
     {
-        message.resize(size);
-        memcpy(message.data(), mess, size);
-        hash = Hash(message.begin(), message.end());
+        message = std::make_shared<std::vector<uint8_t>>();
+        message->resize(size);
+        memcpy(message->data(), mess, size);
+        hash = Hash(message->begin(), message->end());
         important = is_important;
     }
 };
@@ -183,6 +186,27 @@ public:
         }
 
         return 0;
+    }
+
+    PropagateMessageHandle GetNextHandle(uint64_t &current_label, bool important_only = false)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (current_label < first_label)
+            current_label = first_label;
+
+        while (current_label < next_label)
+        {
+            auto iter = store.get<PropagateMessage::ByLabel>().find(current_label);
+            current_label++;
+            if (iter != store.get<PropagateMessage::ByLabel>().end())
+            {
+                const PropagateMessage &mess = *iter;
+                if (!important_only || mess.important)
+                    return mess.message;
+            }
+        }
+
+        return PropagateMessageHandle();
     }
 };
 

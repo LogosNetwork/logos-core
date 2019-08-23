@@ -92,7 +92,7 @@ TEST (PropagateTest, VerifyStore)
                 EXPECT_LE(prev_label, label);
 
                 PropagateMessage mm(vv[cm->label].data(), vv[cm->label].size());
-                EXPECT_EQ(cm->message, mm.message);
+                EXPECT_EQ(*cm->message, *mm.message);
                 EXPECT_EQ(cm->hash, mm.hash);
             }
             else
@@ -104,7 +104,7 @@ TEST (PropagateTest, VerifyStore)
 
         std::vector<uint8_t> &v = vv[i];
         PropagateMessage m(v.data(), v.size());
-        EXPECT_EQ (m.message, v);
+        EXPECT_EQ (*m.message, v);
         EXPECT_EQ (m.hash, Hash(v.begin(), v.end()));
         EXPECT_EQ (s.Insert(m), true);
 
