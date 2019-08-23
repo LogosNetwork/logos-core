@@ -1004,7 +1004,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         /* Do not send propagate messages if send queue is too long */
         if (pto->fPauseSend)
             return true;
-        const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index,
+        PropagateMessageHandle promess = connman->p2p_store->GetNextHandle(pto->next_propagate_index,
                 /*
                  * next_index < first_index means that we are parsing old messages which were sent before connecting to this node;
                  * in this case we need to send only important messages, for example, delegate advertisements.
@@ -1012,7 +1012,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
                 pto->next_propagate_index < pto->first_propagate_index);
         if (promess)
         {
-            connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
+            connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, *promess));
         }
     }
     return true;
