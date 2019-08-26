@@ -18,6 +18,8 @@
 
 #define REG_(name) sprintf(buf + strlen(buf), #name "=%llx, ", (unsigned long long)uc->uc_mcontext.gregs[REG_##name])
 
+extern int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+
 static void sigCatch(int signum, siginfo_t *info, void *context) {
     static void *callstack[100];
     int frames, i;
@@ -87,7 +89,9 @@ static void *out_counters_thread(void *arg) {
     for(;;) {
         FILE *f = fopen("counters.log", "a");
         time_t t = time(0);
-        fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld\n", ctime(&t), getpid(), new_counter - delete_counter, new_counter, delete_counter);
+        fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld  %3d  %6d  %6d  %6d\n",
+                ctime(&t), getpid(), new_counter - delete_counter, new_counter, delete_counter,
+                g_nnodes, g_nsend, g_nprocess, g_nrecv);
         fclose(f);
         sleep(60);
     }

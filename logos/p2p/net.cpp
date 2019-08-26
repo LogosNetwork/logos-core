@@ -15,6 +15,8 @@
 #include <ui_interface.h>
 #include <utilstrencodings.h>
 
+int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+
 // Dump addresses to peers.dat and banlist.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
@@ -1397,8 +1399,13 @@ void CConnman::ThreadSocketHandler()
 
             // Disconnect unused nodes
             std::vector<std::shared_ptr<CNode>> vNodesCopy = vNodes;
+            int nnodes = 0, nsend = 0, nprocess = 0, nrecv = 0;
             for (auto&& pnode : vNodesCopy)
             {
+                nnodes++;
+                nsend += pnode->vSendMsg.size();
+                nprocess += pnode->vProcessMsg.size();
+                nrecv += pnode->vRecvMsg.size();
                 if (pnode->fDisconnect)
                 {
                     // remove from vNodes
@@ -1411,6 +1418,10 @@ void CConnman::ThreadSocketHandler()
                     pnode->CloseSocketDisconnect();
                 }
             }
+            g_nnodes = nnodes;
+            g_nsend = nsend;
+            g_nprocess = nprocess;
+            g_nrecv = nrecv;
         }
         size_t vNodesSize;
         {

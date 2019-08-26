@@ -27,6 +27,8 @@
 #define OPTWIDTH    80
 #define OPTMAX      4096
 
+extern int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+
 class p2p_standalone : public p2p_interface
 {
     virtual bool ReceiveMessageCallback(const void *message, unsigned size)
@@ -234,6 +236,10 @@ int main(int argc, char **argv)
         else if (!memcmp(str, "banned ", 7))
         {
             printf("%s\n", p2p.is_blacklisted(str + 7) ? "yes" : "no");
+        }
+        else if (!strcmp(str, "stats"))
+        {
+            printf("%3d  %6d  %6d  %6d\n", g_nnodes, g_nsend, g_nprocess, g_nrecv);
         }
         else if (*str)
         {
