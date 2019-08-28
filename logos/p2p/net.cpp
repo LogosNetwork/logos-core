@@ -15,7 +15,7 @@
 #include <ui_interface.h>
 #include <utilstrencodings.h>
 
-int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+int g_nnodes, g_altnnodes, g_nsend, g_nprocess, g_nrecv;
 
 // Dump addresses to peers.dat and banlist.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
@@ -2553,6 +2553,7 @@ CNode::CNode(NodeId idIn,
     first_propagate_index = session->connman.p2p_store->GetNextLabel();
     next_propagate_index = 0;
     sendCompleted = true;
+    g_altnnodes++;
 
     for (const std::string &msg : getAllNetMessageTypes())
         mapRecvBytesPerMsgCmd[msg] = 0;
@@ -2570,6 +2571,7 @@ CNode::~CNode()
     LOCK(cs_vSend);
     connman.FinalizeNode(id, addr);
     LogDebug(BCLog::NET, "Node destroyed, peer=%d\n", id);
+    g_altnnodes--;
 }
 
 void CConnman::FinalizeNode(NodeId id, const CAddress &addr)
