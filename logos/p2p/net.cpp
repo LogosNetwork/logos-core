@@ -363,9 +363,9 @@ void AsioSession::shutdown()
     }
     else
     {
-        pnode = std::shared_ptr<CNode>();
         LogDebug(BCLog::NET, "Session shutdown, peer=%ld\n", id);
     }
+    pnode = std::shared_ptr<CNode>();
 }
 
 void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
