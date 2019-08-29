@@ -316,7 +316,7 @@ private:
     /// @param prequel data
     void OnHeartBeat(HeartBeat &hb);
 
-    void HandleMessageError(const char * operation);
+    void HandleMessageError(const char * operation, bool reconnect = true);
 
     template<template <ConsensusType> class T>
     std::shared_ptr<MessageBase>

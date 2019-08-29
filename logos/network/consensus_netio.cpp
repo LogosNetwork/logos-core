@@ -251,14 +251,25 @@ ConsensusNetIO::OnConnect(
                 {
                     if (ad)
                     {
-                        LOG_INFO(this_s->_log) 
-                            << "ConsensusNetIO::OnConnect -"
-                            << "client handshake was successful"
-                            << this_s->CommonInfoToLog();
-
-                        if(!this_s->CheckAndHandleEpochOver())
+                        if(ad->consensus_version != logos_version)
                         {
-                            this_s->OnConnect();
+                            LOG_ERROR(this_s->_log) << "ConsensusNetIO::OnConnect, consensus version mismatch,"
+                                            << " peer version=" << (int)ad->consensus_version
+                                            << " my version=" << (int)logos_version;
+                            if(!this_s->CheckAndHandleEpochOver())
+                            {
+                                this_s->HandleMessageError("Client handshake", false);
+                            }
+                        } else {
+                            LOG_INFO(this_s->_log)
+                                << "ConsensusNetIO::OnConnect -"
+                                << "client handshake was successful"
+                                << this_s->CommonInfoToLog();
+
+                            if(!this_s->CheckAndHandleEpochOver())
+                            {
+                                this_s->OnConnect();
+                            }
                         }
                     }
                     else
@@ -650,7 +661,7 @@ ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
     _direct_connect++;
 }
 
-void ConsensusNetIO::HandleMessageError(const char * operation)
+void ConsensusNetIO::HandleMessageError(const char * operation, bool reconnect)
 {
     std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
 
@@ -662,7 +673,7 @@ void ConsensusNetIO::HandleMessageError(const char * operation)
     using namespace boost::system::errc;
     Error error(make_error_code(errc_t::io_error));
 
-    OnNetIOError(error, true);
+    OnNetIOError(error, reconnect);
 }
 
 bool
