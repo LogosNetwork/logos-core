@@ -15,7 +15,8 @@
 #include <ui_interface.h>
 #include <utilstrencodings.h>
 
-int g_nnodes, g_altnnodes, g_nsend, g_nprocess, g_nrecv;
+int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+std::atomic<int> g_altnnodes;
 
 // Dump addresses to peers.dat and banlist.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <execinfo.h>
 #include <ucontext.h>
+#include <atomic>
 
 #include <logos/node/node.hpp>
 #include <logos/daemon.hpp>
@@ -18,7 +19,8 @@
 
 #define REG_(name) sprintf(buf + strlen(buf), #name "=%llx, ", (unsigned long long)uc->uc_mcontext.gregs[REG_##name])
 
-extern int g_nnodes, g_altnnodes, g_nsend, g_nprocess, g_nrecv;
+extern int g_nnodes, g_nsend, g_nprocess, g_nrecv;
+extern std::atomic<int> g_altnnodes;
 
 static void sigCatch(int signum, siginfo_t *info, void *context) {
     static void *callstack[100];
@@ -63,7 +65,7 @@ int sig_init(void) {
     return 0;
 }
 
-static uint64_t new_counter = 0, delete_counter = 0;
+static std::atomic<uint64_t> new_counter(0), delete_counter(0);
 
 void *operator new(size_t size) {
     new_counter++;
@@ -90,8 +92,9 @@ static void *out_counters_thread(void *arg) {
         FILE *f = fopen("counters.log", "a");
         time_t t = time(0);
         fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld  %2d/%2d  %6d  %6d  %6d\n",
-                ctime(&t), getpid(), new_counter - delete_counter, new_counter, delete_counter,
-                g_nnodes, g_altnnodes, g_nsend, g_nprocess, g_nrecv);
+                ctime(&t), getpid(), (uint64_t)new_counter - (uint64_t)delete_counter,
+                (uint64_t)new_counter, (uint64_t)delete_counter,
+                g_nnodes, (int)g_altnnodes, g_nsend, g_nprocess, g_nrecv);
         fclose(f);
         sleep(60);
     }
