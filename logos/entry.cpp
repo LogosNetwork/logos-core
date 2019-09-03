@@ -20,7 +20,7 @@
 #define REG_(name) sprintf(buf + strlen(buf), #name "=%llx, ", (unsigned long long)uc->uc_mcontext.gregs[REG_##name])
 
 extern int g_nnodes, g_nsend, g_nprocess, g_nrecv;
-extern std::atomic<int> g_altnnodes;
+extern std::atomic<int> g_altnnodes, g_msg_queues_size;
 
 static void sigCatch(int signum, siginfo_t *info, void *context) {
     static void *callstack[100];
@@ -91,10 +91,10 @@ static void *out_counters_thread(void *arg) {
     for(;;) {
         FILE *f = fopen("counters.log", "a");
         time_t t = time(0);
-        fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld  %2d/%2d  %6d  %6d  %6d\n",
+        fprintf(f, "%.24s  %5d  %8ld  %10ld  %10ld  %2d/%2d  %6d  %6d  %6d  %6d\n",
                 ctime(&t), getpid(), (uint64_t)new_counter - (uint64_t)delete_counter,
                 (uint64_t)new_counter, (uint64_t)delete_counter,
-                g_nnodes, (int)g_altnnodes, g_nsend, g_nprocess, g_nrecv);
+                g_nnodes, (int)g_altnnodes, g_nsend, g_nprocess, g_nrecv, (int)g_msg_queues_size);
         fclose(f);
         sleep(60);
     }

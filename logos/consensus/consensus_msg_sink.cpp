@@ -10,6 +10,8 @@
 
 #include <sys/stat.h>
 
+std::atomic<int> g_msg_queues_size;
+
 ConsensusMsgSink::ConsensusMsgSink(Service &service)
     : _service(service)
 {}
@@ -40,9 +42,11 @@ ConsensusMsgSink::Push(const uint8_t * data,
         if (!_msg_queue.empty())
         {
             _msg_queue.emplace(Message{is_p2p, message_type, consensus_type, message});
+            g_msg_queues_size++;
 
             auto toconsume = _msg_queue.front();
             _msg_queue.pop();
+            g_msg_queues_size--;
 
             message = toconsume.message;
             message_type = toconsume.message_type;
@@ -54,6 +58,7 @@ ConsensusMsgSink::Push(const uint8_t * data,
     else
     {
         _msg_queue.emplace(Message{is_p2p, message_type, consensus_type, message});
+        g_msg_queues_size++;
     }
     return true;
 }
@@ -112,6 +117,7 @@ ConsensusMsgSink::Pop()
 
     auto toconsume = _msg_queue.front();
     _msg_queue.pop();
+    g_msg_queues_size--;
 
     Post(toconsume.message, toconsume.message_type, toconsume.consensus_type, toconsume.is_p2p);
 }
