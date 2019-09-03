@@ -99,6 +99,18 @@ public:
     static const uint64_t MESSAGE_AGE;
     static const uint64_t MESSAGE_AGE_LIMIT;
 
+    Service& GetService()
+    {
+        return _service;
+    }
+
+    /// Enable p2p on all consensus managers
+    void EnableP2p(bool enable) override;
+
+    /// @returns true if we have enough direct connections to reach quorum
+    bool CanReachQuorumViaDirectConnect() override;
+
+
 protected:
 
 
@@ -117,13 +129,10 @@ protected:
     /// @param error error code
     void OnTimeout(const Error &error);
 
-    /// Enable p2p on all consensus managers
-    void EnableP2p(bool enable) override;
-
-    /// @returns true if we have enough direct connections to reach quorum
-    bool CanReachQuorumViaDirectConnect() override;
 
     uint32_t GetEpochNumber();
+
+
 
 private:
     static const boost::posix_time::seconds HEARTBEAT;

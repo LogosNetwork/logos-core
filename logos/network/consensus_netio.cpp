@@ -42,11 +42,10 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                const uint8_t local_delegate_id, 
                                IOBinder iobinder,
                                std::shared_ptr<EpochInfo> epoch_info,
-                               NetIOErrorHandler & error_handler,
-                               bool is_client)
-    : NetIOSend(is_client ? nullptr : std::make_shared<Socket>(service))
-    , ConsensusMsgSink(service)
-    , _socket()
+                               ConsensusNetIOManager & netio_mgr,
+                               bool is_server)//TODO change to is_server
+    : ConsensusMsgSink(service)
+    , _socket(is_server ? nullptr : std::make_shared<Socket>(service))
     , _connected(false)
     , _endpoint()
     , _alarm(alarm)
@@ -54,34 +53,43 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _local_delegate_id(local_delegate_id)
     , _connections{}
     , _io_channel_binder(iobinder)
-    , _assembler(std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
+    , _assembler(is_server ? nullptr : std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
+    , _io_send(is_server ? nullptr : std::make_shared<NetIOSend>(_socket))
     , _epoch_info(epoch_info)
-    , _error_handler(error_handler)
+    , _netio_mgr(netio_mgr)
     , _last_timestamp(GetStamp())
     , _connecting(false)
     , _epoch_over(false)
 {
     auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::ConsensusNetIO, object destroyed");
     assert(info);
-    LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
-                   <<  _endpoint << " remote delegate id "
+    LOG_INFO(_log) << "ConsensusNetIO::ConsensusNetIO -"
+                   << "created for "
                    << (int)remote_delegate_id
-                   << " connection " << info->GetConnectionName();
-    if(!is_client)
-    {
-        _socket = *this;
-        _assembler->ResetSocket(_socket);
-    }
+                   << ",epoch =" << GetEpochNumber()
+                   << ",is_server=" << is_server;
+}
+
+void ConsensusNetIO::MakeAndBindNewSocket()
+{
+    BindSocket(std::make_shared<Socket>(_netio_mgr.GetService()));
 }
 
 void ConsensusNetIO::BindSocket(
         std::shared_ptr<Socket> socket)
 {
     std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
-    _socket = socket;
-    Reset(socket);
-    //bind to assembler
-    _assembler->ResetSocket(socket);
+    auto epoch_info = GetSharedPtr(_epoch_info, "ConsensusNetIO::BindSocket, _epoch_info destroyed");
+    if(epoch_info)
+    {
+        _socket = socket;
+        _io_send = std::make_shared<NetIOSend>(_socket);
+        _assembler = std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this);
+    }
+    else
+    {
+        LOG_WARN(_log) << "ConsensusNetIO::BindSocket - failed to bind socket";
+    }
 
 }
 
@@ -149,9 +157,19 @@ ConsensusNetIO::Send(const void *data, size_t size)
     auto send_buffer(std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
     std::memcpy(send_buffer->data(), data, size);
 
-    if (!AsyncSend(send_buffer))
+    LOG_INFO(_log) << "ConsensusNetIO::Send - "
+        << CommonInfoToLog();
+
+    if(_io_send)
+    { 
+        if (!_io_send->AsyncSend(send_buffer))
+        {
+            LOG_ERROR(_log) << "ConsensusNetIO::Send - AsyncSend to endpoint " << _endpoint << " failed";
+        }
+    }
+    else
     {
-        LOG_ERROR(_log) << "ConsensusNetIO::Send - AsyncSend to endpoint " << _endpoint << " failed";
+        LOG_WARN(_log) << "ConsensusNetIO::Send - _io_send is null";
     }
 }
 
@@ -168,6 +186,7 @@ ConsensusNetIO::OnConnect()
         UpdateTimestamp();
         _connected = true;
         _connecting = false;
+        _direct_connect = 1;
 
         //epoch ended during a reconnect sequence, need to die now
         if(CheckAndHandleEpochOver())
@@ -293,27 +312,43 @@ ConsensusNetIO::OnConnect(
 void
 ConsensusNetIO::ReadPrequel()
 {
+
+    LOG_INFO(_log) << "ConsensusNetIO::ReadPrequel - "
+        << CommonInfoToLog();
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
-    _assembler->ReadPrequel([this_w](const uint8_t *data) {
-        auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::ReadPrequel, object destroyed");
-        if (!this_s)
-        {
-            return;
-        }
-        this_s->OnPrequel(data);
-    });
+    if(_assembler)
+    {
+        _assembler->ReadPrequel([this_w](const uint8_t *data) {
+            auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::ReadPrequel, object destroyed");
+            if (!this_s)
+            {
+                return;
+            }
+            this_s->OnPrequel(data);
+        });
+    }
+    else
+    {
+        LOG_WARN(_log) << "ConsensusNetIO::ReadPrequel - assembler is null";
+    }
 }
 
 void
 ConsensusNetIO::AsyncRead(size_t bytes,
                           ReadCallback callback)
 {
-    _assembler->ReadBytes(callback, bytes);
+    LOG_WARN(_log) << "ConsensusNetIO::AsyncRead - called";
+    if(_assembler)
+    {
+        _assembler->ReadBytes(callback, bytes);
+    }
 }
 
 void
 ConsensusNetIO::OnPrequel(const uint8_t * data)
 {
+    LOG_INFO(_log) << "ConsensusNetIO::OnPrequel - "
+        << CommonInfoToLog();
     bool error = false;
     logos::bufferstream stream(data, MessagePrequelSize);
     Prequel msg_prequel(error, stream);
@@ -338,19 +373,26 @@ ConsensusNetIO::OnPrequel(const uint8_t * data)
     if(msg_prequel.payload_size != 0)
     {
         std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
-        _assembler->ReadBytes([this_w, msg_prequel](const uint8_t *data)
-         {
-             auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnPrequel, object destroyed");
-             if (!this_s)
+        if(_assembler)
+        {
+            _assembler->ReadBytes([this_w, msg_prequel](const uint8_t *data)
              {
-                 return;
-             }
-             this_s->OnData(data,
-                            msg_prequel.version,
-                            msg_prequel.type,
-                            msg_prequel.consensus_type,
-                            msg_prequel.payload_size);
-         }, msg_prequel.payload_size);
+                 auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnPrequel, object destroyed");
+                 if (!this_s)
+                 {
+                     return;
+                 }
+                 this_s->OnData(data,
+                                msg_prequel.version,
+                                msg_prequel.type,
+                                msg_prequel.consensus_type,
+                                msg_prequel.payload_size);
+             }, msg_prequel.payload_size);
+        }
+        else
+        {
+            LOG_WARN(_log) << "ConsensusNetIO::OnPrequel - assembler is null";
+        }
     }else{
         ReadPrequel();
     }
@@ -415,9 +457,10 @@ ConsensusNetIO::OnData(const uint8_t * data,
     bool error = false;
     logos::bufferstream stream(data, payload_size);
 
-    LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
+    LOG_DEBUG(_log) << "ConsensusNetIO::OnData - received message type " << MessageToName(message_type)
                     << " for consensus type " << ConsensusToName(consensus_type)
-                    << " from " << _endpoint;
+                    << " from " << _endpoint
+                    << ", " << CommonInfoToLog();
 
     if (consensus_type == ConsensusType::Any)
     {
@@ -546,8 +589,9 @@ ConsensusNetIO::Close()
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket - "
             << CommonInfoToLog();
         _connected = false;
-        _socket->cancel();
         _socket->close();
+        _assembler.reset();
+        _io_send.reset();
     }
 }
 
@@ -572,10 +616,7 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
     {
         LOG_INFO(_log) << "ConsensusNetIO::OnNetIOError-reconnecting"
             << CommonInfoToLog();
-        _queued_writes.clear();
-        _queue_reservation = 0;
 
-        Close();
         //if the epoch is over, don't reconnect
         //(epoch_over could have been set to true by diff thread)
         if(_epoch_over)
@@ -588,6 +629,7 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
             _connecting = true;
         }
 
+        Close();
         std::weak_ptr<ConsensusNetIO> this_w =
             Self<ConsensusNetIO>::shared_from_this();
         auto this_s = GetSharedPtr(this_w,
@@ -605,20 +647,34 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
         if(reconnect)
         {
             //Schedule the reconnect. shared ptr to this is captured
-            _alarm.add(Seconds(CONNECT_RETRY_DELAY),
-                    [this_s]()
-                    {
-                        if(!this_s->CheckAndHandleEpochOver())
+            //only connect if remote is the server
+            if(_local_delegate_id < _remote_delegate_id)
+            { 
+                MakeAndBindNewSocket();
+                LOG_DEBUG(_log) << "ConsensusNetIO::OnNetIOError-"
+                    << "closing connection and attempting again."
+                    << CommonInfoToLog();
+                _alarm.add(Seconds(CONNECT_RETRY_DELAY),
+                        [this_s]()
                         {
-                            this_s->Connect();
-                        }
-                    
-                    });
-
+                            if(!this_s->CheckAndHandleEpochOver())
+                            {
+                                this_s->Connect();
+                            }
+                        
+                        });
+            }
+            else
+            {
+                LOG_DEBUG(_log) << "ConsensusNetIO::OnNetIOError-"
+                    << "Remote will reconnect-"
+                    << CommonInfoToLog();
+            
+            }
             //reset direct connect count when this direct connection fails
             ResetConnectCount();
 
-            if(!_error_handler.CanReachQuorumViaDirectConnect())
+            if(!_netio_mgr.CanReachQuorumViaDirectConnect())
             {
                 LOG_INFO(_log) << "ConsensusNetIO::OnNetIOError-reconnecting-"
                     << "enabling p2p"
@@ -627,7 +683,7 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
 
                 //enable p2p consensus if enough connections have failed to
                 //prevent quorum
-                _error_handler.EnableP2p(true);
+                _netio_mgr.EnableP2p(true);
             }
             else
             {
@@ -695,6 +751,7 @@ ConsensusNetIO::CheckAndHandleEpochOver()
     }
     return false;
 }
+
 std::string ConsensusNetIO::CommonInfoToLog()
 {
     std::string remote_del = "remote_delegate=" + std::to_string((int)_remote_delegate_id);
@@ -703,13 +760,19 @@ std::string ConsensusNetIO::CommonInfoToLog()
     std::string connected = "connected=" + std::to_string(_connected);
     std::string connecting = "connecting=" + std::to_string(_connecting);
     std::string endpoint = "endpoint=" + _endpoint.address().to_string();
+    std::string epoch_over = "epoch_over=" + _epoch_over;
+    std::string io_send = "io_send=" + std::string(_io_send? "not null" : "null");
+    std::string assembler = "assembler=" + std::string(_assembler ? "not null" : "null");
     std::string res = 
         "-" + remote_del 
         + "," + local_del 
         + "," + epoch_num
         + "," + connected
         + "," + connecting
-        + "," + endpoint;
+        + "," + endpoint
+        + "," + epoch_over
+        + "," + io_send
+        + "," + assembler;
     return res;
 }
 
