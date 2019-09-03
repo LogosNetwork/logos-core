@@ -133,6 +133,11 @@ struct MessagePrequel : public MessageBase
         {
             return;
         }
+        if(version != logos_version)
+        {
+            error = true;
+            return;
+        }
 
         error = logos::read(stream, const_cast<MessageType &>(type));
         if(error)

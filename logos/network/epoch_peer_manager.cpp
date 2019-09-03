@@ -31,17 +31,25 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
         }
         else
         {
-            auto res = _peer_binder.Bind(socket,
-                                         Endpoint(boost::asio::ip::make_address_v4(ad->GetIP().c_str()), port),
-                                         ad->epoch_number,
-                                         ad->delegate_id);
-            if (!res)
+            if(ad->consensus_version != logos_version)
             {
+                LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted, consensus version mismatch,"
+                                << " peer version=" << (int)ad->consensus_version
+                                << " my version=" << (int)logos_version;
                 socket->close();
-            }
-            else
-            {
-                _peer_binder.GetIdentityManager().UpdateAddressAd(*ad);
+            } else {
+                auto res = _peer_binder.Bind(socket,
+                                             Endpoint(boost::asio::ip::make_address_v4(ad->GetIP().c_str()), port),
+                                             ad->epoch_number,
+                                             ad->delegate_id);
+                if (!res)
+                {
+                    socket->close();
+                }
+                else
+                {
+                    _peer_binder.GetIdentityManager().UpdateAddressAd(*ad);
+                }
             }
         }
     });

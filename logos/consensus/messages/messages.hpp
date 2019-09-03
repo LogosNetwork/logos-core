@@ -662,17 +662,19 @@ struct AddressAd : CommonAddressAd
                 logos::read(stream, signature);
         if (!error)
         {
-            vector<uint8_t> buf(ip.size() + sizeof(port));
+            vector<uint8_t> buf(ip.size() + sizeof(port) + sizeof(consensus_version));
             decryptor(cyphertext, buf.data(), buf.size());
             memcpy(ip.data(), buf.data(), ip.size());
             memcpy(&port, buf.data()+ip.size(), sizeof(port));
+            memcpy(&consensus_version, buf.data()+ip.size()+sizeof(port), sizeof(consensus_version));
         }
     }
     uint32_t Serialize(logos::vectorstream &stream, ECIESPublicKey &pub) const
     {
-        std::array<uint8_t, IP_LENGTH + sizeof(port)> buf;
+        std::array<uint8_t, IP_LENGTH + sizeof(port) + sizeof(consensus_version)> buf;
         memcpy(buf.data(), ip.data(), ip.size());
         memcpy(buf.data()+ip.size(), &port, sizeof(port));
+        memcpy(buf.data()+ip.size()+sizeof(port), &consensus_version, sizeof(consensus_version));
         std::string cyphertext;
         pub.Encrypt(cyphertext, buf.data(), buf.size());
         payload_size = cyphertext.size() + sizeof(string_size_t) + sizeof(signature);
@@ -695,13 +697,17 @@ struct AddressAd : CommonAddressAd
     void Hash(blake2b_state & hash) const override
     {
         CommonAddressAd::Hash(hash);
+        blake2b_update(&hash, &consensus_version, sizeof(consensus_version));
     }
 
     bool operator == (const AddressAd &ad)
     {
-        return CommonAddressAd::operator==(ad);
+        return CommonAddressAd::operator==(ad) &&
+                consensus_version == ad.consensus_version;
     }
-    static constexpr size_t SIZE = PrequelAddressAd::SIZE + IP_LENGTH + sizeof(port) + sizeof(signature);
+
+    uint8_t consensus_version = logos_version;
+    static constexpr size_t SIZE = PrequelAddressAd::SIZE + IP_LENGTH + sizeof(port) + sizeof(consensus_version) + sizeof(signature);
 };
 
 struct AddressAdTxAcceptor : CommonAddressAd

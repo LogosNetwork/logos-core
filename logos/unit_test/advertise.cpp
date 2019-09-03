@@ -57,6 +57,7 @@ TEST(Advertise, serialize)
 
     {
         AddressAd ad(epoch_number, delegate_id, encr_delegate_id, ip, port);
+        ad.consensus_version = 123;
         MessageValidator::Sign(ad.Hash(), ad.signature, [&bls](bls::Signature &sig_real, const std::string &hash_str) {
             bls.prv.sign(sig_real, hash_str);
         });
@@ -77,6 +78,7 @@ TEST(Advertise, serialize)
             auto ret = MessageValidator::Validate(ad1.Hash(), ad1.signature, bls.pub);
             std::cout << "Validated AddressAd " << ret << "\n";
 
+            ASSERT_EQ(ad1.consensus_version, 123);
             ASSERT_TRUE(ad == ad1);
         }
         catch (const std::exception &ex) {
