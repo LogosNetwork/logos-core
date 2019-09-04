@@ -627,6 +627,8 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
 {
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+
     return get(account_db, account_a, info_a, transaction_a);
 }
 
@@ -971,7 +973,7 @@ bool logos::block_store::request_block_put(ApprovedRB const & block, MDB_txn * t
 
 bool logos::block_store::request_block_put(ApprovedRB const &block, const BlockHash &hash, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_DEBUG(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
     auto value(block.to_mdb_val(buf));
@@ -1236,7 +1238,7 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MD
 bool logos::block_store::micro_block_put(ApprovedMB const &block, MDB_txn *transaction)
 {
     auto hash(block.Hash());
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_DEBUG(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, micro_block_db, mdb_val(hash), block.to_mdb_val(buf), 0));
@@ -1262,7 +1264,7 @@ bool logos::block_store::micro_block_get(const BlockHash &hash, ApprovedMB &bloc
 
 bool logos::block_store::micro_block_tip_put(const Tip & tip, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+    LOG_INFO(log) << __func__ << " tip " << tip.to_string();
 
     const uint8_t key = 0; // only one tip
     std::vector<uint8_t> buf;
@@ -1309,7 +1311,7 @@ bool logos::block_store::micro_block_exists (const ApprovedMB & block)
 bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction)
 {
     auto hash(block.Hash());
-    LOG_TRACE(log) << "epoch_block_put key " << hash.to_string();
+    LOG_DEBUG(log) << "epoch_block_put key " << hash.to_string();
 
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, epoch_db, mdb_val(hash), block.to_mdb_val(buf), 0));
@@ -1361,7 +1363,7 @@ bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block,
 
 bool logos::block_store::epoch_tip_put(const Tip &tip, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+    LOG_INFO(log) << __func__ << " tip " << tip.to_string();
 
     const uint8_t key = 0; // only one tip
     std::vector<uint8_t> buf;
@@ -1798,6 +1800,8 @@ bool logos::block_store::account_put(const AccountAddress & account, std::shared
 
 bool logos::block_store::account_put(const AccountAddress & account, const logos::account_info & info, MDB_txn * transaction)
 {
+    LOG_TRACE(log) << __func__ << " key " << account.to_string();
+
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
 
@@ -1865,7 +1869,7 @@ bool logos::block_store::receive_exists(const BlockHash & hash)
 
 bool logos::block_store::request_tip_put(uint8_t delegate_id, uint32_t epoch_number, const Tip & tip, MDB_txn * transaction)
 {
-    LOG_TRACE(log) << __func__  << " key " << (uint)delegate_id << ":" << epoch_number << " value " << tip.to_string();
+    LOG_INFO(log) << __func__  << " key " << (uint)delegate_id << ":" << epoch_number << " value " << tip.to_string();
     auto key(logos::get_request_tip_key(delegate_id, epoch_number));
 
     std::vector<uint8_t> buf;
@@ -1885,7 +1889,7 @@ bool logos::block_store::request_tip_get(uint8_t delegate_id, uint32_t epoch_num
     auto key(logos::get_request_tip_key(delegate_id, epoch_number));
     if(get(request_tips_db, mdb_val(key), val, t))
     {
-        LOG_TRACE(log) << __func__ << " cannot find " << (uint)delegate_id << ":" << epoch_number;
+        LOG_TRACE(log) << __func__ << " does not exist " << (uint)delegate_id << ":" << epoch_number;
         return true;
     }
     assert(val.size() == Tip::WireSize);

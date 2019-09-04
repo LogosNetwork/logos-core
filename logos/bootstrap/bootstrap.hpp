@@ -18,8 +18,8 @@ namespace logos
 }
 namespace Bootstrap
 {
-    constexpr uint8_t max_out_connection = 8;
-    constexpr uint8_t max_accept_connection = 16;
+    constexpr uint8_t max_out_connection = 32;
+    constexpr uint8_t max_accept_connection = 64;
 
     using Service = boost::asio::io_service;
     using CallbackQueue = std::vector<logos_global::BootstrapCompleteCB>;
@@ -73,6 +73,8 @@ namespace Bootstrap
         void stop ();
 
         void notify(logos_global::BootstrapResult res);
+
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed);
 
     private:
         static logos::endpoint bad_address;

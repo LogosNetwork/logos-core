@@ -32,9 +32,11 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
         }
         else // populate cache with database reservation
         {
-            // TODO: Check bootstrap since we might have died and now fallen behind
             _cache[account] = info;
-            // TODO: high speed bootstrap
+            // Check bootstrap since we might have died and now fallen behind
+            // TODO: high speed Bootstrapping
+            LOG_DEBUG(_log) << "ConsensusReservations::CanAcquire"
+                        << " Try Bootstrap...";
             logos_global::Bootstrap();
             return false;
         }

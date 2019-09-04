@@ -76,10 +76,10 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         ApprovedMB micro_block;
         micro_block.primary_delegate = 0xff;
         micro_block.epoch_number = e;
-        micro_block.sequence = 0;
+        micro_block.sequence = e;
         micro_block.timestamp = 0;
         micro_block.previous = microblock_hash;
-        micro_block.last_micro_block = 0;
+        micro_block.last_micro_block = 1;
         microblock_hash = micro_block.Hash();
         auto microblock_tip = micro_block.CreateTip();
         if (_store.micro_block_put(micro_block, transaction) ||
@@ -599,9 +599,12 @@ DelegateIdentityManager::P2pPropagate(
 void
 DelegateIdentityManager::Sign(uint32_t epoch_number, CommonAddressAd &ad)
 {
-    auto validator = _validator_builder.GetValidator(epoch_number);
-    auto hash = ad.Hash();
-    validator->Sign(hash, ad.signature);
+    DelegateIdentityManager::Sign(ad.Hash(), ad.signature);
+//    auto validator = _validator_builder.GetValidator(epoch_number);
+//    if(validator == nullptr)
+//    	return;
+//    auto hash = ad.Hash();
+//    validator->Sign(hash, ad.signature);
 }
 
 bool
@@ -609,6 +612,8 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
 {
     auto hash = ad.Hash();
     auto validator = _validator_builder.GetValidator(epoch_number);
+    if(validator == nullptr)
+    	return false;
     return validator->Validate(hash, ad.signature, ad.delegate_id);
 }
 
@@ -1293,6 +1298,8 @@ DelegateIdentityManager::ScheduleAd()
     {
         msec = tomsec(lapse - r2);
     }
+    //TODO Peng: at least 5 minutes, revisit after IM merge
+    msec = std::max(msec, boost::posix_time::milliseconds(1000*60*5));
 
     auto t = boost::posix_time::microsec_clock::local_time() + msec;
     LOG_DEBUG(_log) << "DelegateIdentityManager::ScheduleAd scheduling at "

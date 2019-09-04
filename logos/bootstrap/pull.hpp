@@ -6,6 +6,7 @@
 
 #include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
+#include <logos/node/node.hpp>
 
 
 namespace Bootstrap
@@ -14,6 +15,11 @@ namespace Bootstrap
     using BSBPtr = std::shared_ptr<ApprovedRB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
+
+    class BootstrapAttempt;
+    using AttemptPtr = std::shared_ptr<BootstrapAttempt>;
+
+    constexpr uint16_t BLOCK_CACHE_TIMEOUT_MS = 10000; // 10 seconds
 
     enum class PullStatus : uint8_t
     {
@@ -25,21 +31,21 @@ namespace Bootstrap
         Unknown                = 0xff
     };
 
-    class Puller
+    class Puller : public std::enable_shared_from_this<Puller>
     {
     public:
         /**
          * constructor
          * @param block_cache the block cache
          */
-        Puller(logos::IBlockCache & block_cache);
+        Puller(logos::IBlockCache & block_cache, logos::alarm & alarm);
 
         /**
          * initialize the puller
          * @param my_tips my tips
          * @param others_tips peer's tips
          */
-        bool Init(TipSet &my_tips, TipSet &others_tips);
+        bool Init(AttemptPtr a, const TipSet &my_tipset, const TipSet &others_tipset);
 
         /**
          * get a pull request
@@ -90,18 +96,24 @@ namespace Bootstrap
          */
         void PullFailed(PullPtr pull);
 
+        bool GetTipsets(TipSet &my, TipSet &others, uint8_t &mb_Qed, uint8_t &eb_Qed);
+
     private:
         void CreateMorePulls();
-        void CheckMicroProgress();
+        void CheckMicroProgressAndCreateMorePulls(bool wakeup = false);
+        bool ReduceNumBlockToDownload();
 
         void UpdateMyBSBTip(BSBPtr block);
         void UpdateMyMBTip(MBPtr block);
         void UpdateMyEBTip(EBPtr block);
 
         logos::IBlockCache & block_cache;
+        logos::alarm & alarm;
+        AttemptPtr attempt;
         TipSet my_tips;
         TipSet others_tips;
-
+        uint64_t num_blocks_to_download;
+        bool inited;
         std::mutex mtx;//for waiting_pulls and ongoing_pulls
         std::deque<PullPtr> waiting_pulls;
         std::unordered_set<PullPtr> ongoing_pulls;
@@ -112,6 +124,7 @@ namespace Bootstrap
             Micro,
             Batch,
             Batch_No_MB,
+            Batch_No_MB_Next_Epoch,
             Done
         };
         PullerState state = PullerState::Done;

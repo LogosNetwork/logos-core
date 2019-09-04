@@ -4,8 +4,9 @@
 namespace logos
 {
 
-BlockWriteQueue::BlockWriteQueue(Store &store, BlockCache *cache, std::queue<BlockHash> *unit_test_q)
-    : _eb_handler(store)
+BlockWriteQueue::BlockWriteQueue(boost::asio::io_service & service, Store &store, BlockCache *cache, std::queue<BlockHash> *unit_test_q)
+    : _service(service)
+    , _eb_handler(store)
     , _mb_handler(store)
     , _rb_handler(store)
     , _terminate(false)
@@ -85,7 +86,7 @@ bool BlockWriteQueue::VerifyContent(RBPtr block, ValidationStatus *status)
     }
 }
 
-bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
+bool BlockWriteQueue::IsBlockQueued(const BlockHash &hash)
 {
     std::lock_guard<std::mutex> lck (_q_mutex);
     return _q_cache.find(hash) != _q_cache.end();
@@ -93,17 +94,17 @@ bool BlockWriteQueue::IsBlockCached(const BlockHash &hash)
 
 bool BlockWriteQueue::BlockExists(EBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _eb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _eb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(MBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _mb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _mb_handler.BlockExists(*block);
 }
 
 bool BlockWriteQueue::BlockExists(RBPtr block)
 {
-    return IsBlockCached(block->Hash()) || _rb_handler.BlockExists(*block);
+    return IsBlockQueued(block->Hash()) || _rb_handler.BlockExists(*block);
 }
 
 void BlockWriteQueue::StoreBlock(BlockPtr ptr)
@@ -151,8 +152,17 @@ void BlockWriteQueue::WriteThread()
             {
                 _rb_handler.ApplyUpdates(*ptr.rptr, ptr.rptr->primary_delegate);
             }
-            if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.rptr);
+
+            if (_block_cache) {
+                if (_unit_test_q) {
+                    _block_cache->ProcessDependencies(ptr.rptr);
+                } else {
+                     _service.post([this, ptr]() {
+                        LOG_TRACE(_log) << "-> BlockCache:ProcessDependencies:R: " << ptr.rptr->CreateTip().to_string();
+                        this->_block_cache->ProcessDependencies(ptr.rptr);
+                    });
+                }
+            }
             ptr.rptr = nullptr;
         }
         else if (ptr.mptr)
@@ -160,15 +170,33 @@ void BlockWriteQueue::WriteThread()
             LOG_TRACE(_log) << "BlockCache:Apply:M: " << ptr.mptr->CreateTip().to_string();
             _mb_handler.ApplyUpdates(*ptr.mptr, ptr.mptr->primary_delegate);
             if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.mptr);
+            {
+                if (_unit_test_q)
+                {
+                    _block_cache->ProcessDependencies(ptr.mptr);
+                }
+                else
+                {
+                    _service.post([this, ptr]() {
+                        this->_block_cache->ProcessDependencies(ptr.mptr);
+                    });
+                }
+            }
             ptr.mptr = nullptr;
         }
         else if (ptr.eptr)
         {
             LOG_TRACE(_log) << "BlockCache:Apply:E: " << ptr.eptr->CreateTip().to_string();
             _eb_handler.ApplyUpdates(*ptr.eptr, ptr.eptr->primary_delegate);
-            if (_block_cache)
-                _block_cache->ProcessDependencies(ptr.eptr);
+            if (_block_cache) {
+                if (_unit_test_q) {
+                    _block_cache->ProcessDependencies(ptr.eptr);
+                } else {
+                    _service.post([this, ptr]() {
+                        this->_block_cache->ProcessDependencies(ptr.eptr);
+                    });
+                }
+            }
             ptr.eptr = nullptr;
         }
 

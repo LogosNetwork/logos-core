@@ -70,6 +70,14 @@ namespace Bootstrap
         void remove_connection(std::shared_ptr<BootstrapClient> client, bool blacklist);
 
         logos::alarm & alarm;
+
+        bool GetTipsets(TipSet &my_tips, TipSet &others_tips, uint8_t &mb_Qed, uint8_t &eb_Qed)
+        {
+            return puller->GetTipsets(my_tips, others_tips, mb_Qed, eb_Qed);
+        }
+
+        void wakeup();
+
     private:
 
         size_t target_connections(size_t need);
@@ -95,7 +103,7 @@ namespace Bootstrap
         const uint8_t max_connected;
         int session_id;
 
-        Puller puller;
+        std::shared_ptr<Puller> puller;
         std::condition_variable condition;
         std::atomic<bool> stopped;
         std::atomic<bool> completed;

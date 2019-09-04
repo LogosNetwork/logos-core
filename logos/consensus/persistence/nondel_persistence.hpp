@@ -22,6 +22,8 @@ public:
         PrePerpare pre_prepare(block);
         BlockHash pre_prepare_hash(pre_prepare.Hash());
         auto validator(_builder.GetValidator(block.delegates_epoch_number));
+        if(validator == nullptr)
+        	return false;
 
         if(!validator->Validate(pre_prepare_hash, block.post_prepare_sig))
         {
@@ -47,6 +49,8 @@ public:
         PrePerpare pre_prepare(block);
         BlockHash pre_prepare_hash(pre_prepare.Hash());
         auto validator(_builder.GetValidator(block.delegates_epoch_number));
+        if(validator == nullptr)
+        	return false;
 
         if(!validator->Validate(pre_prepare_hash, block.post_prepare_sig))
         {

@@ -29,7 +29,7 @@ public:
     using EBPtr = std::shared_ptr<ApprovedEB>;
     using Store = logos::block_store;
 
-    BlockWriteQueue(Store &store, BlockCache *cache = 0, std::queue<BlockHash> *unit_test_q = 0);
+    BlockWriteQueue(boost::asio::io_service & service, Store &store, BlockCache *cache = 0, std::queue<BlockHash> *unit_test_q = 0);
     ~BlockWriteQueue();
 
     bool VerifyAggSignature(EBPtr block);
@@ -40,7 +40,7 @@ public:
     bool VerifyContent(MBPtr block, ValidationStatus *status);
     bool VerifyContent(RBPtr block, ValidationStatus *status);
 
-    bool IsBlockCached(const BlockHash &hash);
+    bool IsBlockQueued(const BlockHash &hash);
 
     bool BlockExists(EBPtr block);
     bool BlockExists(MBPtr block);
@@ -49,6 +49,7 @@ public:
     void StoreBlock(EBPtr block);
     void StoreBlock(MBPtr block);
     void StoreBlock(RBPtr block);
+
 private:
     struct BlockPtr
     {
@@ -102,6 +103,7 @@ private:
     void StoreBlock(BlockPtr ptr);
     void WriteThread();
 
+    boost::asio::io_service &           _service;
     std::queue<BlockPtr>                _q;
     std::unordered_set<BlockHash>       _q_cache;
     NonDelPersistenceManager<ECT>       _eb_handler;

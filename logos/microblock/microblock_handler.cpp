@@ -191,7 +191,7 @@ MicroBlockHandler::Build(
     }
 
     // first micro block in this epoch
-    bool first_micro_block = epoch.micro_block_tip.digest == previous_micro_block_hash;
+    bool first_micro_block = previous_micro_block.last_micro_block;
 
     block.timestamp = GetStamp();
     block.previous = previous_micro_block_hash;
@@ -199,9 +199,7 @@ MicroBlockHandler::Build(
                          ? previous_micro_block.epoch_number + 1
                          : previous_micro_block.epoch_number;
     block.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
-    block.sequence = first_micro_block
-                     ? 0
-                     : previous_micro_block.sequence + 1;
+    block.sequence = previous_micro_block.sequence + 1;
 
     // Decide whether it is the last micro block by checking
     // 1) we are not in recall mode, and

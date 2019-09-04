@@ -13,6 +13,7 @@ PersistenceManager<MBCT>::Validate(
     ValidationStatus * status)
 {
     using namespace logos;
+    LOG_TRACE(_log) << "PersistenceManager<MBCT>::Validate {";
 
     if (!status || status->progress < MVP_BASE)
     {
@@ -107,50 +108,31 @@ PersistenceManager<MBCT>::Validate(
             return false;
         }
 
-        // previous and proposed microblock are in the same epoch
-        if (block.epoch_number == previous_microblock.epoch_number)
+        if (block.sequence != (previous_microblock.sequence + 1))
         {
-            if (block.sequence != (previous_microblock.sequence + 1))
-            {
-                LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed, invalid sequence # "
-                                << " hash " << block.Hash().to_string()
-                                << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
-                                << " previous block seq #:" << previous_microblock.sequence
-                                << " previous hash " << block.previous.to_string();
-                UpdateStatusReason(status, process_result::wrong_sequence_number);
-                return false;
-            }
-        }
-        // proposed microblock must be in new epoch
-        else if (block.epoch_number != (previous_microblock.epoch_number + 1) ||
-                block.sequence != 0)
-        {
-            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed, bad epoch number or sequence not 0 "
+            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed, invalid sequence # "
                             << " hash " << block.Hash().to_string()
-                            << " epoch #: " << block.epoch_number << " previous block epoch #:"
-                            << previous_microblock.epoch_number << " block seq #:" << block.sequence
+                            << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
+                            << " previous block seq #:" << previous_microblock.sequence
                             << " previous hash " << block.previous.to_string();
             UpdateStatusReason(status, process_result::wrong_sequence_number);
             return false;
         }
-    
-        /// verify can iterate the chain and the number of blocks checks out
-        BatchTipHashes start, end;
+
+        /// verify the number of blocks
+        int number_batch_blocks = 0;
         for (int del = 0; del < NUM_DELEGATES; ++del)
         {
-            start[del] = block.tips[del].digest;
-            end[del] = previous_microblock.tips[del].digest;
+            auto new_n = block.tips[del].n_th_block_in_epoch(block.epoch_number);
+            auto old_n = previous_microblock.tips[del].n_th_block_in_epoch(block.epoch_number);
+            number_batch_blocks += new_n - old_n;
         }
-        int number_batch_blocks = 0;
-        _store.BatchBlocksIterator(start, end,
-                [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
-            ++number_batch_blocks;
-        });
         if (number_batch_blocks != block.number_batch_blocks)
         {
             LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
                             << " hash " << block.Hash().to_string()
-                            << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
+                            << " number in block received=" << block.number_batch_blocks
+                            << " locally expect=" << number_batch_blocks;
             UpdateStatusReason(status, process_result::invalid_number_blocks);
             return false;
         }
@@ -159,6 +141,7 @@ PersistenceManager<MBCT>::Validate(
             status->progress = MVP_END;
     }
 
+    LOG_TRACE(_log) << "PersistenceManager<MBCT>::Validate Good}";
     return true;
 }
 

@@ -91,3 +91,8 @@ std::string Tip::to_string () const
 
     return stream.str ();
 }
+
+uint32_t Tip::n_th_block_in_epoch(uint32_t expected_epoch) const
+{
+    return (expected_epoch == epoch && !digest.is_zero()) ? sqn+1 : 0;
+}

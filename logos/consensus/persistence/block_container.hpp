@@ -5,6 +5,11 @@
 #include <list>
 #include <unordered_set>
 #include <unordered_map>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/hash.hpp>
@@ -17,6 +22,10 @@
 
 namespace logos
 {
+using boost::multi_index::indexed_by;
+using boost::multi_index::sequenced;
+using boost::multi_index::hashed_unique;
+using boost::multi_index::identity;
 
 class PendingBlockContainer
 {
@@ -25,67 +34,88 @@ public:
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    using RelianceSet = std::unordered_set<BlockHash>;
+    using BlockHashSearchQueue =
+    boost::multi_index_container<
+        BlockHash,
+        indexed_by<
+                sequenced<>,
+                hashed_unique<
+                        identity<BlockHash> >
+        >
+    >;
+    static constexpr uint Max_Recent_DB_Writes = 512;
+
     struct PendingRB {
         PendingRB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingRB(const RBPtr &block_)
+        PendingRB(const RBPtr &block_, bool verified)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
         RBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     struct PendingMB {
         PendingMB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingMB(const MBPtr &block_)
+        PendingMB(const MBPtr &block_, bool verified)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
         MBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     struct PendingEB {
         PendingEB()
             : block()
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(false)
         {
         }
 
-        PendingEB(const EBPtr &block_)
+        PendingEB(const EBPtr &block_, bool verified)
             : block(block_)
-            , continue_validate(true)
+            , reliances()
             , lock(false)
+            , direct_write(verified)
         {
         }
 
         EBPtr               block;
         ValidationStatus    status;
-        bool                continue_validate;  /* true if marked for revalidation */
+        RelianceSet         reliances;          /* revalidation if empty */
         bool                lock;               /* true if some thread validates it now */
+        bool                direct_write;       /* true if already verified by consensus logic */
     };
 
     using RPtr = std::shared_ptr<PendingRB>;
@@ -118,15 +148,24 @@ public:
             rbs[block->block->primary_delegate].push_front(block);
         }
 
+        bool empty()
+        {
+            if (eb != nullptr)
+                return false;
+            if ( ! mbs.empty())
+                return false;
+            for(auto &x :rbs)
+            {
+                if( ! x.empty())
+                    return false;
+            }
+            return true;
+        }
+
         uint32_t                        epoch_num;
         EPtr                            eb;
         std::list<MPtr>                 mbs;
-        std::unordered_set<BlockHash>   rbs_next_mb_depend_on;
         std::list<RPtr>                 rbs[NUM_DELEGATES];
-
-        //TODO optimize
-        //1 for each unprocessed tip of the oldest mb
-        //std::bitset<NUM_DELEGATES> mb_dependences;
     };
 
     struct ChainPtr
@@ -168,12 +207,11 @@ public:
 
     void BlockDelete(const BlockHash &hash);
 
-    bool AddEpochBlock(EBPtr block);
-    bool AddMicroBlock(MBPtr block);
-    bool AddRequestBlock(RBPtr block);
+    bool AddEpochBlock(EBPtr block, bool verified);
+    bool AddMicroBlock(MBPtr block, bool verified);
+    bool AddRequestBlock(RBPtr block, bool verified);
 
-    void AddHashDependency(const BlockHash &hash, ChainPtr ptr);
-    void AddAccountDependency(const AccountAddress &addr, ChainPtr ptr);
+    bool AddHashDependency(const BlockHash &hash, ChainPtr ptr);
 
     bool MarkAsValidated(EBPtr block);
     bool MarkAsValidated(MBPtr block);
@@ -187,23 +225,34 @@ public:
      */
     bool GetNextBlock(ChainPtr &ptr, uint8_t &rb_idx, bool success);
 
-    void DumpCachedBlocks();
-
 private:
     bool DeleteHashDependencies(const BlockHash &hash, std::list<ChainPtr> &chains);
-    bool DeleteAccountDependencies(const AccountAddress &addr, std::list<ChainPtr> &chains);
-    void MarkForRevalidation(std::list<ChainPtr> &chains);
+    void MarkForRevalidation(const BlockHash &hash, std::list<ChainPtr> &chains);
+    bool DeleteDependenciesAndMarkForRevalidation(const BlockHash &hash);
+
+    void DumpCachedBlocks();
+    void DumpChainTips();
 
     BlockWriteQueue &                               _write_q;
     std::list<EpochPeriod>                          _epochs;
     std::unordered_set<BlockHash>                   _cached_blocks;
     std::multimap<BlockHash, ChainPtr>              _hash_dependency_table;
-    std::multimap<AccountAddress, ChainPtr>         _account_dependency_table;
     std::mutex                                      _chains_mutex;
     std::mutex                                      _cache_blocks_mutex;
     std::mutex                                      _hash_dependency_table_mutex;
-    std::mutex                                      _account_dependency_table_mutex;
     Log                                             _log;
+
+    /*
+     * We use the _recent_DB_writes to record the hashes of blocks recently written
+     * to the DB. We need it to deal with a race condition between two threads, one
+     * try to add a hash to the _hash_dependency_table basing on out dated information
+     * and the other try to clear the same hash from the table.
+     *
+     * This is a quick and dirty fix. Alternative solutions such as lock the BlockCache
+     * (together with block validation) with a single lock, or develop a proper read cache
+     * will kill the performance or take too long to finish.
+     */
+    BlockHashSearchQueue                            _recent_DB_writes;
 };
 
 }

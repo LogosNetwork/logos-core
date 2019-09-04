@@ -156,5 +156,10 @@ using AccountPrivKey        = logos::uint256_union;
 using AccountSig            = logos::uint512_union;
 
 using Amount                = logos::amount;
+
+//BlockHash AccountAddressToBlockHash(const BlockHash & hash)
+//{
+//    return hash;
+//}
 #endif
 

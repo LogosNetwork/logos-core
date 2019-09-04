@@ -78,7 +78,7 @@ public:
      * constructor
      * @param store the database
      */
-    BlockCache(Store &store, std::queue<BlockHash> *unit_test_q = 0);
+    BlockCache(boost::asio::io_service & service, Store & store, std::queue<BlockHash> *unit_test_q = 0);
 
     /**
      * (inherited) add an epoch block to the cache

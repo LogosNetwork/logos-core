@@ -154,7 +154,12 @@ private:
     PersistenceP2p<ConsensusType::Epoch>            _epoch;
     int                                             _session_id;
     std::mutex                                      _sessions_mutex;
-    std::map<int,int>                               _sessions;
+    struct GetEndpointSession{
+    	int next;
+    	std::set<logos::endpoint> seen;
+    	GetEndpointSession(int start = 0) : next(start){}
+    };
+    std::map<int, GetEndpointSession>               _sessions;
 
     template<ConsensusType CT>
     friend class ConsensusP2p;

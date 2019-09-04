@@ -84,7 +84,7 @@ public:
     logos_beta_genesis (beta_genesis_data),
     logos_live_genesis (live_genesis_data),
     logos_test_genesis (logos_genesis_data),
-    genesis_account (logos::logos_network ==logos::logos_networks::logos_test_network ? logos_test_account : logos::logos_network ==logos::logos_networks::logos_beta_network ? logos_beta_account : logos_live_account),
+    genesis_account (logos_test_account),//logos::logos_network ==logos::logos_networks::logos_test_network ? logos_test_account : logos::logos_network ==logos::logos_networks::logos_beta_network ? logos_beta_account : logos_live_account),
     genesis_block (logos::logos_network ==logos::logos_networks::logos_test_network ? logos_test_genesis : logos::logos_network ==logos::logos_networks::logos_beta_network ? logos_beta_genesis : logos_live_genesis),
     genesis_amount (std::numeric_limits<logos::uint128_t>::max ()),
     burn_account (0)
@@ -1413,7 +1413,7 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
     switch (result)
     {
         case process_result::progress:
-            ret = process_result_dependency::not_applied;
+            ret = process_result_dependency::progress;
             break;
         case process_result::bad_signature:
             ret = process_result_dependency::not_applied;
@@ -1576,6 +1576,37 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
 
     return ret;
 }
+
+bool logos::MissingBlock(logos::process_result result)
+{
+    bool ret = false;
+    switch (ProcessResultToDependency(result))
+    {
+        case process_result_dependency::progress:
+            break;
+        case process_result_dependency::not_applied:
+            break;
+        case process_result_dependency::bad_block:
+            break;
+        case process_result_dependency::general_error_code:
+            ret = true;
+            break;
+        case process_result_dependency::previous_block:
+            ret = true;
+            break;
+        case process_result_dependency::sender_account:
+            ret = true;
+            break;
+        case process_result_dependency::last_microblock:
+            ret = true;
+            break;
+        case process_result_dependency::previous_epoch:
+            ret = true;
+            break;
+    }
+    return ret;
+}
+
 
 namespace logos_global
 {
