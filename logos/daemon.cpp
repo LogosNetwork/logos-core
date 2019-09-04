@@ -119,11 +119,7 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path, const
         config.node.logging.init (data_path);
         config_file.close ();
         boost::asio::io_service service;
-//        auto opencl (logos::opencl_work::create (config.opencl_enable, config.opencl, config.node.logging));
-//        logos::work_pool opencl_work (config.node.work_threads,
-//                opencl
-//                ? [&opencl](logos::uint256_union const & root_a) { return opencl->generate_work (root_a); }
-//                : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
+
         logos::alarm alarm (service);
         logos::node_init init;
         try
