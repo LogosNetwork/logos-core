@@ -59,7 +59,8 @@ constexpr uint64_t DEFAULT_MAX_UPLOAD_TARGET = 0;
 constexpr uint64_t MAX_UPLOAD_TIMEFRAME = 60 * 60 * 24;
 
 constexpr bool DEFAULT_FORCEDNSSEED = false;
-constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 2 * 1000;
+constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000; /** maximum size of enqueued input data in Kb */
+constexpr size_t DEFAULT_MAXRECEIVENMESS  = 2 * 1000; /** maximum number of enqueued input messages */
 constexpr size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
@@ -218,6 +219,7 @@ public:
         NetEventsInterface*         m_msgproc = nullptr;
         unsigned int                nSendBufferMaxSize = 0;
         unsigned int                nReceiveFloodSize = 0;
+        unsigned int                nReceiveFloodNMess = 0;
         uint64_t                    nMaxOutboundTimeframe = 0;
         uint64_t                    nMaxOutboundLimit = 0;
         std::vector<std::string>    vSeedNodes;
@@ -239,6 +241,7 @@ public:
         m_msgproc = connOptions.m_msgproc;
         nSendBufferMaxSize = connOptions.nSendBufferMaxSize;
         nReceiveFloodSize = connOptions.nReceiveFloodSize;
+        nReceiveFloodNMess = connOptions.nReceiveFloodNMess;
         {
             LOCK(cs_totalBytesSent);
             nMaxOutboundTimeframe = connOptions.nMaxOutboundTimeframe;
@@ -416,6 +419,7 @@ public:
     CSipHasher GetDeterministicRandomizer(uint64_t id) const;
 
     unsigned int GetReceiveFloodSize() const;
+    unsigned int GetReceiveFloodNMess() const;
 
     void WakeMessageHandler();
 
@@ -539,6 +543,7 @@ private:
 
     unsigned int                                                    nSendBufferMaxSize;
     unsigned int                                                    nReceiveFloodSize;
+    unsigned int                                                    nReceiveFloodNMess;
 
     std::vector<ListenSocket>                                       vhListenSocket;
     std::atomic<bool>                                               fNetworkActive;
