@@ -1323,7 +1323,8 @@ bool CConnman::AcceptReceivedBytes(std::shared_ptr<CNode> pnode, const char *pch
                 LOCK(pnode->cs_vProcessMsg);
                 pnode->vProcessMsg.splice(pnode->vProcessMsg.end(), pnode->vRecvMsg, pnode->vRecvMsg.begin(), it);
                 pnode->nProcessQueueSize += nSizeAdded;
-                pnode->fPauseRecv = pnode->nProcessQueueSize > nReceiveFloodSize;
+                pnode->fPauseRecv = (pnode->nProcessQueueSize > nReceiveFloodSize
+                        || pnode->vProcessMsg.size() > nReceiveFloodNMess);
             }
             WakeMessageHandler();
         }
@@ -2029,6 +2030,7 @@ CConnman::CConnman(uint64_t nSeed0In,
     nLastNodeId = 0;
     nSendBufferMaxSize = 0;
     nReceiveFloodSize = 0;
+    nReceiveFloodNMess = 0;
     flagInterruptMsgProc = false;
     SetTryNewOutboundPeer(false);
     fDiscover = true;
@@ -2475,6 +2477,11 @@ uint64_t CConnman::GetTotalBytesSent()
 unsigned int CConnman::GetReceiveFloodSize() const
 {
     return nReceiveFloodSize;
+}
+
+unsigned int CConnman::GetReceiveFloodNMess() const
+{
+    return nReceiveFloodNMess;
 }
 
 CNode::CNode(NodeId idIn,
