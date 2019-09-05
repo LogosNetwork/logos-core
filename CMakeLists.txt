@@ -366,6 +366,7 @@ add_library (node
     logos/consensus/persistence/block_write_queue.cpp
     logos/consensus/persistence/block_write_queue.hpp
     logos/consensus/primary_delegate.cpp
+    logos/consensus/delegate_map.cpp
     logos/elections/representative.cpp
     logos/elections/candidate.cpp
     logos/epoch/archiver.cpp
@@ -466,7 +467,8 @@ if (LOGOS_TEST)
             logos/p2p/test/storage_test.cpp
             logos/unit_test/advertise.cpp
             logos/unit_test/archival.cpp
-            logos/unit_test/self_send.cpp)
+            logos/unit_test/self_send.cpp
+            logos/unit_test/timers.cpp)
 
     set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
     if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)

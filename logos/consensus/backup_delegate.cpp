@@ -110,11 +110,14 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
                             << StateToString(_state);
             trace_and_halt();
         }
-        CommitMessage<CT> msg(hash);
+        //integration fix: use pre_prepare hash instead of post_prepare hash
+        CommitMessage<CT> msg(_pre_prepare_hash);
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);
         LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
-                        << ">::OnConsensusMessage - Re-broadcast Commit";
+                        << ">::OnConsensusMessage - Re-broadcast Commit"
+                        << ",hash=" << hash.to_string()
+                        << ",preprepare_hash=" << message.preprepare_hash.to_string();
         return;
     }
 
@@ -143,11 +146,76 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
     if(ProceedWithMessage(message))
     {
+        if(_pre_prepare && message.preprepare_hash == _pre_prepare_hash)
+        {
+            LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::OnConsensusMessage - PostCommit - "
+                << "Found matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << message.preprepare_hash.to_string();
+            assert(_pre_prepare);
+            _post_commit_sig = message.signature;
+            ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
+            // Must apply to DB before clearing from queue so that Archiver can fetch latest microblock sequence
+            ApplyUpdates(block, _delegate_ids.remote);
+            OnPostCommit();
+            BlocksCallback::Callback<CT>(block);
+
+            _state = ConsensusState::VOID;
+            SetPreviousPrePrepareHash(_pre_prepare_hash);
+            AdvanceCounter();
+            _pre_prepare_hash.clear();
+            _post_prepare_sig.clear();
+            _post_commit_sig.clear();
+            _post_prepare_hash.clear();
+
+            notifier->OnPostCommit(_pre_prepare->epoch_number);
+
+            std::vector<uint8_t> buf;
+            block.Serialize(buf, true, true);
+            this->Broadcast(buf.data(), buf.size(), block.type);
+        }
+        else
+        {
+            LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::OnConsensusMessage - PostCommit - "
+                << "No matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << message.preprepare_hash.to_string();
+        }
+    }
+}
+
+template <ConsensusType CT>
+void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
+{
+    LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+        << ">::OnPostCommittedBlock";
+
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
+    if (!notifier)
+    {
+        return;
+    }
+
+    auto hash = block.Hash();
+
+    //even if we haven't received the preprepare at all for this block
+    //advance the consensus state if we know it must be the next block from
+    //the remote delegate
+    if((_pre_prepare && _pre_prepare_hash == hash) || _prev_pre_prepare_hash == block.previous)
+    {
+
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::OnPostCommittedBlock-clearing matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << hash.to_string();
         assert(_pre_prepare);
-        _post_commit_sig = message.signature;
-        ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
-        // Must apply to DB before clearing from queue so that Archiver can fetch latest microblock sequence
-        ApplyUpdates(block, _delegate_ids.remote);
+        _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);
 
@@ -165,7 +233,16 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         block.Serialize(buf, true, true);
         this->Broadcast(buf.data(), buf.size(), block.type);
     }
+    else
+    {
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::OnPostCommittedBlock-no matching consensus session - "
+                << _pre_prepare_hash.to_string()
+                << " - "
+                << hash.to_string();
+    }
 }
+
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
@@ -273,6 +350,9 @@ bool BackupDelegate<CT>::Validate(const M & message)
             logos_global::Bootstrap();
             return false;
         }
+
+
+
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
         {
@@ -282,7 +362,8 @@ bool BackupDelegate<CT>::Validate(const M & message)
                     << message.signature.sig.to_string() << " "
                     << message.signature.map.to_string();
         }
-        return good;
+        //only validate quorum if sig is valid
+        return good && ValidateQuorum(message);
     }
 
     if(message.type == MessageType::Post_Commit)
@@ -299,7 +380,10 @@ bool BackupDelegate<CT>::Validate(const M & message)
             logos_global::Bootstrap();
             return false;
         }
-        return _validator.Validate(_post_prepare_hash, message.signature);
+
+        //only validate quorum if sig is valid
+        return _validator.Validate(_post_prepare_hash, message.signature)
+            && ValidateQuorum(message);
 
         // We received the PostCommit without
         // having sent a commit message. We're
@@ -316,6 +400,49 @@ bool BackupDelegate<CT>::Validate(const M & message)
                     << StateToString(_state);
 
     return false;
+}
+template<ConsensusType CT>
+template<typename M>
+bool BackupDelegate<CT>::ValidateQuorum(const M & message)
+{
+    std::shared_ptr<PrimaryDelegate> primary = _primary.lock();
+    if(!primary)
+    {
+        LOG_FATAL(_log) << "BackupDelegate<" << ConsensusToName(CT) 
+            << ">::ValidateQuorum - Attempting to validate "
+                    << MessageToName(message)
+                    << " - failed to get shared_ptr to primary";
+        trace_and_halt();
+    }
+
+    uint128_t vote = 0;
+    uint128_t stake = 0;
+
+
+    for(size_t i = 0; i < message.signature.map.size(); ++i)
+    {
+        if(message.signature.map[i])
+        {
+            vote += primary->_weights[i].vote_weight;
+            stake += primary->_weights[i].stake_weight;    
+        }
+    }
+    if(vote >= primary->_vote_quorum && stake >= primary->_stake_quorum)
+    {
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+            << ">::ValidateQuorum - Quorum is valid for "
+            << MessageToName(message) << " ,preprepare_hash="
+            << message.preprepare_hash.to_string();
+        return true;
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                << ">::ValidateQuorum - Quorum is not valid for " 
+                << MessageToName(message) << " ,preprepare_hash="
+                << message.preprepare_hash.to_string();
+        return false;
+    }
 }
 
 template<ConsensusType CT>
@@ -407,7 +534,7 @@ bool BackupDelegate<CT>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
-        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Proceeding with PostCommit"
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Disregarding PostCommit"
                        << " message received while in " << StateToString(_state);
 
         // TODO: high speed Bootstrapping

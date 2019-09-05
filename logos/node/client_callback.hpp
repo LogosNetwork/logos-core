@@ -69,7 +69,7 @@ public:
     void SendMessage (std::shared_ptr<std::string> body);
 
     template <ConsensusType CT>
-    void NotifyClient (PostCommittedBlock<CT> &block)
+    void NotifyClient (PostCommittedBlock<CT> const &block)
     { // implementation of non-specialized template needs to be visible to all usages
         _service.post([this, block] () {
             SendMessage(std::make_shared<std::string> (block.ToJson ()));
@@ -77,7 +77,7 @@ public:
     }
 
     template <ConsensusType CT>
-    static void Callback(PostCommittedBlock<CT> &block)
+    static void Callback(PostCommittedBlock<CT> const &block)
     {
         _instance->NotifyClient(block);
     }

@@ -3,13 +3,15 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
 #include <logos/lib/utility.hpp>
+#include <random>
+#include <logos/lib/epoch_time_util.hpp>
 
 // ConsensusType::Request
 //
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Request>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Request>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Request>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&,bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
@@ -19,7 +21,7 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Reques
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&,bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
@@ -29,13 +31,11 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroB
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&, bool reproposing);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 
-const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
-const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
                                  MessageValidator & validator,
@@ -80,6 +80,8 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
             PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
             _post_prepare_hash = response.ComputeHash();
             AdvanceState(ConsensusState::POST_PREPARE);
+            LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Prepare) - APPROVED"
+                << "-hash=" << _pre_prepare_hash.to_string();
             // At this point any incoming Prepare messages will still get ignored because of state mismatch
             Send<PostPrepareMessage<C>>(response);
 
@@ -92,6 +94,8 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
             break;
         }
         case ProceedAction::DO_NOTHING :
+            LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Prepare) - DO_NOTHING"
+                << "hash=" << _pre_prepare_hash.to_string();
             break;
     }
 }
@@ -108,6 +112,13 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t r
         AdvanceState(ConsensusState::POST_COMMIT);
         // At this point, old messages will be ignored for not being in correct state
         OnConsensusReached();
+        LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Commit) - APPROVED"
+            << "-hash=" << _pre_prepare_hash.to_string();
+    }
+    else
+    {
+        LOG_INFO(_log) << "PrimaryDelegate::ProcessMessage(Commit) - DO_NOTHING"
+            << "hash=" << _pre_prepare_hash.to_string();
     }
 }
 
@@ -138,11 +149,18 @@ template<typename M>
 void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id)
 {
     LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type " << MessageToName(message);
+
+    //Integration Fix: Need to check that we didn't already tally for this 
+    //remote_delegate. Could be a re-broadcast, or could have received message 
+    //via direct connection and p2p
+    if(_signatures.find(remote_delegate_id) != _signatures.end())
+    {
+        return;
+    }
     _prepare_vote += _weights[remote_delegate_id].vote_weight;
     _prepare_stake += _weights[remote_delegate_id].stake_weight;
-
-    _signatures.push_back({remote_delegate_id,
-                           message.signature});
+    MessageValidator::DelegateSignature sig{remote_delegate_id, message.signature};
+    _signatures[remote_delegate_id] = sig;
 }
 
 void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Request> & message, uint8_t remote_delegate_id)
@@ -224,15 +242,37 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::CycleTimers(bool cancel)
+void PrimaryDelegate::CycleTimers(bool cancel, bool reproposing)
 {
     if(cancel)
     {
         CancelTimer();
     }
 
-    _primary_timer.expires_from_now(PRIMARY_TIMEOUT);
+    LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<" << ConsensusToName(C)
+        << ">-"
+        << "reproposing=" << reproposing
+        << "num_proposals=" << (int)_num_proposals;
 
+    if(reproposing)
+    {
+        Seconds seconds(EpochTimeUtil::GetTimeout<C>(_num_proposals,_delegate_id));
+
+        LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<"
+            << ConsensusToName(C) << ">-"
+            << "timeout is " << seconds
+            << ",_num_proposals=" << (int)_num_proposals;
+        _primary_timer.expires_from_now(seconds);
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "PrimaryDelegate::CycleTimers<"
+            << ConsensusToName(C) << ">-"
+            << "timeout is " << PRIMARY_TIMEOUT.count()
+            << ",_num_proposals=" << (int)_num_proposals;
+        Seconds seconds((long)PRIMARY_TIMEOUT.count());
+        _primary_timer.expires_from_now(seconds);
+    }
     std::weak_ptr<PrimaryDelegate> this_w = shared_from_this();
     if(StateReadyForConsensus())
     {
@@ -300,7 +340,7 @@ void PrimaryDelegate::UpdateVotes()
 {}
 
 template<ConsensusType C>
-void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
+void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block, bool reproposing)
 {
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
@@ -312,8 +352,16 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _validator.Sign(_pre_prepare_hash, _pre_prepare_sig);
 
     _cur_batch_timestamp = block.timestamp;
+    if(reproposing)
+    {
+        _num_proposals++;
+    }
+    else
+    {
+        _num_proposals = 1;
+    }
 
-    CycleTimers<C>();
+    CycleTimers<C>(false,reproposing);
 }
 
 bool PrimaryDelegate::StateReadyForConsensus()
@@ -346,6 +394,8 @@ void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const
 
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
+    LOG_INFO(_log) << "PrimaryDelegate::ReachedQuorum - _vote_quorum=" << _vote_quorum
+        << "-_stake_quorum=" << _stake_quorum << "vote=" << vote << ",stake=" << stake;
     return (vote >= _vote_quorum) && (stake >= _stake_quorum);
 }
 
@@ -376,6 +426,13 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
 
         return ProceedAction::DO_NOTHING;
     }
+
+    LOG_INFO(_log) << "PrimaryDelegate - Received "
+        << MessageToName(message)
+        << " message while in "
+        << StateToString(_state)
+        << ", message pre_prepare hash: " << message.preprepare_hash.to_string()
+        << ", internal pre_prepare hash: " << _pre_prepare_hash.to_string();
 
     if(_state != expected_state || message.preprepare_hash != _pre_prepare_hash)
     {
@@ -408,11 +465,14 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
     // ReachedQuorum returns true iff the whole Block gets enough vote + stake
     if(message.type != MessageType::Rejection && ReachedQuorum())
     {
+        LOG_INFO(_log) << "PrimaryDelegate::ProceedAction-Quorum is reached! _pre_prepare_hash=" 
+            << _pre_prepare_hash.to_string() << "ConsensusState=" << StateToString(_state);
         bool sig_aggregated = false;
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
             // need my own sig
-            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            MessageValidator::DelegateSignature sig{_delegate_id, _pre_prepare_sig};
+            _signatures[_delegate_id] = sig;
             _post_prepare_sig.map.reset();
             sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
         }
@@ -421,7 +481,8 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
             // need my own sig
             DelegateSig my_commit_sig;
             _validator.Sign(_post_prepare_hash, my_commit_sig);
-            _signatures.push_back({_delegate_id, my_commit_sig});
+            MessageValidator::DelegateSignature sig{_delegate_id, my_commit_sig};
+            _signatures[_delegate_id] = sig;
             _post_commit_sig.map.reset();
             sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
         }
@@ -448,6 +509,11 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         _state_changing = true;
         return ProceedAction::REJECTED;
     }
+
+
+    LOG_INFO(_log) << "PrimaryDelegate::ProceedAction-Quorum not reached! _pre_prepare_hash=" 
+        << _pre_prepare_hash.to_string() << "ConsensusState=" << StateToString(_state);
+    
     // Then either
     // 1) a standard phase message came in but we haven't reached quorum yet, or
     // 2a) a rejection message came in but hasn't cleared all of the BSB's txns hashes or

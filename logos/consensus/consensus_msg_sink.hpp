@@ -46,6 +46,11 @@ public:
     /// @returns true on success
     bool Push(const uint8_t * data, uint8_t version, MessageType message_type,
               ConsensusType consensus_type, uint32_t payload_size, bool is_p2p);
+
+
+    template <ConsensusType CT>
+    bool Push(PostCommittedBlock<CT> const & block);
+
     /// Pops message from the queue and post for consuming to the thread pool
     void Pop();
     /// Post the message for consuming on the thread pool
