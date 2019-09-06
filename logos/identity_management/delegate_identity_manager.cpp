@@ -18,6 +18,11 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <thread>
+
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
@@ -44,7 +49,7 @@ DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE HARD-CODED PUB KEYS!!! TODO
-/// ONLY FOR GENERATING LOGS
+/// ONLY FOR GENERATING LOGS (REMOVE LATER)
 void
 DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, logos::genesis_config &config)
 {
@@ -198,7 +203,6 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, lo
                 }
             }
 
-
             LOG_INFO(_log) << __func__ << "bls public key for delegate i=" << (int)i
                             << " pub_key=" << pub.to_account();
             if(i < NUM_DELEGATES)
@@ -263,6 +267,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, Ge
     };
     for (int e = 0; e <= GENESIS_EPOCH; e++)
     {
+        // Create microblock and place in DB
         microblock_hash = config.gen_micro[e].Hash();
         auto microblock_tip = config.gen_micro[e].CreateTip();
 
@@ -277,6 +282,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, Ge
         update("micro block", config.gen_micro[e], microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
+        // Create epochs and place in DB
         config.gen_epoch[e].micro_block_tip = microblock_tip;
         epoch_hash = config.gen_epoch[e].Hash();
         if(_store.epoch_put(config.gen_epoch[e], transaction) ||
@@ -293,6 +299,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, Ge
 
     for (int del = 0; del < NUM_DELEGATES*2; ++del)
     {
+        // TODO: REPLACE ONCE IM IS IN
         char buff[5];
         sprintf(buff, "%02x", del + 1);
         stringstream str(bls_keys[del]);
@@ -343,27 +350,41 @@ DelegateIdentityManager::Init(const Config &config)
 
         EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
 
+        /*
         boost::filesystem::path data_path(boost::filesystem::current_path());
         logos::genesis_config genconfig;
         auto config_path((data_path / "genesis.json"));
         std::fstream config_file;
         auto error(logos::fetch_object(genconfig, config_path, config_file));
+        */
+
+        NTPClient nt("pool.ntp.org");
+
+        nt.asyncNTP();
+        if (nt.computeDelta() > 20)
+        {
+            LOG_INFO(_log) << "NTP is too much out of sync";
+            trace_and_halt();
+        }
 
         boost::filesystem::path gen_data_path(boost::filesystem::current_path());
         GenesisBlock genesisBlock;
-        auto gen_config_path((gen_data_path / "genlogos.json"));
         std::fstream gen_config_file;
-        auto error1(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
 
-        if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
-        {
-            LOG_INFO(_log) << "Genesis Log input failed signature " << genesisBlock.signature.to_string();
-            return;
-        }
+
 
         Tip epoch_tip;
         BlockHash &epoch_tip_hash = epoch_tip.digest;
         if (_store.epoch_tip_get(epoch_tip)) {
+            auto gen_config_path((gen_data_path / "genlogos.json"));
+            auto error(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
+
+            if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
+            {
+                LOG_INFO(_log) << "Genesis Log input failed signature " << genesisBlock.signature.to_string();
+                trace_and_halt();
+            }
+
             //CreateGenesisBlocks(transaction, genconfig);
             CreateGenesisBlocks(transaction, genesisBlock);
             epoch_number = GENESIS_EPOCH + 1;
@@ -469,7 +490,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, 
         Send request(logos::logos_test_account,   // account
                      genesis_account.head,        // previous
                      genesis_account.block_count, // sequence
-                     pub,                    // link/to
+                     pub,                         // link/to
                      amount,
                      0,                           // transaction fee
                      logos::test_genesis_key.prv.data, // SG: Sign with correct key
@@ -478,6 +499,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, 
         LOG_INFO(_log) << "genaccount {\"account\": \"" << pub.to_string() << "\", \"amount\": \""<<
             amount.to_string_dec() << "\", \"previous\": \"" << genesis_account.head.to_string() << "\", \"sequence\": \"" <<
             std::to_string(genesis_account.block_count) << "\", \"signature\": \"" << request.signature.to_string() << "\"}";
+        LOG_INFO(_log) << "sendhash " << request.GetHash().to_string();
         genesis_account.SetBalance(genesis_account.GetBalance() - amount,0,transaction);
         genesis_account.head = request.GetHash();
         genesis_account.block_count++;
@@ -516,7 +538,6 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, 
 void
 DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction, GenesisBlock &config)
 {
-
     LOG_INFO(_log) << "DelegateIdentityManager::CreateGenesisBlocks, creating genesis accounts";
     logos::account_info genesis_account;
     if (_store.account_get(logos::logos_test_account, genesis_account, transaction))
@@ -1726,11 +1747,11 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             uint64_t work = 0;
 
             gen_sends[idx] = Send(logos::logos_test_account,   // account
-                     previous,        // previous
-                     sequence, // sequence
-                     account,                    // link/to
+                     previous,                                 // previous
+                     sequence,                                 // sequence
+                     account,                                  // link/to
                      amount,
-                     0,                           // transaction fee
+                     0,                                        // transaction fee
                      signature,
                      work);
 
@@ -1738,6 +1759,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             idx++;
         }
 
+        // Deserialize microblocks from config
         auto micro (tree_a.get_child("micros"));
         idx = 0;
         end = micro.end();
@@ -1753,6 +1775,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             idx++;
         }
 
+        // Deserialize epochs from config
         auto epoch (tree_a.get_child("epochs"));
         idx = 0;
         end = epoch.end();
@@ -1785,6 +1808,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             idx++;
         }
 
+        // Deserialize StartRepresenting requests for genesis delegates from config
         auto starts (tree_a.get_child("start"));
         idx = 0;
         end = starts.end();
@@ -1802,6 +1826,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             idx++;
         }
 
+        // Deserialize AnnounceCandidacy requests for genesis delegates from config
         auto announces (tree_a.get_child("announce"));
         idx = 0;
         end = announces.end();
@@ -1819,6 +1844,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             announce[idx].bls_key = dpk;
             announce[idx].signature.decode_hex(it->second.get<std::string>("signature"));
 
+            // Create corresponding CandidateInfo for each genesis delegate
             candidate[idx].next_stake = stake;
             candidate[idx].cur_stake = stake;
             candidate[idx].bls_key = dpk;
@@ -1828,6 +1854,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             idx++;
         }
 
+        // Get signature from config
         signature.decode_hex(tree_a.get<std::string>("signature"));
         status = blake2b_final(&hash, digest.data(), sizeof(BlockHash));
         //assert(status == 0);
@@ -1843,7 +1870,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
     return true;
 }
 
-// For creating logs only
+// For creating logs only (remove later)
 void logos::genesis_config::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
 {
 
@@ -1861,6 +1888,8 @@ bool GenesisBlock::VerifySignature(AccountPubKey const & pub) const
                                   const_cast<AccountPubKey&>(pub).data(),
                                   const_cast<AccountSig&>(signature).data());
 }
+
+// For creating logs only (remove later)
 void GenesisBlock::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
 {
 
@@ -1870,6 +1899,7 @@ void GenesisBlock::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
                  const_cast<AccountPubKey&>(pub).data(),
                  signature.data());
 }
+
 bool GenesisBlock::Validate(logos::process_return & result) const
 {
     for (int i = 0; i < NUM_DELEGATES*2; ++i)
@@ -1881,4 +1911,157 @@ bool GenesisBlock::Validate(logos::process_return & result) const
             return false;
     }
     return true;
+}
+
+/**
+ *  NTPClient
+ *  @Param i_hostname - The time server host name which you are connecting to obtain the time
+ *                      eg. the pool.ntp.org project virtual cluster of timeservers
+ */
+NTPClient::NTPClient(string i_hostname)
+    :_host_name(i_hostname),_port(123),_ntp_time(0),_delay(0)
+{
+    //Host name is defined by you and port number is 123 for time protocol
+}
+
+/**
+ * RequestDatetime_UNIX()
+ * @Returns long - number of seconds from the Unix Epoch start time
+ */
+long NTPClient::RequestDatetime_UNIX()
+{
+    return NTPClient::RequestDatetime_UNIX_s(this);
+}
+
+long NTPClient::RequestDatetime_UNIX_s(NTPClient *this_l)
+{
+    time_t timeRecv;
+
+    boost::asio::io_service io_service;
+
+    boost::asio::ip::udp::resolver resolver(io_service);
+    boost::asio::ip::udp::resolver::query query(
+                                                 boost::asio::ip::udp::v4(),
+                                                 this_l->_host_name,
+                                                 "ntp");
+
+    boost::asio::ip::udp::endpoint receiver_endpoint = *resolver.resolve(query);
+
+    boost::asio::ip::udp::socket socket(io_service);
+    socket.open(boost::asio::ip::udp::v4());
+
+    boost::array<unsigned char, 48> sendBuf  = {010,0,0,0,0,0,0,0,0};
+
+    socket.send_to(boost::asio::buffer(sendBuf), receiver_endpoint);
+
+    boost::array<unsigned long, 1024> recvBuf;
+    boost::asio::ip::udp::endpoint sender_endpoint;
+
+    try{
+        size_t len = socket.receive_from(
+                                            boost::asio::buffer(recvBuf),
+                                            sender_endpoint
+                                        );
+
+        timeRecv = ntohl((time_t)recvBuf[4]);
+
+        timeRecv-= 2208988800U;  //Unix time starts from 01/01/1970 == 2208988800U
+
+    }catch (std::exception& e){
+
+        std::cerr << e.what() << std::endl;
+
+    }
+
+    this_l->setNtpTime(timeRecv);
+    return timeRecv;
+}
+
+void NTPClient::timeout_s(NTPClient *this_l)
+{
+    int count = 0;
+    static const int MAX = NTPClient::MAX_TIMEOUT;
+
+    while(true) {
+        if(this_l->getNtpTime()) {
+            return;
+        }
+        if(count++ > MAX) {
+            break;
+        }
+        sleep(1);
+    }
+
+    std::cout << "NTPClient::timeout_s udp socket timed out\n";
+}
+
+void NTPClient::asyncNTP()
+{
+    _ntp_time = 0;
+    std::thread t1(NTPClient::RequestDatetime_UNIX_s,this);
+    t1.detach();
+    std::thread t2(NTPClient::timeout_s,this);
+    t2.join();
+}
+
+bool NTPClient::timedOut()
+{
+    if(!_ntp_time) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+time_t NTPClient::getTime()
+{
+    return _ntp_time;
+}
+
+time_t NTPClient::getDefault()
+{
+    return (_ntp_time=time(0));
+}
+
+void NTPClient::start_s(NTPClient *this_l)
+{
+    while(true) {
+        this_l->asyncNTP();
+        if(this_l->timedOut()) {
+            this_l->setNtpTime(0);
+            this_l->setDelay(0);
+        }
+        sleep(60*60); // Sleep for one hour.
+    }
+}
+
+time_t NTPClient::init()
+{
+    asyncNTP();
+    std::thread t1(start_s,this);
+    t1.detach();
+    return computeDelta();
+}
+
+time_t NTPClient::computeDelta()
+{
+    if(timedOut()) {
+        if(_delay) {
+            return _delay; // Previous delta.
+        } else {
+            return (_delay=0); // Zero.
+        }
+    }
+    // compute new delta.
+    return (_delay=(abs(time(0) - _ntp_time)));
+}
+
+time_t NTPClient::getCurrentDelta()
+{
+    return _delay;
+}
+
+time_t NTPClient::now()
+{
+    return time(0) + _delay; // Our time + ntp delta.
 }
