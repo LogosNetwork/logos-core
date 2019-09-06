@@ -20,6 +20,12 @@ class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
     using Hashes      = std::unordered_set<BlockHash>;
     using uint128_t   = logos::uint128_t;
 
+    // Pairs a set of Delegate ID's with indexes,
+    // where the indexes represent the requests
+    // supported by those delegates.
+    using SupportMap  = std::pair<std::unordered_set<uint8_t>,
+                                  std::unordered_set<uint64_t>>;
+
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
@@ -89,6 +95,11 @@ public:
     {
         return _delegates_connected;
     }
+
+    static std::list<SupportMap> GenerateSubsets(uint128_t vote,
+                                                 uint128_t stake,
+                                                 const WeightList & weights);
+
 protected:
 
     /// Commit the block to the store.

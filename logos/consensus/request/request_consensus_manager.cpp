@@ -457,11 +457,6 @@ RequestConsensusManager::OnPrePrepareRejected()
         return;
     }
 
-    // Pairs a set of Delegate ID's with indexes,
-    // where the indexes represent the requests
-    // supported by those delegates.
-    using SupportMap = std::pair<std::unordered_set<uint8_t>,
-                                 std::unordered_set<uint64_t>>;
 
     // TODO: Hash the set of delegate ID's to make
     //       lookup constant rather than O(n).
