@@ -96,9 +96,12 @@ public:
         return _delegates_connected;
     }
 
+    template<typename F>
     static std::list<SupportMap> GenerateSubsets(uint128_t vote,
                                                  uint128_t stake,
-                                                 const WeightList & weights);
+                                                 uint64_t request_count,
+                                                 const WeightList & weights,
+                                                 const F & reached_quorum);
 
 protected:
 
