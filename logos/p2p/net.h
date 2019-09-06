@@ -30,6 +30,71 @@
 #include <uint256.h>
 #include <threadinterrupt.h>
 #include <chainparams.h>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/strand.hpp>
+
+namespace logos{
+    class DNSHandler;
+    class ip_config
+    {
+    public:
+        ip_config();
+        bool deserialize_json (bool &, boost::property_tree::ptree &);
+        Log _log;
+        std::string ips [64];
+    };
+    void open_or_create1 (std::fstream &, std::string const &);
+    // Reads a json object from the stream and if was changed, write the object back to the stream
+    template <typename T>
+    bool fetch_object (T & object, boost::filesystem::path const & path_a, std::fstream & stream_a)
+    {
+        bool error (false);
+        logos::open_or_create1 (stream_a, path_a.string ());
+    if (!stream_a.fail ())
+    {
+        boost::property_tree::ptree tree;
+        try
+        {
+            boost::property_tree::read_json (stream_a, tree);
+        }
+        catch (std::runtime_error const &)
+        {
+            auto pos (stream_a.tellg ());
+            if (pos != std::streampos (0))
+            {
+                error = true;
+            }
+        }
+        if (!error)
+        {
+            auto updated (false);
+            error = object.deserialize_json (updated, tree);
+            if (!error && updated)
+            {
+                stream_a.close ();
+                stream_a.open (path_a.string (), std::ios_base::out | std::ios_base::trunc);
+                try
+                {
+                    boost::property_tree::write_json (stream_a, tree);
+                }
+                catch (std::runtime_error const &)
+                {
+                    error = true;
+                }
+            }
+        }
+    }
+    return error;
+}
+}
 
 class CNode;
 
@@ -197,9 +262,19 @@ struct LocalServiceInfo
     int nPort;
 };
 
+namespace // unnamed namespace to prevent visibility in other files
+{
+    namespace HTTP  = boost::beast::http;
+}
+
 class NetEventsInterface;
+class DNSHandler;
 class CConnman
 {
+protected:
+    using Service     = boost::asio::io_service;
+    using TCP         = boost::asio::ip::tcp;
+
 public:
 
     enum NumConnections
@@ -454,6 +529,8 @@ public:
     bool                                                            fLogIPs;
     bool                                                            fDiscover;
     bool                                                            fListen;
+    std::shared_ptr<DNSHandler>                                     handler;
+    
 
     /** Subversion as sent to the P2P network in `version` messages */
     std::string                                                     strSubVersion;
@@ -845,6 +922,44 @@ public:
     //! Sets the addrName only if it was not previously set
     void MaybeSetAddrName(const std::string& addrNameIn);
     friend class AsioSession;
+};
+
+class DNSHandler : public std::enable_shared_from_this<DNSHandler>
+{
+
+    using Service  = boost::asio::io_service;
+    using Endpoint = boost::asio::ip::tcp::endpoint;
+    using Socket   = boost::asio::ip::tcp::socket;
+    using Request  = boost::beast::http::request<boost::beast::http::string_body>;
+    using Response = boost::beast::http::response<boost::beast::http::string_body>;
+    using Buffer   = boost::beast::flat_buffer;
+    using Iter     = boost::asio::ip::tcp::resolver::iterator;
+
+public:
+
+    DNSHandler(const Endpoint callback_endpoint, Iter & iter,
+                    Service & service);
+    void Start();
+
+    std::string ips [64];
+private:
+
+    void OnConnect(const boost::system::error_code & ec);
+    void OnWrite(const boost::system::error_code & ec, size_t bytes);
+    void OnRead(boost::system::error_code const & ec, size_t bytes);
+
+    // XXX: Do not use this object at all
+    //      after calling this method.
+    void Done();
+
+    Socket                    _socket;
+    Endpoint                  _callback_endpoint;
+    std::shared_ptr<Request>  _request;
+    std::shared_ptr<Buffer>   _buffer;
+    std::shared_ptr<Response> _response;
+    Log                       _log;
+    Iter                      _iter;
+
 };
 
 #endif // BITCOIN_NET_H
