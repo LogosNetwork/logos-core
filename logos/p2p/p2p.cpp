@@ -449,6 +449,7 @@ public:
         connOptions.uiInterface = &uiInterface;
         connOptions.m_msgproc = peerLogic.get();
         connOptions.nSendBufferMaxSize = 1000*Args.GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+        connOptions.nSendBufferMaxNMess = DEFAULT_MAXSENDNMESS;
         connOptions.nReceiveFloodSize = 1000*Args.GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
         connOptions.nReceiveFloodNMess = DEFAULT_MAXRECEIVENMESS;
         connOptions.m_added_nodes = Args.GetArgs("-addnode");

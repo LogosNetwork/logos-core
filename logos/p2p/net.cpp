@@ -985,7 +985,8 @@ bool CConnman::SocketSendFinish(std::shared_ptr<CNode> pnode, int nBytes)
         if (nBytes == data.size())
         {
             pnode->nSendSize -= nBytes;
-            pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize;
+            pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize
+                    || pnode->vSendMsg.size() > nSendBufferMaxNMess;
             ++it;
         }
         else
@@ -2595,7 +2596,7 @@ void CConnman::PushMessage(std::shared_ptr<CNode> pnode, CSerializedNetMsg&& msg
         pnode->mapSendBytesPerMsgCmd[msg.command] += nTotalSize;
         pnode->nSendSize += nTotalSize;
 
-        if (pnode->nSendSize > nSendBufferMaxSize)
+        if (pnode->nSendSize > nSendBufferMaxSize || pnode->vSendMsg.size() > nSendBufferMaxNMess)
             pnode->fPauseSend = true;
         pnode->vSendMsg.push_back(std::move(serializedHeader));
         if (nMessageSize)
