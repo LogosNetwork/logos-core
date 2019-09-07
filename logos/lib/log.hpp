@@ -16,3 +16,8 @@ using Log = severity_logger<severity_level>;
 #define LOG_WARN(logger)  BOOST_LOG_SEV(logger, boost::log::trivial::warning)
 #define LOG_ERROR(logger) BOOST_LOG_SEV(logger, boost::log::trivial::error)
 #define LOG_FATAL(logger) BOOST_LOG_SEV(logger, boost::log::trivial::fatal)
+
+namespace logos_global
+{
+    void FlushAndStopFileLogger();
+}
