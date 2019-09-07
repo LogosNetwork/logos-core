@@ -718,7 +718,7 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
         pfrom->nProcessQueueSize -= msgs.front().vRecv.size() + CMessageHeader::HEADER_SIZE;
         bool oldfPauseRecv = pfrom->fPauseRecv;
         pfrom->fPauseRecv = (pfrom->nProcessQueueSize > connman->GetReceiveFloodSize()
-                || pfrom->vProcessMsg.size() > connman->GetReceiveFloodNMess());
+                || pfrom->vProcessMsg.size() + pfrom->nRecvMsgSize > connman->GetReceiveFloodNMess());
         if (oldfPauseRecv && !pfrom->fPauseRecv)
         {
             pfrom->session->start();

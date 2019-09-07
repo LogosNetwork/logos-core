@@ -839,7 +839,10 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete
         // get current incomplete message, or create a new one
         if (vRecvMsg.empty() ||
                 vRecvMsg.back().complete())
+        {
             vRecvMsg.push_back(CNetMessage(session->connman.Params().MessageStart(), SER_NETWORK, INIT_PROTO_VERSION));
+            nRecvMsgSize = vRecvMsg.size();
+        }
 
         CNetMessage& msg = vRecvMsg.back();
 
@@ -1323,8 +1326,9 @@ bool CConnman::AcceptReceivedBytes(std::shared_ptr<CNode> pnode, const char *pch
                 LOCK(pnode->cs_vProcessMsg);
                 pnode->vProcessMsg.splice(pnode->vProcessMsg.end(), pnode->vRecvMsg, pnode->vRecvMsg.begin(), it);
                 pnode->nProcessQueueSize += nSizeAdded;
+                pnode->nRecvMsgSize = pnode->vRecvMsg.size();
                 pnode->fPauseRecv = (pnode->nProcessQueueSize > nReceiveFloodSize
-                        || pnode->vProcessMsg.size() > nReceiveFloodNMess);
+                        || pnode->vProcessMsg.size() + pnode->nRecvMsgSize > nReceiveFloodNMess);
             }
             WakeMessageHandler();
         }
