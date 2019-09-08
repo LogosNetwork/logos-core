@@ -22,6 +22,12 @@
 #define PROPAGATE_HASH_BUCKET_LOG       4
 #define PROPAGATE_HASH_BUCKET_SIZE      (1 << PROPAGATE_HASH_BUCKET_LOG)
 
+/*
+ * This hash table by default has 2^16 buckets, each bucket has 16 entries.
+ * In total there is 2^20 entries.
+ * Entries in each bucket are shifted when new entry come.
+ * Statistically it looks like FIFO.
+ */
 class PropagateHash
 {
     using cheap_hash = uint64_t;
@@ -167,6 +173,7 @@ public:
         return next_label;
     }
 
+    /* This function is used only in unit tests, use GetNextHandle() elsewhere. */
     const PropagateMessage *GetNext(uint64_t &current_label, bool important_only = false)
     {
         std::lock_guard<std::mutex> lock(mutex);
