@@ -102,7 +102,14 @@ public:
 };
 
 typedef boost::log::sinks::text_file_backend log_file_backend;
-typedef boost::log::sinks::asynchronous_sink<log_file_backend> log_file_sink;
+typedef boost::log::sinks::asynchronous_sink<
+        log_file_backend,
+        boost::log::sinks::bounded_fifo_queue<               /*< log record queueing strategy >*/
+                1000,                                        /*< record queue capacity >*/
+                boost::log::sinks::drop_on_overflow          /*< overflow handling policy >*/
+        >
+> log_file_sink;
+constexpr int logger_thread_nice = 19;
 
 class logging
 {

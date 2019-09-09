@@ -263,7 +263,7 @@ void logos::file_logger::init (boost::filesystem::path const & log_file_path,
                }
                else
                {
-                   int low_priority_nice = 19;
+                   int low_priority_nice = logger_thread_nice;
                    int res = nice(low_priority_nice);
                    if(res != low_priority_nice)
                    {
