@@ -1785,6 +1785,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             gen_epoch[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
             gen_epoch[idx].sequence = 0;
             gen_epoch[idx].timestamp = 0;
+            gen_epoch[idx].total_RBs = 0;
             gen_epoch[idx].previous.decode_hex(it->second.get<std::string>("previous"));
             auto delegates (it->second.get_child("delegates"));
             int del_idx = 0;
@@ -1821,6 +1822,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             start[idx].epoch_num = 0;
             start[idx].origin = pub;
             start[idx].stake = stake;
+            start[idx].set_stake = true;
             start[idx].signature.decode_hex(it->second.get<std::string>("signature"));
             start[idx].Hash(hash);
             idx++;
