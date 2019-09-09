@@ -1553,11 +1553,24 @@ void CConnman::ThreadDNSAddressSeed()
         if (!resolveSource.SetInternal(host)) {
             continue;
         }
-
+        /*
         //Local = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())));
         for (int i = 0; i < 32; i++){
             char cstr[genconfig.ips[i].size() + 1];
             strcpy(cstr, genconfig.ips[i].c_str());
+            addr =  CAddress(CService(LookupNumeric(cstr, GetListenPort())));
+            vAdd.push_back(addr);
+            //CNetAddr resolveSource;
+            //addrman.Add (vAdd, resolveSource, 0);
+
+            found++;
+        }
+        */
+        for (int i = 0; i < 32; i++){
+            std::cout << "try: " << handler->ips[i] << std::endl;
+            char cstr[handler->ips[i].size() + 1];
+            strcpy(cstr, handler->ips[i].c_str());
+            std::cout << "trying " << cstr << std::endl;
             addr =  CAddress(CService(LookupNumeric(cstr, GetListenPort())));
             vAdd.push_back(addr);
             //CNetAddr resolveSource;
