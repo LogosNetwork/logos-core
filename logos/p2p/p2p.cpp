@@ -449,7 +449,9 @@ public:
         connOptions.uiInterface = &uiInterface;
         connOptions.m_msgproc = peerLogic.get();
         connOptions.nSendBufferMaxSize = 1000*Args.GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+        connOptions.nSendBufferMaxNMess = DEFAULT_MAXSENDNMESS;
         connOptions.nReceiveFloodSize = 1000*Args.GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
+        connOptions.nReceiveFloodNMess = DEFAULT_MAXRECEIVENMESS;
         connOptions.m_added_nodes = Args.GetArgs("-addnode");
 
         connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
@@ -675,7 +677,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
     }
 
     BCLog::Logger &logger_ = p2p->logger_;
-    struct PropagateMessage mess(message, size);
+    struct PropagateMessage mess(message, size, IsMessageImportant(message, size));
     bool bfind=false;
     bool brecv=false;
     bool bprop=false;

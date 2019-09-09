@@ -224,7 +224,7 @@ TEST (BlockCache, MicroBlocksLinearTest)
 
     for (int i = 0; i < N_BLOCKS; ++i)
     {
-        EXPECT_EQ(c.AddMicroBlock(mbs[i]), true);
+        EXPECT_EQ(c.AddMicroBlock(mbs[i]), logos::IBlockCache::add_result::OK);
     }
 
     for (int i = 0; i < 3 && hashes.size() != t.store_q.size(); ++i)
@@ -282,7 +282,7 @@ TEST (BlockCache, RequestsSquaredTest)
 
     for (int i = 0; i < N_TOTAL; ++i)
     {
-        EXPECT_TRUE(c.AddRequestBlock(rbs[i]));
+        EXPECT_EQ(c.AddRequestBlock(rbs[i]), logos::IBlockCache::add_result::OK);
     }
 
     for (int i = 0; i < 10 && t.store_q.size() != N_TOTAL; ++i)
@@ -408,13 +408,13 @@ TEST (BlockCache, MixedBlocksTest)
         switch(ind & 3)
         {
         case 0:
-            EXPECT_EQ(c.AddRequestBlock(rbs[ind >> 2]), true);
+            EXPECT_EQ(c.AddRequestBlock(rbs[ind >> 2]), logos::IBlockCache::add_result::OK);
             break;
         case 1:
-            EXPECT_EQ(c.AddMicroBlock(mbs[ind >> 2]), true);
+            EXPECT_EQ(c.AddMicroBlock(mbs[ind >> 2]), logos::IBlockCache::add_result::OK);
             break;
         case 2:
-            EXPECT_EQ(c.AddEpochBlock(ebs[ind >> 2]), true);
+            EXPECT_EQ(c.AddEpochBlock(ebs[ind >> 2]), logos::IBlockCache::add_result::OK);
             break;
         default:
             EXPECT_EQ(0,1);

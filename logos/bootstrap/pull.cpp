@@ -128,7 +128,7 @@ namespace Bootstrap
 
         assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
         bool good_block = block->previous == pull->prev_hash &&
-                block_cache.AddEpochBlock(block);
+                block_cache.AddEpochBlock(block) != logos::IBlockCache::add_result::FAILED;
 
         std::lock_guard<std::mutex> lck (mtx);
         ongoing_pulls.erase(pull);
@@ -170,7 +170,7 @@ namespace Bootstrap
 
         assert(state==PullerState::Micro);
         bool good_block = block->previous == pull->prev_hash &&
-                block_cache.AddMicroBlock(block);
+                block_cache.AddMicroBlock(block) != logos::IBlockCache::add_result::FAILED;
 
         std::lock_guard<std::mutex> lck (mtx);
         ongoing_pulls.erase(pull);
@@ -218,7 +218,7 @@ namespace Bootstrap
         assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
         bool good_block = block->previous == pull->prev_hash &&
                 block->primary_delegate < NUM_DELEGATES &&
-                block_cache.AddRequestBlock(block);
+                block_cache.AddRequestBlock(block) != logos::IBlockCache::add_result::FAILED;
 
         auto digest(block->Hash());
         std::lock_guard<std::mutex> lck (mtx);

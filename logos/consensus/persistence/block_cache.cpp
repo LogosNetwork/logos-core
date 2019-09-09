@@ -9,21 +9,21 @@ BlockCache::BlockCache(boost::asio::io_service & service, Store &store, std::que
 {
 }
 
-bool BlockCache::AddEpochBlock(EBPtr block)
+BlockCache::add_result BlockCache::AddEpochBlock(EBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Add:E:" << block->CreateTip().to_string();
 
     if (!_write_q.VerifyAggSignature(block))
     {
         LOG_ERROR(_log) << "BlockCache::AddEpochBlock: VerifyAggSignature failed";
-        return false;
+        return add_result::FAILED;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (_block_container.BlockExistsAdd(block))
     {
         LOG_DEBUG(_log) << "BlockCache::AddEpochBlock: BlockExists";
-        return true;
+        return add_result::EXISTS;
     }
 
     if (_block_container.AddEpochBlock(block, false))
@@ -31,24 +31,24 @@ bool BlockCache::AddEpochBlock(EBPtr block)
         Validate();
     }
 
-    return true;
+    return add_result::OK;
 }
 
-bool BlockCache::AddMicroBlock(MBPtr block)
+BlockCache::add_result BlockCache::AddMicroBlock(MBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Add:M:" << block->CreateTip().to_string();
 
     if (!_write_q.VerifyAggSignature(block))
     {
         LOG_ERROR(_log) << "BlockCache::AddMicroBlock: VerifyAggSignature failed";
-        return false;
+        return add_result::FAILED;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (_block_container.BlockExistsAdd(block))
     {
         LOG_DEBUG(_log) << "BlockCache::AddMicroBlock: BlockExists";
-        return true;
+        return add_result::EXISTS;
     }
 
     if (_block_container.AddMicroBlock(block, false))
@@ -56,24 +56,24 @@ bool BlockCache::AddMicroBlock(MBPtr block)
         Validate();
     }
 
-    return true;
+    return add_result::OK;
 }
 
-bool BlockCache::AddRequestBlock(RBPtr block)
+BlockCache::add_result BlockCache::AddRequestBlock(RBPtr block)
 {
     LOG_TRACE(_log) << "BlockCache:Add:R:" << block->CreateTip().to_string();
 
     if (!_write_q.VerifyAggSignature(block))
     {
         LOG_ERROR(_log) << "BlockCache::AddRequestBlock: VerifyAggSignature failed";
-        return false;
+        return add_result::FAILED;
     }
 
     //safe to ignore the block for both p2p and bootstrap
     if (_block_container.BlockExistsAdd(block))
     {
         LOG_DEBUG(_log) << "BlockCache::AddRequestBlock: BlockExists";
-        return true;
+        return add_result::EXISTS;
     }
 
     if (_block_container.AddRequestBlock(block, false))
@@ -81,7 +81,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
         Validate(block->primary_delegate);
     }
 
-    return true;
+    return add_result::OK;
 }
 
 void BlockCache::StoreEpochBlock(EBPtr block)

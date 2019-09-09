@@ -716,7 +716,13 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
         // Just take one message
         msgs.splice(msgs.begin(), pfrom->vProcessMsg, pfrom->vProcessMsg.begin());
         pfrom->nProcessQueueSize -= msgs.front().vRecv.size() + CMessageHeader::HEADER_SIZE;
-        pfrom->fPauseRecv = pfrom->nProcessQueueSize > connman->GetReceiveFloodSize();
+        bool oldfPauseRecv = pfrom->fPauseRecv;
+        pfrom->fPauseRecv = (pfrom->nProcessQueueSize > connman->GetReceiveFloodSize()
+                || pfrom->vProcessMsg.size() + pfrom->nRecvMsgSize > connman->GetReceiveFloodNMess());
+        if (oldfPauseRecv && !pfrom->fPauseRecv)
+        {
+            pfrom->session->start();
+        }
         fMoreWork = !pfrom->vProcessMsg.empty();
     }
     CNetMessage& msg(msgs.front());
@@ -996,12 +1002,18 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         //
         // Message: propagate
         //
-        const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
+        /* Do not send propagate messages if send queue is too long */
+        if (pto->fPauseSend)
+            return true;
+        PropagateMessageHandle promess = connman->p2p_store->GetNextHandle(pto->next_propagate_index,
+                /*
+                 * next_index < first_index means that we are parsing old messages which were sent before connecting to this node;
+                 * in this case we need to send only important messages, for example, delegate advertisements.
+                 */
+                pto->next_propagate_index < pto->first_propagate_index);
         if (promess)
         {
-
-            LogPrintf("PeerLogicValidation_internal::SendMessage-promess->hash=%s,peer=%s",promess->hash.ToString(),pto->addr.ToString());
-            connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
+            connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, *promess));
         }
     }
     return true;

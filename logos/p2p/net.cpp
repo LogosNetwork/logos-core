@@ -309,6 +309,7 @@ AsioSession::AsioSession(boost::asio::io_service& ios,
     , socket(ios)
     , pnode(0)
     , id(-1ll)
+    , read_running(false)
     , in_shutdown(false)
     , logger_(connman.logger_)
 {
@@ -334,21 +335,26 @@ void AsioSession::setNode(std::shared_ptr<CNode> pnode_)
 void AsioSession::start()
 {
     // debug socket number to track file descriptor leaks
-    LogDebug(BCLog::NET, "Session started, this=%p, socket=%d, peer=%lld", this, socket.native_handle(), id);
-    socket.async_read_some(boost::asio::buffer(data, max_length),
+    bool expected = false;
+    if (read_running.compare_exchange_weak(expected, true))
+    {
+        LogDebug(BCLog::NET, "Session reading started, this=%p, socket=%d, peer=%lld",
+                this, socket.native_handle(), id);
+        socket.async_read_some(boost::asio::buffer(data, max_length),
                            boost::bind(&AsioSession::handle_read, this, shared_from_this(),
                                        boost::asio::placeholders::error,
                                        boost::asio::placeholders::bytes_transferred));
+    }
 }
 
 void AsioSession::shutdown()
 {
-    if (in_shutdown)
+    bool expected = false;
+    if (!in_shutdown.compare_exchange_weak(expected, true))
     {
         LogDebug(BCLog::NET, "Double session shutdown ignored, peer=%ld\n", id);
         return;
     }
-    in_shutdown = true;
     boost::system::error_code error;
     socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
     if (error)
@@ -357,9 +363,9 @@ void AsioSession::shutdown()
     }
     else
     {
-        pnode = std::shared_ptr<CNode>();
         LogDebug(BCLog::NET, "Session shutdown, peer=%ld\n", id);
     }
+    pnode = std::shared_ptr<CNode>();
 }
 
 void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
@@ -387,10 +393,20 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
     else
     {
         LogTrace(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
-        socket.async_read_some(boost::asio::buffer(data, max_length),
+        auto pnode_ = pnode;
+        if (!pnode_ || !pnode_->fPauseRecv)
+        {
+            socket.async_read_some(boost::asio::buffer(data, max_length),
                                boost::bind(&AsioSession::handle_read, this, shared_from_this(),
                                            boost::asio::placeholders::error,
                                            boost::asio::placeholders::bytes_transferred));
+        }
+        else
+        {
+            LogDebug(BCLog::NET, "Session reading stopped, this=%p, socket=%d, peer=%lld",
+                    this, socket.native_handle(), id);
+            read_running = false;
+        }
     }
 }
 
@@ -823,7 +839,10 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete
         // get current incomplete message, or create a new one
         if (vRecvMsg.empty() ||
                 vRecvMsg.back().complete())
+        {
             vRecvMsg.push_back(CNetMessage(session->connman.Params().MessageStart(), SER_NETWORK, INIT_PROTO_VERSION));
+            nRecvMsgSize = vRecvMsg.size();
+        }
 
         CNetMessage& msg = vRecvMsg.back();
 
@@ -966,7 +985,8 @@ bool CConnman::SocketSendFinish(std::shared_ptr<CNode> pnode, int nBytes)
         if (nBytes == data.size())
         {
             pnode->nSendSize -= nBytes;
-            pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize;
+            pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize
+                    || pnode->vSendMsg.size() > nSendBufferMaxNMess;
             ++it;
         }
         else
@@ -1260,11 +1280,9 @@ void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr,
     {
         session->start();
     }
-
-    //Integration fix, move this outside of else clause
-    session = std::make_shared<AsioSession>(*connman.io_service, connman);
     if (!in_shutdown)
     {
+        session = std::make_shared<AsioSession>(*connman.io_service, connman);
         acceptor.async_accept(session->get_socket(),
                               boost::bind(&AsioServer::handle_accept, this, ptr, session,
                                           boost::asio::placeholders::error));
@@ -1309,7 +1327,9 @@ bool CConnman::AcceptReceivedBytes(std::shared_ptr<CNode> pnode, const char *pch
                 LOCK(pnode->cs_vProcessMsg);
                 pnode->vProcessMsg.splice(pnode->vProcessMsg.end(), pnode->vRecvMsg, pnode->vRecvMsg.begin(), it);
                 pnode->nProcessQueueSize += nSizeAdded;
-                pnode->fPauseRecv = pnode->nProcessQueueSize > nReceiveFloodSize;
+                pnode->nRecvMsgSize = pnode->vRecvMsg.size();
+                pnode->fPauseRecv = (pnode->nProcessQueueSize > nReceiveFloodSize
+                        || pnode->vProcessMsg.size() + pnode->nRecvMsgSize > nReceiveFloodNMess);
             }
             WakeMessageHandler();
         }
@@ -2015,6 +2035,7 @@ CConnman::CConnman(uint64_t nSeed0In,
     nLastNodeId = 0;
     nSendBufferMaxSize = 0;
     nReceiveFloodSize = 0;
+    nReceiveFloodNMess = 0;
     flagInterruptMsgProc = false;
     SetTryNewOutboundPeer(false);
     fDiscover = true;
@@ -2463,6 +2484,11 @@ unsigned int CConnman::GetReceiveFloodSize() const
     return nReceiveFloodSize;
 }
 
+unsigned int CConnman::GetReceiveFloodNMess() const
+{
+    return nReceiveFloodNMess;
+}
+
 CNode::CNode(NodeId idIn,
              std::shared_ptr<AsioSession> sessionIn,
              const CAddress& addrIn,
@@ -2513,6 +2539,7 @@ CNode::CNode(NodeId idIn,
     fPauseRecv = false;
     fPauseSend = false;
     nProcessQueueSize = 0;
+    first_propagate_index = session->connman.p2p_store->GetNextLabel();
     next_propagate_index = 0;
     sendCompleted = true;
 
@@ -2569,7 +2596,7 @@ void CConnman::PushMessage(std::shared_ptr<CNode> pnode, CSerializedNetMsg&& msg
         pnode->mapSendBytesPerMsgCmd[msg.command] += nTotalSize;
         pnode->nSendSize += nTotalSize;
 
-        if (pnode->nSendSize > nSendBufferMaxSize)
+        if (pnode->nSendSize > nSendBufferMaxSize || pnode->vSendMsg.size() > nSendBufferMaxNMess)
             pnode->fPauseSend = true;
         pnode->vSendMsg.push_back(std::move(serializedHeader));
         if (nMessageSize)

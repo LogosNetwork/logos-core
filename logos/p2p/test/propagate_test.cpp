@@ -5,7 +5,7 @@
 #include <cstdint>
 #include "../propagate.h"
 
-#define MAX_CAPACITY    10u
+#define MAX_CAPACITY    0x10u
 #define MAX_SIZE        0x1000
 #define HASH_LEN        32
 
@@ -62,7 +62,7 @@ static std::vector<uint8_t> random_vector(unsigned maxsize)
 
 TEST (PropagateTest, VerifyStore)
 {
-    PropagateStore s(MAX_CAPACITY);
+    PropagateStore s(MAX_CAPACITY, MAX_CAPACITY);
     std::vector<std::vector<uint8_t>> vv;
 
     for (unsigned i = 0; i < MAX_CAPACITY * 2; ++i)
@@ -92,7 +92,7 @@ TEST (PropagateTest, VerifyStore)
                 EXPECT_LE(prev_label, label);
 
                 PropagateMessage mm(vv[cm->label].data(), vv[cm->label].size());
-                EXPECT_EQ(cm->message, mm.message);
+                EXPECT_EQ(*cm->message, *mm.message);
                 EXPECT_EQ(cm->hash, mm.hash);
             }
             else
@@ -104,7 +104,7 @@ TEST (PropagateTest, VerifyStore)
 
         std::vector<uint8_t> &v = vv[i];
         PropagateMessage m(v.data(), v.size());
-        EXPECT_EQ (m.message, v);
+        EXPECT_EQ (*m.message, v);
         EXPECT_EQ (m.hash, Hash(v.begin(), v.end()));
         EXPECT_EQ (s.Insert(m), true);
 

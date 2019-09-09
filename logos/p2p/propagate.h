@@ -17,31 +17,98 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <hash.h>
 
-#define DEFAULT_PROPAGATE_STORE_SIZE	0x10000
+#define DEFAULT_PROPAGATE_STORE_SIZE    0x10000
+#define DEFAULT_PROPAGATE_HASH_SIZE     0x100000
+#define PROPAGATE_HASH_BUCKET_LOG       4
+#define PROPAGATE_HASH_BUCKET_SIZE      (1 << PROPAGATE_HASH_BUCKET_LOG)
+
+/*
+ * This hash table by default has 2^16 buckets, each bucket has 16 entries.
+ * In total there is 2^20 entries.
+ * Entries in each bucket are shifted when new entry come.
+ * Statistically it looks like FIFO.
+ */
+class PropagateHash
+{
+    using cheap_hash = uint64_t;
+
+public:
+    PropagateHash(size_t size)
+        : _buckets_mask(size / PROPAGATE_HASH_BUCKET_SIZE - 1)
+        , _data(new cheap_hash[size]())
+    {
+    }
+
+    ~PropagateHash()
+    {
+        delete[] _data;
+    }
+
+    bool find(const uint256 hash) const
+    {
+        cheap_hash chash = hash.GetCheapHash() | 1, chash1 = hash.GetCheapHash(sizeof(cheap_hash));
+        size_t index = chash1 & _buckets_mask;
+        const cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
+        for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
+        {
+            if (bucket[i] == chash)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void insert(const uint256 hash)
+    {
+        cheap_hash chash = hash.GetCheapHash() | 1, tmp = chash, chash1 = hash.GetCheapHash(sizeof(cheap_hash));
+        size_t index = chash1 & _buckets_mask;
+        cheap_hash *bucket = &_data[index << PROPAGATE_HASH_BUCKET_LOG];
+        for (int i = 0; i < PROPAGATE_HASH_BUCKET_SIZE; ++i)
+        {
+            std::swap(tmp, bucket[i]);
+            if (tmp == chash)
+            {
+                break;
+            }
+        }
+    }
+
+private:
+    size_t          _buckets_mask;
+    cheap_hash *    _data;
+};
+
+typedef std::shared_ptr<std::vector<uint8_t>> PropagateMessageHandle;
 
 struct PropagateMessage
 {
-    std::vector<uint8_t>    message;
+    PropagateMessageHandle  message;
     uint64_t                label;
     uint256                 hash;
+    bool                    important;
     struct ByHash {};
     struct ByLabel {};
 
     PropagateMessage(const void *mess,
-                     unsigned size)
+                     unsigned size,
+                     bool is_important = false)
     {
-        message.resize(size);
-        memcpy(message.data(), mess, size);
-        hash = Hash(message.begin(), message.end());
+        message = std::make_shared<std::vector<uint8_t>>();
+        message->resize(size);
+        memcpy(message->data(), mess, size);
+        hash = Hash(message->begin(), message->end());
+        important = is_important;
     }
 };
 
 class PropagateStore
 {
 private:
-    uint64_t    max_size;
-    uint64_t    first_label;
-    uint64_t    next_label;
+    PropagateHash   hash;
+    uint64_t        max_size;
+    uint64_t        first_label;
+    uint64_t        next_label;
     boost::multi_index_container<PropagateMessage,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
@@ -53,17 +120,19 @@ private:
                 boost::multi_index::member<PropagateMessage,uint64_t,&PropagateMessage::label>
             >
         >
-    >           store;
-    std::mutex  mutex;
+    >               store;
+    std::mutex      mutex;
 
     bool _Find(const PropagateMessage &mess)
     {
-        return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+        return hash.find(mess.hash) ||
+            store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
     }
 
 public:
-    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE)
-        : max_size(size)
+    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE, uint64_t hash_size = DEFAULT_PROPAGATE_HASH_SIZE)
+        : hash(hash_size)
+        , max_size(size)
         , first_label(0)
         , next_label(0)
     {
@@ -93,12 +162,19 @@ public:
             }
             mess.label = next_label++;
             store.insert(mess);
+            hash.insert(mess.hash);
             return true;
         }
         return false;
     }
 
-    const PropagateMessage *GetNext(uint64_t &current_label)
+    uint64_t GetNextLabel() const
+    {
+        return next_label;
+    }
+
+    /* This function is used only in unit tests, use GetNextHandle() elsewhere. */
+    const PropagateMessage *GetNext(uint64_t &current_label, bool important_only = false)
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (current_label < first_label)
@@ -111,11 +187,33 @@ public:
             if (iter != store.get<PropagateMessage::ByLabel>().end())
             {
                 const PropagateMessage &mess = *iter;
-                return &mess;
+                if (!important_only || mess.important)
+                    return &mess;
             }
         }
 
         return 0;
+    }
+
+    PropagateMessageHandle GetNextHandle(uint64_t &current_label, bool important_only = false)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (current_label < first_label)
+            current_label = first_label;
+
+        while (current_label < next_label)
+        {
+            auto iter = store.get<PropagateMessage::ByLabel>().find(current_label);
+            current_label++;
+            if (iter != store.get<PropagateMessage::ByLabel>().end())
+            {
+                const PropagateMessage &mess = *iter;
+                if (!important_only || mess.important)
+                    return mess.message;
+            }
+        }
+
+        return PropagateMessageHandle();
     }
 };
 

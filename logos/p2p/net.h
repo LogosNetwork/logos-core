@@ -59,8 +59,10 @@ constexpr uint64_t DEFAULT_MAX_UPLOAD_TARGET = 0;
 constexpr uint64_t MAX_UPLOAD_TIMEFRAME = 60 * 60 * 24;
 
 constexpr bool DEFAULT_FORCEDNSSEED = false;
-constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000;
-constexpr size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000;
+constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000; /** maximum size of enqueued input data in Kb */
+constexpr size_t DEFAULT_MAXRECEIVENMESS  = 2 * 1000; /** maximum number of enqueued input messages */
+constexpr size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000; /** maximum size of enqueued output data in Kb */
+constexpr size_t DEFAULT_MAXSENDNMESS     = 2 * 1000; /** maximum number of enqueued output messages */
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
 constexpr unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Default 24-hour ban
@@ -113,7 +115,8 @@ private:
     boost::asio::ip::tcp::socket    socket;
     std::shared_ptr<CNode>          pnode;
     NodeId                          id;
-    bool                            in_shutdown;
+    std::atomic<bool>               read_running;
+    std::atomic<bool>               in_shutdown;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
                      size_t bytes_transferred);
     void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
@@ -216,7 +219,9 @@ public:
         CClientUIInterface*         uiInterface = nullptr;
         NetEventsInterface*         m_msgproc = nullptr;
         unsigned int                nSendBufferMaxSize = 0;
+        unsigned int                nSendBufferMaxNMess = 0;
         unsigned int                nReceiveFloodSize = 0;
+        unsigned int                nReceiveFloodNMess = 0;
         uint64_t                    nMaxOutboundTimeframe = 0;
         uint64_t                    nMaxOutboundLimit = 0;
         std::vector<std::string>    vSeedNodes;
@@ -237,7 +242,9 @@ public:
         clientInterface = connOptions.uiInterface;
         m_msgproc = connOptions.m_msgproc;
         nSendBufferMaxSize = connOptions.nSendBufferMaxSize;
+        nSendBufferMaxNMess = connOptions.nSendBufferMaxNMess;
         nReceiveFloodSize = connOptions.nReceiveFloodSize;
+        nReceiveFloodNMess = connOptions.nReceiveFloodNMess;
         {
             LOCK(cs_totalBytesSent);
             nMaxOutboundTimeframe = connOptions.nMaxOutboundTimeframe;
@@ -415,6 +422,7 @@ public:
     CSipHasher GetDeterministicRandomizer(uint64_t id) const;
 
     unsigned int GetReceiveFloodSize() const;
+    unsigned int GetReceiveFloodNMess() const;
 
     void WakeMessageHandler();
 
@@ -537,7 +545,9 @@ private:
     std::vector<CSubNet>                                            vWhitelistedRange;
 
     unsigned int                                                    nSendBufferMaxSize;
+    unsigned int                                                    nSendBufferMaxNMess;
     unsigned int                                                    nReceiveFloodSize;
+    unsigned int                                                    nReceiveFloodNMess;
 
     std::vector<ListenSocket>                                       vhListenSocket;
     std::atomic<bool>                                               fNetworkActive;
@@ -722,6 +732,8 @@ public:
     const uint64_t                          nKeyedNetGroup;
     std::atomic_bool                        fPauseRecv;
     std::atomic_bool                        fPauseSend;
+    std::atomic<size_t>                     nRecvMsgSize;
+    uint64_t                                first_propagate_index;
     uint64_t                                next_propagate_index;
     std::atomic_bool                        sendCompleted;
 protected:
