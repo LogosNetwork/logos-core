@@ -191,6 +191,7 @@ public:
     bool epoch_tip_get(Tip &, MDB_txn *t=0);
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
     bool is_first_epoch();
+    bool is_first_microblock();
     uint32_t epoch_number_stored();
     /// Get each delegate's first request block in an epoch, only used when linking two request tips
     /// @param epoch number to retrieve [in]

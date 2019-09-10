@@ -24,10 +24,7 @@ struct ConsensusManagerConfig
         try
         {
             peer_port = std::stoul(tree.get<std::string>("peer_port"));
-          
             callback_port = std::stoul(tree.get<std::string>("callback_port"));
-
-            delegate_id = std::stoul(tree.get<std::string>("delegate_id"));
         }
         catch(std::logic_error const &)
         {
@@ -35,9 +32,7 @@ struct ConsensusManagerConfig
         }
 
         heartbeat = tree.get<bool>("heartbeat", true);
-
         enable_elections = tree.get<bool>("enable_elections", false);
-
         enable_epoch_transition = tree.get<bool>("enable_epoch_transition", true);
 
         return false;
@@ -53,7 +48,6 @@ struct ConsensusManagerConfig
         tree.put("callback_address", callback_address);
         tree.put("callback_port", std::to_string(callback_port));
         tree.put("peer_port", std::to_string(peer_port));
-        tree.put("delegate_id", std::to_string(delegate_id));
         tree.put("heartbeat", std::to_string(heartbeat));
         tree.put("enable_elections", std::to_string(enable_elections));
         tree.put("enable_epoch_transition", std::to_string(enable_epoch_transition));
