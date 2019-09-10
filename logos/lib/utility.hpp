@@ -173,7 +173,8 @@ public:
     std::vector<std::function<void(T...)>> observers;
 };
 
-std::string string_to_hex_str(const std::string& input);
+std::string unicode_to_hex(const std::string& input);
+std::string hex_to_unicode(const std::string& input);
 
 } // namespace logos
 

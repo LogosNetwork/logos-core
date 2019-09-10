@@ -234,6 +234,18 @@ public:
     bool should_buffer_request ();
     bool flag_present (const std::string & flag_name);
 
+    // Sleeve commands
+    void sleeve_unlock ();
+    void sleeve_lock ();
+    void sleeve_update_password ();
+    void sleeve_store_keys ();
+    void unsleeve ();
+    void sleeve_reset ();
+    void delegate_activate (bool activate = true);
+    void cancel_activation_scheduling ();
+    void new_bls_key_pair ();
+    void new_ecies_key_pair ();
+
     template<typename T>
     struct RpcResponse
     {

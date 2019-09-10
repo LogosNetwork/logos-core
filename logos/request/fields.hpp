@@ -89,6 +89,12 @@ const char EPOCH_NUMBER[]    = "epoch_number";
 const char NUM_VOTES[]       = "num_votes";
 const char LEVY_PERCENTAGE[] = "levy_percentage";
 
+// Sleeve control fields
+const char PASSWORD[]       = "password";
+const char OVERWRITE[]      = "overwrite";
+const char BLS[]            = "bls";
+const char ECIES[]          = "ecies";
+
 // Token setting fields
 //
 const char MODIFY_ISSUANCE[]   = "modify_issuance";

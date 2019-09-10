@@ -2499,7 +2499,6 @@ void logos::rpc_handler::process ()
     std::shared_ptr<Request> request;
     try
     {
-
         request = DeserializeRequest(error, request_json);
     }
     catch(std::exception& e)
@@ -3038,10 +3037,10 @@ void logos::rpc_handler::txacceptor_update (bool add)
     if (rpc.config.enable_control)
     {
         std::string sepoch = request.get<std::string>("epoch");
-        EpochDelegates epoch = EpochDelegates::Next;
+        QueriedEpoch queried_epoch = QueriedEpoch::Next;
         if (sepoch == "current")
         {
-            epoch = EpochDelegates::Current;
+            queried_epoch = QueriedEpoch::Current;
         }
         else if (sepoch != "next")
         {
@@ -3051,7 +3050,7 @@ void logos::rpc_handler::txacceptor_update (bool add)
         uint16_t port = request.get<uint16_t>("port");
         uint16_t bin_port = request.get<uint16_t>("bin_port");
         uint16_t json_port = request.get<uint16_t>("json_port");
-        bool res = node._identity_manager.OnTxAcceptorUpdate(epoch, ip, port, bin_port, json_port, add);
+        bool res = node._identity_manager->OnTxAcceptorUpdate(queried_epoch, ip, port, bin_port, json_port, add);
         boost::property_tree::ptree response_l;
         response_l.put ("result", res?"processing":"failed");
         response (response_l);
@@ -4225,6 +4224,172 @@ void logos::rpc_handler::work_peers_clear ()
     }
 }
 
+void logos::rpc_handler::sleeve_unlock()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+    using namespace request::fields;
+    std::string password (request.get<std::string>(PASSWORD));
+    auto status = node._identity_manager->UnlockSleeve(password);
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::invalid_password))
+    }
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::sleeve_lock()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+
+    auto status (node._identity_manager->LockSleeve());
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code))
+    }
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::sleeve_update_password()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+
+    using namespace request::fields;
+    std::string password (request.get<std::string>(PASSWORD));
+    logos::transaction tx(node._sleeve._env, nullptr, true);
+    auto status (node._sleeve.Rekey(password, tx));
+
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code))
+    }
+
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::sleeve_store_keys()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+
+    using namespace request::fields;
+    ByteArray<32> ecies_prv (request.get<std::string>(request::fields::ECIES));
+    ByteArray<32> bls_prv (request.get<std::string>(BLS));
+    bool overwrite (boost::lexical_cast<bool>(request.get<std::string>(OVERWRITE)));
+
+    auto status (node._identity_manager->Sleeve(bls_prv, ecies_prv, overwrite));
+
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code));
+    }
+
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::unsleeve()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+
+    auto status (node._identity_manager->Unsleeve());
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code))
+    }
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::sleeve_reset()
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+    node._identity_manager->ResetSleeve();
+
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::delegate_activate(bool activate)
+{
+    if (!node.config.identity_control_enabled)
+    {
+        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
+    }
+
+    using namespace request::fields;
+    boost::optional<std::string> epoch_num_text (request.get_optional<std::string> (EPOCH_NUM));
+    uint32_t epoch_num (epoch_num_text.is_initialized() ? std::stol(epoch_num_text.get()) : 0);
+
+    auto status (node._identity_manager->ChangeActivation(activate, epoch_num));
+
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code))
+    }
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::cancel_activation_scheduling()
+{
+    auto status (node._identity_manager->CancelActivationScheduling());
+
+    if (!status)
+    {
+        error_response (response, SleeveResultToString(status.code))
+    }
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::new_bls_key_pair()
+{
+    bls::KeyPair bls;
+
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("bls_prv", bls.prv.to_string());
+    resp_tree.put("bls_pub", bls.pub.to_string());
+    response (resp_tree);
+}
+
+void logos::rpc_handler::new_ecies_key_pair()
+{
+    ECIESKeyPair ecies;
+
+    boost::property_tree::ptree resp_tree;
+    resp_tree.put("ecies_prv", ecies.prv.ToHexString());
+    resp_tree.put("ecies_pub", ecies.pub.ToHexString());
+    response (resp_tree);
+}
+
 logos::rpc_connection::rpc_connection (logos::node & node_a, logos::rpc & rpc_a) :
 node (node_a.shared ()),
 rpc (rpc_a),
@@ -4802,6 +4967,50 @@ void logos::rpc_handler::process_request ()
         else if (action == "buffer_complete")
         {
             buffer_complete ();
+        }
+        else if (action == "sleeve_unlock")
+        {
+            sleeve_unlock();
+        }
+        else if (action == "sleeve_lock")
+        {
+            sleeve_lock();
+        }
+        else if (action == "sleeve_update_password")
+        {
+            sleeve_update_password();
+        }
+        else if (action == "sleeve_store_keys")
+        {
+            sleeve_store_keys();
+        }
+        else if (action == "unsleeve")
+        {
+            unsleeve();
+        }
+        else if (action == "sleeve_reset")
+        {
+            sleeve_reset();
+        }
+        else if (action == "delegate_activate")
+        {
+            delegate_activate(true);
+        }
+        else if (action == "delegate_deactivate")
+        {
+            delegate_activate(false);
+        }
+        else if (action == "cancel_activation_scheduling")
+        {
+            cancel_activation_scheduling();
+        }
+        else if (action == "new_bls_key_pair")
+        {
+            new_bls_key_pair();
+        }
+        else if (action == "new_ecies_key_pair")
+        {
+            new_ecies_key_pair();
         }
         else if (MicroBlockTester::microblock_tester(action, request, response, node))
         {

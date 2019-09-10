@@ -184,10 +184,11 @@ set (BUILD_SHARED OFF CACHE BOOL "")
 set (BUILD_TESTING OFF CACHE BOOL "")
 set (USE_INTERMEDIATE_OBJECTS_TARGET OFF CACHE BOOL "")
 if (CRYPTOPP_CUSTOM OR NOT LOGOS_SIMD_OPTIMIZATIONS)
-    set (CRYPTOPP_LIBRARY cryptopp)
+	set (CRYPTOPP_LIBRARY cryptopp)
     add_library (cryptopp
     cryptopp/algparam.cpp
     cryptopp/asn.cpp
+    cryptopp/authenc.cpp
     cryptopp/basecode.cpp
     cryptopp/cpu.cpp
     cryptopp/cryptlib.cpp
@@ -367,6 +368,8 @@ add_library (node
     logos/governance/requests.cpp
     logos/identity_management/delegate_identity_manager.hpp
     logos/identity_management/delegate_identity_manager.cpp
+    logos/identity_management/sleeve.hpp
+    logos/identity_management/sleeve.cpp
     logos/microblock/microblock.cpp
     logos/microblock/microblock_handler.cpp
     logos/microblock/microblock_tester.cpp
@@ -453,7 +456,10 @@ if (LOGOS_TEST)
             logos/unit_test/self_send.cpp
             logos/unit_test/timers.cpp
             logos/unit_test/websocket.cpp
-            logos/unit_test/subset_reproposal.cpp)
+            logos/unit_test/subset_reproposal.cpp
+            logos/unit_test/sleeve.cpp
+            logos/unit_test/identity_management.cpp
+            )
 
     set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
     if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)

@@ -20,6 +20,13 @@ static const size_t CONSENSUS_SIG_SIZE          = 32;
 static const size_t CONSENSUS_PUB_KEY_SIZE      = 64;
 static const size_t CONSENSUS_PRIV_KEY_SIZE     = 32;
 
+// Sleeve data sizes
+static const size_t AES256GCM_KEY_SIZE          = 32;
+static const size_t AES256GCM_IV_SIZE           = 12;
+static const size_t AES256GCM_TAG_SIZE          = 16;
+
+static size_t const PL = AES256GCM_KEY_SIZE;
+static size_t const CL = PL + AES256GCM_TAG_SIZE;
 using byte                  = unsigned char;
 
 template<size_t len>
@@ -30,7 +37,7 @@ struct ByteArray : public std::array<byte, len>
         memset(this->data(), 0, len);
     }
 
-    ByteArray(void * buf, size_t buf_len)
+    ByteArray(const void * buf, size_t buf_len)
     {
         assert(buf_len == len);
         memcpy(this->data(), buf, len);
@@ -38,10 +45,7 @@ struct ByteArray : public std::array<byte, len>
 
     ByteArray(const std::string& hex_text)
     {
-        assert(hex_text.size() == len * 2);
-        logos::uint512_union num;
-        num.decode_hex(hex_text);
-        memcpy(this->data(),num.data(),len);
+        from_hex_string(hex_text);
     }
 
     void clear()
@@ -52,6 +56,13 @@ struct ByteArray : public std::array<byte, len>
     ByteArray(uint8_t v)
     {
         memset(this->data(), v, len);
+    }
+
+    void from_hex_string(const std::string& hex_text)
+    {
+        logos::uint512_union num;
+        num.decode_hex(hex_text);
+        memcpy(this->data(), num.data() + 64 - len, len);
     }
 
     std::string to_string () const
@@ -91,7 +102,21 @@ struct ByteArray : public std::array<byte, len>
         return memcmp(this->data(), other_a.data(), len) == 0;
     }
 
+    ByteArray & operator^= (ByteArray const & other)
+    {
+        auto j(other.begin());
+        for (auto i (this->begin()), n(this->end()); i != n; ++i, ++j)
+        {
+            *i ^= *j;
+        }
+        return *this;
+    }
+
 };
+
+using PlainText     = ByteArray<PL>; ///< plaintext in authenticated encryption
+using CipherText    = ByteArray<CL>; ///< ciphertext in authenticated encryption
+
 
 namespace logos
 {
