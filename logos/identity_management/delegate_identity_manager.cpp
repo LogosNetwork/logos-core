@@ -21,26 +21,32 @@
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
-uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
-AccountAddress DelegateIdentityManager::_delegate_account = 0;
+uint8_t DelegateIdentityManager::_global_delegate_idx = NON_DELEGATE;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
-ECIESKeyPair DelegateIdentityManager::_ecies_key{};
-std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
+DelegateIdentityManager::ECIESKeyPairPtr DelegateIdentityManager::_ecies_key = nullptr;
+DelegateIdentityManager::BLSKeyPairPtr DelegateIdentityManager::_bls_key = nullptr;
 constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
-constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_1;
-constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_2;
-constexpr std::chrono::minutes DelegateIdentityManager::PEER_TIMEOUT;
-constexpr std::chrono::seconds DelegateIdentityManager::TIMEOUT_SPREAD;
+constexpr Minutes DelegateIdentityManager::AD_TIMEOUT_1;
+constexpr Minutes DelegateIdentityManager::AD_TIMEOUT_2;
+constexpr Seconds DelegateIdentityManager::TIMEOUT_SPREAD;
 
-DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
-    : _store(node.store)
+DelegateIdentityManager::DelegateIdentityManager(logos::NodeInterface &node,
+                                                 logos::block_store &store,
+                                                 boost::asio::io_service &service,
+                                                 class Sleeve &sleeve)
+    : _store(store)
     , _validator_builder(_store)
-    , _timer(node.alarm.service)
+    , _timer(service)
     , _node(node)
+    , _sleeve(sleeve)
 {
-   _bls_key = std::make_unique<bls::KeyPair>();
-   Init(node.config);
-   LoadDB();
+    {
+        std::lock_guard<std::mutex> lock(_activation_mutex);
+        _activated[QueriedEpoch::Current] = false;
+        _activated[QueriedEpoch::Next] = false;
+    }
+    Init();
+    LoadDB();
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE HARD-CODED PUB KEYS!!! TODO
@@ -104,23 +110,15 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         epoch.micro_block_tip = microblock_tip;
         epoch.total_supply = initial_supply;
 
-        bls::KeyPair bls_key;
         ECIESPublicKey ecies_key;
-        DelegatePubKey dpk;
-        auto get_bls = [&bls_key, &dpk](const char *b)mutable->void {
-            stringstream str(b);
-            str >> bls_key.prv >> bls_key.pub;
-            std::string s;
-            bls_key.pub.serialize(s);
-            assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
-            memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
+        DelegatePubKey bls_pub;
+        auto get_bls = [&bls_pub](const char *b)mutable->void {
+            std::string bls_pub_str(b);
+            bls_pub.from_hex_string(bls_pub_str);
         };
         auto get_ecies = [&ecies_key](const char *k)mutable->void {
-            stringstream str(k);
-            string pubk;
-            string privk;
-            str >> privk >> pubk;
-            ecies_key.FromHexString(pubk);
+            std::string ecies_pub_str(k);
+            ecies_key.FromHexString(ecies_pub_str);
         };
         for (uint8_t i = 0; i < NUM_DELEGATES*2; ++i) {
             uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
@@ -130,7 +128,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             sprintf(buff, "%02x", del + 1);
             logos::keypair pair(buff);
             Amount stake = 100000 + (uint64_t)del * 100;
-            Delegate delegate = {pair.pub, dpk, ecies_key, 100000 + (uint64_t)del * 100, stake};
+            Delegate delegate = {pair.pub, bls_pub, ecies_key, 100000 + (uint64_t)del * 100, stake};
             if(e == 0)
             {
                 //TODO: how to initialize the delegate accounts for elections
@@ -156,7 +154,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 announce.epoch_num = 0;
                 announce.origin = pair.pub;
                 announce.stake = stake;
-                announce.bls_key = dpk;
+                announce.bls_key = bls_pub;
                 announce.ecies_key = ecies_key;
                 rep.candidacy_action_tip = announce.Hash();
                 if (_store.request_put(announce, transaction) || _store.rep_put(pair.pub, rep, transaction))
@@ -168,7 +166,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 CandidateInfo candidate;
                 candidate.next_stake = stake;
                 candidate.cur_stake = stake;
-                candidate.bls_key = dpk;
+                candidate.bls_key = bls_pub;
                 candidate.ecies_key = ecies_key;
                 //TODO: should we put these accounts into candidate list even
                 //though elections are not being held yet?
@@ -204,11 +202,11 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 }
 
 void
-DelegateIdentityManager::Init(const Config &config)
+DelegateIdentityManager::Init()
 {
     logos::transaction transaction (_store.environment, nullptr, true);
 
-    const ConsensusManagerConfig &cmconfig = _node.config.consensus_manager_config;
+    const ConsensusManagerConfig &cmconfig = _node.GetConfig().consensus_manager_config;
     _epoch_transition_enabled = cmconfig.enable_epoch_transition;
 
     EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
@@ -232,8 +230,10 @@ DelegateIdentityManager::Init(const Config &config)
 
         // if a node starts after epoch transition start but before the last microblock
         // is proposed then the latest epoch block is not created yet and the epoch number
-        // has to be increamented by 1
+        // has to be incremented by 1
         epoch_number = previous_epoch.epoch_number + 1;
+        // TODO: the StaleEpoch check is inaccurate if we are at GENESIS_EPOCH + 1 due to the extra-long first epoch.
+        //  Further logic is needed in the future
         epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
     }
 
@@ -279,14 +279,11 @@ DelegateIdentityManager::Init(const Config &config)
     }
     else {LoadGenesisAccounts();}
 
-    // TODO, wallet integration
-    _delegate_account = logos::genesis_delegates[cmconfig.delegate_id].key.pub;
-    _ecies_key = logos::genesis_delegates[cmconfig.delegate_id].ecies_key;
-    *_bls_key = logos::genesis_delegates[cmconfig.delegate_id].bls_key;
     _global_delegate_idx = cmconfig.delegate_id;
-    LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
-
+    // TODO: set epoch number again after bootstrapping is complete
     ConsensusContainer::SetCurEpochNumber(epoch_number);
+
+    LOG_DEBUG(_log) << "DelegateIdentityManager::Init - Started identity manager, current epoch number: " << epoch_number;
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE PRIVATE KEYS ARE 0-63!!! TBD
@@ -305,11 +302,17 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
         sprintf(buff, "%02x", del + 1);
-        stringstream str(bls_keys[del]);
-        bls::KeyPair bls_key;
-        str >> bls_key.prv >> bls_key.pub;
-        ECIESKeyPair ecies_key(ecies_keys[del]);
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, ecies_key,
+
+        // load BLS pub key
+        std::string bls_pub_str (bls_keys[del]);
+        bls::PublicKey bls_pub;
+        bls_pub.from_string(bls_pub_str);
+
+        // load ECIES pub key
+        std::string ecies_pub_str (ecies_keys[del]);
+        ECIESPublicKey ecies_pub(ecies_pub_str);
+
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_pub, ecies_pub,
                                          100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
@@ -367,11 +370,17 @@ DelegateIdentityManager::LoadGenesisAccounts()
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
         sprintf(buff, "%02x", del + 1);
-        stringstream str(bls_keys[del]);
-        bls::KeyPair bls_key;
-        str >> bls_key.prv >> bls_key.pub;
-        ECIESKeyPair ecies_key(ecies_keys[del]);
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, ecies_key,
+
+        // load BLS pub key
+        std::string bls_pub_str (bls_keys[del]);
+        bls::PublicKey bls_pub;
+        bls_pub.from_string(bls_pub_str);
+
+        // load ECIES pub key
+        std::string ecies_pub_str = ecies_keys[del];
+        ECIESPublicKey ecies_pub(ecies_pub_str);
+
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_pub, ecies_pub,
                                          100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
@@ -379,30 +388,281 @@ DelegateIdentityManager::LoadGenesisAccounts()
     }
 }
 
-void
-DelegateIdentityManager::IdentifyDelegates(
-    EpochDelegates epoch_delegates,
-    uint8_t &delegate_idx)
+sleeve_status
+DelegateIdentityManager::UnlockSleeve(std::string const & password)
 {
-    ApprovedEBPtr epoch;
-    IdentifyDelegates(epoch_delegates, delegate_idx, epoch);
+    logos::transaction tx(_sleeve._env, nullptr, true);
+    auto status (_sleeve.Unlock(password, tx));
+
+    if (!status)
+        return status;
+
+    // Sleeve is now Unlocked.
+    // Check if existing BLS and ECIES keys exist, and enter Sleeved state if so
+    if (_sleeve.KeysExist(tx))
+    {
+        OnSleeved(tx);
+    }
+
+    return status;
+}
+
+sleeve_status
+DelegateIdentityManager::LockSleeve()
+{
+    auto status (_sleeve.Lock());
+
+    if (!status)
+        return status;
+
+    OnUnsleeved();
+    return status;
+}
+
+sleeve_status
+DelegateIdentityManager::Sleeve(PlainText const & bls_prv, PlainText const & ecies_prv, bool overwrite)
+{
+    logos::transaction tx(_sleeve._env, nullptr, true);
+    auto status (_sleeve.StoreKeys(bls_prv, ecies_prv, overwrite, tx));
+
+    if (!status)
+        return status;
+
+    // Entering sleeved state
+    OnSleeved(tx);
+    return status;
+}
+
+sleeve_status
+DelegateIdentityManager::Unsleeve()
+{
+    logos::transaction tx(_sleeve._env, nullptr, true);
+    auto status (_sleeve.Unsleeve(tx));
+
+    if (!status)
+        return status;
+
+    OnUnsleeved();
+    return status;
+}
+
+void
+DelegateIdentityManager::ResetSleeve()
+{
+    logos::transaction tx(_sleeve._env, nullptr, true);
+    _sleeve.Reset(tx);
+
+    OnUnsleeved();
+}
+
+bool
+DelegateIdentityManager::IsSettingChangeScheduled()
+{
+    return _activation_schedule.start_epoch > ConsensusContainer::GetCurEpochNumber();
+}
+
+sleeve_status
+DelegateIdentityManager::ChangeActivation(bool const & activate, uint32_t const & epoch_num)
+{
+    std::lock_guard<std::mutex> lock(_activation_mutex);
+
+    // Ignore if we received activate / deactivate when already at the desired setting
+    if (activate == _activated[QueriedEpoch::Current])
+    {
+        sleeve_code ret_code = sleeve_code::setting_already_applied;
+        LOG_WARN(_log) << "DelegateIdentityManager::ChangeActivation - " << SleeveResultToString(ret_code);
+        return ret_code;
+    }
+
+    // an epoch number of 0 indicates immediate settings change
+    if (!epoch_num)
+    {
+        // Change activation status, reset activation schedule
+        _activated[QueriedEpoch::Current] = _activated[QueriedEpoch::Next] = activate;
+        _activation_schedule.start_epoch = epoch_num;
+        LOG_DEBUG(_log) << "DelegateIdentityManager::ChangeActivation - changing activation status to "
+                        << activate << " immediately";
+
+        // Proceed to activate consensus components if Sleeved
+        if (IsSleeved())
+        {
+            if (activate)
+            {
+                _node.ActivateConsensus();
+            }
+            else
+            {
+                _node.DeactivateConsensus();
+            }
+        }
+    }
+    // schedule
+    else
+    {
+        // something is already scheduled in the future
+        if (IsSettingChangeScheduled())
+        {
+            sleeve_code ret_code = sleeve_code::already_scheduled;
+            LOG_WARN(_log) << "DelegateIdentityManager::ChangeActivation - " << SleeveResultToString(ret_code);
+            return ret_code;
+        }
+
+        // scheduled epoch parameter must be for a future epoch. for immediate change, set to 0
+        auto next_epoch_num = ConsensusContainer::GetCurEpochNumber() + 1;
+        if (epoch_num < next_epoch_num)
+        {
+            sleeve_code ret_code = sleeve_code::invalid_setting_epoch;
+            LOG_WARN(_log) << "DelegateIdentityManager::ChangeActivation - " << SleeveResultToString(ret_code);
+            return ret_code;
+        }
+
+        // If the node is Sleeved, and we receive activation scheduling
+        // between EpochTransitionEventsStart and EpochStart,
+        // the scheduling command is rejected if it is for the immediate upcoming epoch.
+        // The user is expected to manually activate / deactivate at this point.
+        if (IsSleeved() && _node.GetEpochEventHandler()->TransitionEventsStarted() &&
+            epoch_num == next_epoch_num)
+        {
+            sleeve_code ret_code = sleeve_code::epoch_transition_started;
+            LOG_WARN(_log) << "DelegateIdentityManager::ChangeActivation - " << SleeveResultToString(ret_code);
+            return ret_code;
+        }
+
+        // Update schedule; advertise if activated and in office next.
+        _activation_schedule = {epoch_num, activate};
+        if (epoch_num == next_epoch_num)
+        {
+            _activated[QueriedEpoch::Next] = activate;
+
+            if (IsSleeved())
+            {
+                if (activate)
+                {
+                    uint8_t idx;
+                    ApprovedEBPtr epoch_next;
+                    IdentifyDelegates(ConsensusContainer::QueriedEpochToNumber(QueriedEpoch::Next),
+                            idx, epoch_next);
+                    if (idx != NON_DELEGATE)
+                    {
+                        auto ids = GetDelegatesToAdvertise(idx);
+                        Advertise(next_epoch_num, idx, epoch_next, ids);
+                        UpdateAddressAd(next_epoch_num, idx);
+                    }
+                }
+                else
+                {
+                    // TODO: if already advertised for upcoming epoch, manually advertise deletion
+                }
+            }
+        }
+
+        LOG_DEBUG(_log) << "DelegateIdentityManager::ChangeActivation - changing activation status to "
+                        << activate << " at future epoch " << epoch_num;
+    }
+    return sleeve_code::success;
+}
+
+sleeve_status
+DelegateIdentityManager::CancelActivationScheduling()
+{
+    std::lock_guard<std::mutex> lock(_activation_mutex);
+
+    if (!IsSettingChangeScheduled())
+    {
+        sleeve_code ret_code = sleeve_code::nothing_scheduled;
+        LOG_WARN(_log) << "DelegateIdentityManager::CancelScheduling - " << SleeveResultToString(ret_code);
+        return ret_code;
+    }
+
+    auto cur_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    if (_activation_schedule.start_epoch == cur_epoch_number + 1)
+    {
+        // If we are Sleeved and receive activation scheduling between EpochTransitionEventsStart and EpochStart,
+        // the scheduling command is rejected if it is for the immediate upcoming epoch (check above).
+        // The user is expected to manually activate / deactivate at this point.
+        if (IsSleeved() && _node.GetEpochEventHandler()->TransitionEventsStarted())
+        {
+            sleeve_code ret_code = sleeve_code::epoch_transition_started;
+            LOG_WARN(_log) << "DelegateIdentityManager::CancelActivationScheduling - " << SleeveResultToString(ret_code);
+            return ret_code;
+        }
+
+        // Edge case: if previously scheduled for deactivation in the next epoch
+        // and we are past the advertisement time, manually advertise
+        if (!_activation_schedule.activate && IsSleeved() &&
+            ArchivalTimer::GetNextEpochTime(_store.is_first_epoch() || _node.GetRecallHandler().IsRecall()) <=
+                (AD_TIMEOUT_1 + TIMEOUT_SPREAD))
+        {
+            ApprovedEBPtr epoch_current;
+            uint8_t idx;
+            IdentifyDelegates(ConsensusContainer::QueriedEpochToNumber(QueriedEpoch::Current), idx, epoch_current);
+            AdvertiseAndUpdateDB(cur_epoch_number, idx, epoch_current);
+        }
+    }
+
+    LOG_DEBUG(_log) << "DelegateIdentityManager::CancelScheduling - Cancelled "
+                    << (_activation_schedule.activate ? "" : "de") << "activation previously scheduled at epoch "
+                    << _activation_schedule.start_epoch;
+
+    // Clear activation schedule
+    _activation_schedule.start_epoch = 0;
+
+    return sleeve_code::success;
+}
+
+bool
+DelegateIdentityManager::IsActiveInEpoch(QueriedEpoch queried_epoch)
+{
+    if (!IsSleeved())
+    {
+        return false;
+    }
+
+    return _activated[queried_epoch];
+}
+
+void
+DelegateIdentityManager::ApplyActivationSchedule()
+{
+    /// ----------|<-EpochStart
+    /// ----------||<-increment current epoch number
+    /// ----------|||<-ApplyActivationSchedule()
+
+    // First apply new setting
+    _activated[QueriedEpoch::Current] = _activated[QueriedEpoch::Next];
+
+    // Then scheduled change for this epoch
+    auto cur_epoch = ConsensusContainer::GetCurEpochNumber();
+    if (cur_epoch == _activation_schedule.start_epoch)
+    {
+        // Sanity check: in the previous epoch, the scheduled epoch would have been "Next"
+        assert(_activated[QueriedEpoch::Next] == _activation_schedule.activate);
+    }
+    // scheduled change for next epoch
+    else if (cur_epoch + 1 == _activation_schedule.start_epoch)
+    {
+        _activated[QueriedEpoch::Next] = _activation_schedule.activate;
+    }
+    // schedule for next epoch remains unchanged if nothing is scheduled
+    // or scheduled more than one epoch into the future
 }
 
 void
 DelegateIdentityManager::IdentifyDelegates(
-    EpochDelegates epoch_delegates,
+    QueriedEpoch queried_epoch,
+    uint8_t &delegate_idx)
+{
+    ApprovedEBPtr epoch;
+    IdentifyDelegates(queried_epoch, delegate_idx, epoch);
+}
+
+void
+DelegateIdentityManager::IdentifyDelegates(
+    QueriedEpoch queried_epoch,
     uint8_t &delegate_idx,
     ApprovedEBPtr &epoch)
 {
     delegate_idx = NON_DELEGATE;
-
-    bool stale_epoch = StaleEpoch();
-    // requested epoch block is not created yet
-    if (stale_epoch && epoch_delegates == EpochDelegates::Next)
-    {
-        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch but epoch is stale";
-        return;
-    }
 
     Tip epoch_tip;
     BlockHash & epoch_tip_hash = epoch_tip.digest;
@@ -420,7 +680,15 @@ DelegateIdentityManager::IdentifyDelegates(
         trace_and_halt();
     }
 
-    if (!stale_epoch && epoch_delegates == EpochDelegates::Current)
+    bool stale_epoch = StaleEpoch(*epoch);
+    // requested epoch block is not created yet
+    if (stale_epoch && queried_epoch == QueriedEpoch::Next)
+    {
+        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch but epoch is stale";
+        return;
+    }
+
+    if (!stale_epoch && queried_epoch == QueriedEpoch::Current)
     {
         if (_store.epoch_get(epoch->previous, *epoch))
         {
@@ -432,12 +700,23 @@ DelegateIdentityManager::IdentifyDelegates(
 
     LOG_DEBUG(_log) << "DelegateIdentityManager::IdentifyDelegates retrieving delegates from epoch "
                     << epoch->epoch_number;
+
+    if (!IsSleeved())
+    {
+        LOG_WARN(_log) << "DelegateIdentityManager::IdentifyDelegates - Not currently Sleeved.";
+        return;
+    }
+
+    DelegatePubKey own_pub;
+    _bls_key->pub.serialize(own_pub);
+
     // Is this delegate included in the current/next epoch consensus?
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
         // update delegates for the requested epoch
-        if (epoch->delegates[del].account == _delegate_account)
+        if (epoch->delegates[del].bls_pub == own_pub)
         {
+            assert (epoch->delegates[del].ecies_pub == _ecies_key->pub);
             delegate_idx = del;
             break;
         }
@@ -462,7 +741,7 @@ DelegateIdentityManager::IdentifyDelegates(
 
     epoch = std::make_shared<ApprovedEB>();
 
-    auto get = [this](BlockHash &hash, ApprovedEBPtr epoch) {
+    auto get = [this, &epoch_number](BlockHash &hash, ApprovedEBPtr epoch) {
         if (_store.epoch_get(hash, *epoch))
         {
             if (hash != 0) {
@@ -472,7 +751,8 @@ DelegateIdentityManager::IdentifyDelegates(
             }
             return false;
         }
-        return true;
+        // If we have gone past an epoch with a lower epoch number, we know the queried number won't be found
+        return epoch->epoch_number >= epoch_number;
     };
 
     bool found = false;
@@ -485,26 +765,52 @@ DelegateIdentityManager::IdentifyDelegates(
 
     if (found)
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::IdentifyDelegates retrieving delegates from epoch "
+                        << epoch->epoch_number;
+
         // Is this delegate included in the current/next epoch consensus?
-        delegate_idx = NON_DELEGATE;
-        for (uint8_t del = 0; del < NUM_DELEGATES; ++del) {
-            // update delegates for the requested epoch
-            if (epoch->delegates[del].account == _delegate_account) {
-                delegate_idx = del;
-                break;
+        if (IsSleeved())
+        {
+            DelegatePubKey own_pub;
+            _bls_key->pub.serialize(own_pub);
+
+            for (uint8_t del = 0; del < NUM_DELEGATES; ++del) {
+                // update delegates for the requested epoch
+                if (epoch->delegates[del].bls_pub == own_pub)
+                {
+                    assert (epoch->delegates[del].ecies_pub == _ecies_key->pub);
+                    delegate_idx = del;
+                    break;
+                }
             }
         }
+        else
+        {
+            LOG_WARN(_log) << "DelegateIdentityManager::IdentifyDelegates - Not currently Sleeved.";
+        }
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::IdentifyDelegates - epoch block number "
+                        << epoch_number << " not found";
     }
 
     return found;
 }
 
 bool
+DelegateIdentityManager::StaleEpoch(ApprovedEB & epoch)
+{
+    auto cur_epoch_num (ConsensusContainer::GetCurEpochNumber());
+    assert(epoch.epoch_number < cur_epoch_num);
+    return !(epoch.epoch_number + 1 == cur_epoch_num);
+}
+
+bool
 DelegateIdentityManager::StaleEpoch()
 {
-
     auto now_msec = GetStamp();
-    auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
+    auto rem = Milliseconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
     return (rem < MICROBLOCK_PROPOSAL_TIME);
 }
 
@@ -524,7 +830,7 @@ DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
         trace_and_halt();
     }
 
-    if (StaleEpoch())
+    if (StaleEpoch(epoch))
     {
         return;
     }
@@ -557,23 +863,17 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
     LOG_DEBUG(_log) << "DelegateIdentityManager::CheckAdvertise for epoch " << current_epoch_number;
 
     // advertise for next epoch
-    IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
-    if (idx != NON_DELEGATE)
+    if (IsActiveInEpoch(QueriedEpoch::Next))
     {
-        auto ids = GetDelegatesToAdvertise(idx);
-        Advertise(current_epoch_number+1, idx, epoch_next, ids);
-        UpdateAddressAd(current_epoch_number+1, idx);
+        IdentifyDelegates(ConsensusContainer::QueriedEpochToNumber(QueriedEpoch::Next), idx, epoch_next);
+        AdvertiseAndUpdateDB(current_epoch_number + 1, idx, epoch_next);
     }
 
     // advertise for current epoch
-    if (advertise_current)
+    if (advertise_current && IsActiveInEpoch(QueriedEpoch::Current))
     {
-        IdentifyDelegates(EpochDelegates::Current, idx, epoch_current);
-        if (idx != NON_DELEGATE) {
-            auto ids = GetDelegatesToAdvertise(idx);
-            Advertise(current_epoch_number, idx, epoch_current, ids);
-            UpdateAddressAd(current_epoch_number, idx);
-        }
+        IdentifyDelegates(ConsensusContainer::QueriedEpochToNumber(QueriedEpoch::Current), idx, epoch_current);
+        AdvertiseAndUpdateDB(current_epoch_number, idx, epoch_current);
     }
 
     ScheduleAd();
@@ -585,12 +885,12 @@ DelegateIdentityManager::P2pPropagate(
     uint8_t delegate_id,
     std::shared_ptr<std::vector<uint8_t>> buf)
 {
-    bool res = _node.p2p.PropagateMessage(buf->data(), buf->size(), true);
+    bool res = _node.P2pPropagateMessage(buf->data(), buf->size(), true);
     LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << (res?"propagating":"failed")
                     << ": epoch number " << epoch_number
                     << ", delegate id " << (int) delegate_id
-                    << ", ip " << _node.config.consensus_manager_config.local_address
-                    << ", port " << _node.config.consensus_manager_config.peer_port
+                    << ", ip " << _node.GetConfig().consensus_manager_config.local_address
+                    << ", port " << _node.GetConfig().consensus_manager_config.peer_port
                     << ", size " << buf->size();
 }
 
@@ -637,7 +937,10 @@ DelegateIdentityManager::MakeSerializedAddressAd(uint32_t epoch_number,
 {
     uint8_t idx = 0xff;
     ApprovedEBPtr eb;
-    IdentifyDelegates(CurToDelegatesEpoch(epoch_number), idx, eb);
+    {
+        std::lock_guard<std::mutex> lock(_activation_mutex);
+        IdentifyDelegates(CurToDelegatesEpoch(epoch_number), idx, eb);
+    }
     return MakeSerializedAd<AddressAd>([encr_delegate_id, eb](auto ad, logos::vectorstream &s)->size_t{
         return (*ad).Serialize(s, eb->delegates[encr_delegate_id].ecies_pub);
     }, false, epoch_number, delegate_id, encr_delegate_id, ip, port);
@@ -690,8 +993,8 @@ DelegateIdentityManager::Advertise(
     std::shared_ptr<ApprovedEB> epoch,
     const std::vector<uint8_t> &ids)
 {
-    // Advertise to other delegats this delegate's ip
-    const ConsensusManagerConfig & cmconfig = _node.config.consensus_manager_config;
+    // Advertise to other delegates this delegate's ip
+    const ConsensusManagerConfig & cmconfig = _node.GetConfig().consensus_manager_config;
     for (auto it = ids.begin(); it != ids.end(); ++it)
     {
         auto encr_delegate_id = *it;
@@ -706,7 +1009,7 @@ DelegateIdentityManager::Advertise(
     }
 
     // Advertise to all nodes this delegate's tx acceptors
-    const TxAcceptorConfig &txconfig = _node.config.tx_acceptor_config;
+    const TxAcceptorConfig &txconfig = _node.GetConfig().tx_acceptor_config;
     auto acceptors = txconfig.tx_acceptors;
     if (acceptors.empty())
     {
@@ -725,10 +1028,28 @@ DelegateIdentityManager::Advertise(
     }
 }
 
+void DelegateIdentityManager::AdvertiseAndUpdateDB(
+    const uint32_t & epoch_number,
+    const uint8_t & delegate_id,
+    std::shared_ptr<ApprovedEB> epoch)
+{
+    if (delegate_id == NON_DELEGATE)
+    {
+        return;
+    }
+
+    auto ids = GetDelegatesToAdvertise(delegate_id);
+    Advertise(epoch_number, delegate_id, epoch, ids);
+    UpdateAddressAd(epoch_number, delegate_id);
+
+    LOG_INFO(_log) << "DelegateIdentityManager::AdvertiseAndUpdateDB - advertised and updated DB as delegate with index "
+                   << (int)delegate_id << " for epoch number " << epoch_number;
+}
+
 void
 DelegateIdentityManager::Decrypt(const std::string &cyphertext, uint8_t *buf, size_t size)
 {
-    _ecies_key.prv.Decrypt(cyphertext, buf, size);
+    _ecies_key->prv.Decrypt(cyphertext, buf, size);
 }
 
 bool
@@ -756,7 +1077,7 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                            prequel.epoch_number == (current_epoch_number + 1);
     if (current_or_next)
     {
-        uint8_t idx = GetDelegateIdFromCache(prequel.epoch_number);
+        uint8_t idx = GetDelegateIdFromCache(prequel.epoch_number);  // _activation_mutex locked by caller
 
         // ad is encrypted with this delegate's ecies public key
         if (prequel.encr_delegate_id == idx)
@@ -993,7 +1314,7 @@ DelegateIdentityManager::WriteAddressAd(std::shared_ptr<Socket> socket,
                                         uint8_t remote_delegate_id,
                                         std::function<void(bool)> cb)
 {
-    auto & config = _node.config.consensus_manager_config;
+    auto & config = _node.GetConfig().consensus_manager_config;
     auto buf = MakeSerializedAddressAd(epoch_number,
                                        local_delegate_id,
                                        remote_delegate_id,
@@ -1019,9 +1340,53 @@ DelegateIdentityManager::WriteAddressAd(std::shared_ptr<Socket> socket,
     });
 }
 
+bool
+DelegateIdentityManager::IsSleeved()
+{
+    return _bls_key && _ecies_key;
+}
+
+void
+DelegateIdentityManager::OnSleeved(logos::transaction const & tx)
+{
+    std::lock_guard<std::mutex> lock(_activation_mutex);
+
+    // retrieve BLS and ECIES keypairs from Sleeve database, and enter Sleeved state
+    _bls_key = _sleeve.GetBLSKey(tx);
+    assert (_bls_key);
+    _ecies_key = _sleeve.GetECIESKey(tx);
+    assert (_ecies_key);
+
+    // load advertisement messages to self
+    LoadDBAd2Self();
+
+    // Check for activation scheduling
+    // if activated now, start all consensus components, and advertise immediately
+    if (IsActiveInEpoch(QueriedEpoch::Current))
+    {
+        _node.ActivateConsensus();
+        // ConsensusContainer::ActivateConsensus() handles the case where the node is active currently but not next
+    }
+    else if (IsActiveInEpoch(QueriedEpoch::Next))
+    {
+        // If already Transitioning, we may need to set up now (change transition delegate type and build EpochManager)
+        _node.GetEpochEventHandler()->UpcomingEpochSetUp();
+    }
+}
+
+void DelegateIdentityManager::OnUnsleeved()
+{
+    std::lock_guard<std::mutex> lock(_activation_mutex);
+    _node.DeactivateConsensus();
+
+    _bls_key = nullptr;
+    _ecies_key = nullptr;
+}
+
 void
 DelegateIdentityManager::ReadAddressAd(std::shared_ptr<Socket> socket,
                                        std::function<void(std::shared_ptr<AddressAd>)> cb)
+
 {
     auto buf = std::make_shared<std::array<uint8_t, PrequelAddressAd::SIZE>>();
 
@@ -1119,38 +1484,11 @@ DelegateIdentityManager::LoadDB()
          it != logos::store_iterator(nullptr);
          ++it)
     {
-        bool error (false);
         assert(sizeof(adKey) == it->first.size());
         memcpy(&adKey, it->first.data(), it->first.size());
         if (adKey.epoch_number < current_epoch_number)
         {
             ad2del.push_back(adKey);
-            continue;
-        }
-
-        /// all ad messages are saved to the database even if they are encrypted
-        /// with another delegate id so that the delegate can respond to peer request
-        /// for ad messages. we only store in memory messages encryped with this delegate id
-        auto idx = GetDelegateIdFromCache(adKey.epoch_number);
-        if (idx == adKey.encr_delegate_id) {
-            try {
-                logos::bufferstream stream(reinterpret_cast<uint8_t const *> (it->second.data()), it->second.size());
-                AddressAd ad(error, stream, &DelegateIdentityManager::Decrypt);
-                assert (!error);
-                {
-                    std::lock_guard<std::mutex> lock(_ad_mutex);
-                    std::string ip = ad.GetIP();
-                    _address_ad.emplace(std::piecewise_construct,
-                                        std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
-                                        std::forward_as_tuple(ip, ad.port));
-                    LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDB, ad epoch_number " << ad.epoch_number
-                                    << " delegate id " << (int) ad.delegate_id
-                                    << " ip " << ip << " port " << ad.port;
-                }
-            }
-            catch (const std::exception &e) {
-                LOG_ERROR(_log) << "DelegateIdentityManager::LoadDB, failed: " << e.what();
-            }
         }
     }
 
@@ -1195,6 +1533,49 @@ DelegateIdentityManager::LoadDB()
 }
 
 void
+DelegateIdentityManager::LoadDBAd2Self()
+{
+    logos::transaction transaction (_store.environment, nullptr, true);
+
+    logos::block_store::ad_key adKey;
+    logos::block_store::ad_txa_key adTxaKey;
+
+    for (auto it = logos::store_iterator(transaction, _store.address_ad_db);
+         it != logos::store_iterator(nullptr);
+         ++it)
+    {
+        bool error (false);
+        assert(sizeof(adKey) == it->first.size());
+        memcpy(&adKey, it->first.data(), it->first.size());
+
+        /// all ad messages are saved to the database even if they are encrypted
+        /// with another delegate id so that the delegate can respond to peer request
+        /// for ad messages. we only store in memory messages encryped with this delegate id
+        auto idx = GetDelegateIdFromCache(adKey.epoch_number);  // _activation_mutex should be locked by caller
+        if (idx == adKey.encr_delegate_id) {
+            try {
+                logos::bufferstream stream(reinterpret_cast<uint8_t const *> (it->second.data()), it->second.size());
+                AddressAd ad(error, stream, &DelegateIdentityManager::Decrypt);
+                assert (!error);
+                {
+                    std::lock_guard<std::mutex> lock(_ad_mutex);
+                    std::string ip = ad.GetIP();
+                    _address_ad.emplace(std::piecewise_construct,
+                                        std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                                        std::forward_as_tuple(ip, ad.port));
+                    LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDBAd2Self, ad epoch_number " << ad.epoch_number
+                                    << " delegate id " << (int) ad.delegate_id
+                                    << " ip " << ip << " port " << ad.port;
+                }
+            }
+            catch (const std::exception &e) {
+                LOG_ERROR(_log) << "DelegateIdentityManager::LoadDBAd2Self, failed: " << e.what();
+            }
+        }
+    }
+}
+
+void
 DelegateIdentityManager::TxAcceptorHandshake(std::shared_ptr<Socket> socket,
                                              uint32_t epoch_number,
                                              uint8_t delegate_id,
@@ -1224,7 +1605,7 @@ DelegateIdentityManager::TxAcceptorHandshake(std::shared_ptr<Socket> socket,
 }
 
 void
-DelegateIdentityManager::ValidateTxAcceptorConnection(std::shared_ptr<Socket> socket,
+DelegateIdentityManager::TxAValidateDelegate(std::shared_ptr<Socket> socket,
                                                       const bls::PublicKey &bls_pub,
                                                       std::function<void(bool result, const char *error)> cb)
 {
@@ -1281,9 +1662,7 @@ void
 DelegateIdentityManager::ScheduleAd()
 {
     auto tomsec = [](auto m) { return boost::posix_time::milliseconds(TConvert<Milliseconds>(m).count()); };
-    EpochTimeUtil util;
-
-    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _node._recall_handler.IsRecall());
+    auto lapse = ArchivalTimer::GetNextEpochTime(_store.is_first_epoch() || _node.GetRecallHandler().IsRecall());
 
     auto r1 = GetRandAdTime(AD_TIMEOUT_1);
     auto r2 = GetRandAdTime(AD_TIMEOUT_2);
@@ -1309,8 +1688,19 @@ DelegateIdentityManager::ScheduleAd()
 void
 DelegateIdentityManager::ScheduleAd(boost::posix_time::milliseconds msec)
 {
+    std::lock_guard<std::mutex> lock(_ad_timer_mutex);
+    std::weak_ptr<DelegateIdentityManager> this_w =
+        shared_from_this();
     _timer.expires_from_now(msec);
-    _timer.async_wait(std::bind(&DelegateIdentityManager::Advert, this, std::placeholders::_1));
+    _timer.async_wait([this_w](const ErrorCode &ec){
+        auto this_s = GetSharedPtr(this_w, "DelegateIdentityManager::ScheduleAd - object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->Advert(ec);
+    });
+//    _timer.async_wait(std::bind(&DelegateIdentityManager::Advert, this, std::placeholders::_1));
 }
 
 void
@@ -1328,7 +1718,7 @@ DelegateIdentityManager::Advert(const ErrorCode &ec)
 }
 
 bool
-DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
+DelegateIdentityManager::OnTxAcceptorUpdate(QueriedEpoch queried_epoch,
                                             std::string &ip,
                                             uint16_t port,
                                             uint16_t bin_port,
@@ -1338,7 +1728,7 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
     uint8_t idx = NON_DELEGATE;
     ApprovedEBPtr eb;
 
-    IdentifyDelegates(epoch, idx, eb);
+    IdentifyDelegates(ConsensusContainer::QueriedEpochToNumber(queried_epoch), idx, eb);
     if (idx == NON_DELEGATE)
     {
         return false;
@@ -1366,7 +1756,8 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
     }
 
     AddressAdTxAcceptor ad(current_epoch_number, idx, ip.c_str(), bin_port, json_port, add);
-    Sign(current_epoch_number, ad);
+//    Sign(current_epoch_number, ad);
+    Sign(ad.Hash(), ad.signature);
     auto buf = std::make_shared<std::vector<uint8_t>>();
     ad.Serialize(*buf);
 
@@ -1374,7 +1765,7 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
 
     P2pPropagate(current_epoch_number, idx, buf);
 
-    return _node.update_tx_acceptor(ip, port, add);
+    return _node.UpdateTxAcceptor(ip, port, add);
 }
 
 void
@@ -1386,14 +1777,14 @@ DelegateIdentityManager::UpdateAddressAd(const AddressAd &ad)
                         std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
                         std::forward_as_tuple(ip, ad.port));
     std::vector<uint8_t> buf;
-    ad.Serialize(buf, _ecies_key.pub);
+    ad.Serialize(buf, _ecies_key->pub);
     UpdateAddressAdDB(ad, buf.data(), buf.size());
 }
 
 void
 DelegateIdentityManager::UpdateAddressAd(uint32_t epoch_number, uint8_t delegate_id)
 {
-    auto &config = _node.config.consensus_manager_config;
+    auto &config = _node.GetConfig().consensus_manager_config;
     AddressAd ad(epoch_number, delegate_id, delegate_id, config.local_address.c_str(), config.peer_port);
     UpdateAddressAd(ad);
 }
@@ -1407,9 +1798,12 @@ DelegateIdentityManager::GetDelegateIdFromCache(uint32_t cur_epoch_number) {
     } else {
         uint8_t idx;
         IdentifyDelegates(CurToDelegatesEpoch(cur_epoch_number), idx);
-        _idx_cache.emplace(cur_epoch_number, idx);
-        if (_idx_cache.size() > MAX_CACHE_SIZE) {
-            _idx_cache.erase(_idx_cache.begin());
+        if (idx != NON_DELEGATE)
+        {
+            _idx_cache.emplace(cur_epoch_number, idx);
+            if (_idx_cache.size() > MAX_CACHE_SIZE) {
+                _idx_cache.erase(_idx_cache.begin());
+            }
         }
         return idx;
     }

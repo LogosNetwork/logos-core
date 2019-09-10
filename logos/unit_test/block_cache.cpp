@@ -305,7 +305,7 @@ TEST (BlockCache, RequestsSquaredTest)
             }
         }
         EXPECT_NE(j, N_DELEGATES);
-        EXPECT_EQ(false, c.IsBlockCached(hash));
+        EXPECT_FALSE(c.IsBlockCached(hash));
         t.store_q.pop();
     }
 }

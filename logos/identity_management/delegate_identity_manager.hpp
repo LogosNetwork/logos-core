@@ -8,6 +8,8 @@
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
+#include <logos/identity_management/sleeve.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/log.hpp>
 
@@ -20,19 +22,27 @@ namespace logos {
     class node_config;
     class block_store;
     class transaction;
-    class node;
+    class NodeInterface;
 }
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
 
-enum class EpochDelegates {
+enum class QueriedEpoch {
     Current,
     Next
 };
-class PeerBinder;
 
-class DelegateIdentityManager
+class PeerBinder;
+class ConsensusContainer;
+
+class DelegateIdentityManager : public std::enable_shared_from_this<DelegateIdentityManager>
 {
+    struct activation_schedule {
+        activation_schedule() = default;
+        activation_schedule(uint32_t const & epoch, bool const & activate) : start_epoch(epoch), activate(activate) {}
+        uint32_t start_epoch = 0;  ///< epoch starting from the beginning of which the activation change begins taking effect
+        bool     activate = false; ///< set true to activate, false to deactivate; ignored if start_epoch is old
+    };
     struct address_ad {
         address_ad() = default;
         address_ad(std::string &ip, uint16_t port) : ip(ip), port(port) {}
@@ -57,8 +67,10 @@ class DelegateIdentityManager
     using Accounts  = AccountAddress[NUM_DELEGATES];
     using ApprovedEBPtr
                     = std::shared_ptr<ApprovedEB>;
-    using BlsKeyPairPtr
+    using BLSKeyPairPtr
                     = std::unique_ptr<bls::KeyPair>;
+    using ECIESKeyPairPtr
+                    = std::unique_ptr<ECIESKeyPair>;
     using AddressAdKey
                     = std::pair<uint32_t, uint8_t>;
     using AddressAdList
@@ -68,12 +80,28 @@ class DelegateIdentityManager
     using Timer     = boost::asio::deadline_timer;
     using DelegateIdCache = std::map<uint32_t, uint8_t>;
 
+    friend class ConsensusContainer;
+
 public:
     /// Class constructor
-    /// @param node reference
-    DelegateIdentityManager(logos::node &node);
+    /// @param node interface reference
+    /// @param store reference to block store
+    /// @param service reference to
+    DelegateIdentityManager(logos::NodeInterface &node,
+                            logos::block_store &store,
+                            boost::asio::io_service &service,
+                            class Sleeve &sleeve);
 
-    ~DelegateIdentityManager() = default;
+    ~DelegateIdentityManager()
+    {
+        LOG_DEBUG(_log) << "~DelegateIdentityManager()";
+        CancelAdvert();
+        // TODO: these class members should be changed to non-static
+        _global_delegate_idx = NON_DELEGATE;
+        _epoch_transition_enabled = true;
+        _ecies_key = nullptr;
+        _bls_key = nullptr;
+    }
 
     /// Create genesis Epoch's and MicroBlock's
     void CreateGenesisBlocks(logos::transaction &transaction);
@@ -86,18 +114,59 @@ public:
     void LoadGenesisAccounts();
 
     /// Initialize Genesis blocks/accounts
-    /// @param config node configuration reference
-    void Init(const Config &config);
+    void Init();
+
+    sleeve_status UnlockSleeve(std::string const &);
+
+    sleeve_status LockSleeve();
+
+    /// Store governance keys in the Sleeve, if Sleeve is unlocked, and start consensus / advertisement if activated
+    ///
+    ///     This method is called by logos::rpc_handler::sleeve_store_keys
+    ///     @param[in] BLS private key in byte array
+    ///     @param[in] ECIES private key in byte array
+    ///     @param[in] boolean indicator of whether to overwrite existing stored content
+    /// @return sleeve command status
+    sleeve_status Sleeve(PlainText const &, PlainText const &, bool overwrite = false);
+
+    /// Unsleeve, erasing any stored keys, tearing down consensus and cancelling advertisements
+    sleeve_status Unsleeve();
+
+    void ResetSleeve();
+
+    bool IsSettingChangeScheduled();
+
+    /// Change activation status and scheduling
+    /// Caller is responsible for acquiring _activation_mutex lock!
+    sleeve_status ChangeActivation(bool const &, uint32_t const &);
+
+    sleeve_status CancelActivationScheduling();
+
+    /// Helper function to indicate whether the node, if sleeved, should be active in the next epoch
+    ///
+    /// Caller of the function is responsible for acquiring _activation_mutex lock!
+    ///     @param[in] Lookup indicator of whether we are querying for the current or the next epoch
+    /// @return true if both Sleeved and Activated during the queried epoch, false otherwise
+    bool IsActiveInEpoch(QueriedEpoch queried_epoch);
+
+    /// Apply scheduled activation, if appropriate.
+    /// This should only be called by `ConsensusContainer::EpochTransitionEventsStart()`!
+    /// Calling it any other time than right after current epoch number is incremented would lead to unexpected behavior
+    void ApplyActivationSchedule();
+
+    bool GetActivationStatus(QueriedEpoch queried_epoch) { return _activated[queried_epoch]; }
 
     /// Identify this delegate and group of delegates in this epoch
+    /// Caller is responsible for acquiring _activation_mutex!
     /// @param epoch identify for current or next epoch [in]
     /// @param idx this delegates index, NON_DELEGATE if not in the delegates list [out]
     /// @param eb approved epoch block [out]
-    void IdentifyDelegates(EpochDelegates epoch, uint8_t & idx, ApprovedEBPtr &eb);
+    void IdentifyDelegates(QueriedEpoch queried_epoch, uint8_t & idx, ApprovedEBPtr &eb);
     /// Convenience function overload
-    void IdentifyDelegates(EpochDelegates epoch, uint8_t & idx);
+    void IdentifyDelegates(QueriedEpoch queried_epoch, uint8_t & idx);
 
     /// Identify this delegate and group of delegates in this epoch
+    /// Caller is responsible for acquiring _activation_mutex!
     /// @param epoch number [in]
     /// @param idx this delegates index, NON_DELEGATE if not in the delegates list [out]
     /// @param eb approved epoch block [out]
@@ -153,25 +222,26 @@ public:
                              std::function<void(bool result)> cb);
 
     /// Handle rpc call to add/delete txacceptor
-    /// @param epoch current/next epoch
+    /// @param queried_epoch current/next epoch
     /// @param ip txacceptor ip
     /// @param port txacceptor port
     /// @param bin_port txacceptor port to accept binary request
     /// @param json_port txacceptor port to accept json request
     /// @param add if true then add txacceptor, otherwise delete
-    bool OnTxAcceptorUpdate(EpochDelegates epoch,
+    bool OnTxAcceptorUpdate(QueriedEpoch queried_epoch,
                             std::string &ip,
                             uint16_t port,
                             uint16_t bin_port,
                             uint16_t json_port,
                             bool add);
 
-    /// Validate tx acceptor handshake
+    /// Validate remote delegate's tx acceptor handshake message
+    /// Used by standalone tx acceptor
     /// @param socket connected delegate's socket
     /// @param cb call back handler
-    static void ValidateTxAcceptorConnection(std::shared_ptr<Socket> socket,
-                                             const bls::PublicKey &bls_pub,
-                                             std::function<void(bool result, const char *error)> cb);
+    static void TxAValidateDelegate(std::shared_ptr<Socket> socket,
+                                    const bls::PublicKey &bls_pub,
+                                    std::function<void(bool result, const char *error)> cb);
 
     /// Get advertisement message to p2p app type
     /// @return P2pAppType
@@ -179,7 +249,16 @@ public:
     static
     P2pAppType GetP2pAppType();
 
-    /// @returns true if current time is between transition start and last microblock proposal time
+    /// Accurate way of checking if we are at a "stale" epoch,
+    ///     i.e., if the previous epoch's block hasn't been post-committed in the database yet.
+    ///     This is determined by checking if the most recent database epoch is just one behind current epoch
+    /// @param[in] reference to most recent epoch in database
+    /// @returns true if epoch reference is one behind current epoch number, false otherwise.
+    static bool StaleEpoch(ApprovedEB & epoch);
+
+    /// Crude way of checking if we are at a "stale" epoch.
+    ///     This is determined by checking if current time is between transition start and last microblock proposal time
+    /// @returns true if we suspect the previous epoch's block hasn't been post-committed in the database yet
     static bool StaleEpoch();
 
     /// Get current epoch (i - 2)
@@ -198,14 +277,8 @@ public:
         _epoch_transition_enabled = enable;
     }
 
-    /// @returns this delegate account
-    static AccountAddress GetDelegateAccount()
-    {
-        return _delegate_account;
-    }
-
     /// @returns this delegate global index into the logos::genesis_delegates
-    static int GetGlobalDelegateIdx()
+    static int GetGlobalDelegateIdx()  // TODO: limit usage to genesis initialization only
     {
         return (int)_global_delegate_idx;
     }
@@ -227,6 +300,13 @@ public:
         CheckAdvertise(current_epoch_number, advertise_current, idx, eb);
     }
 
+    void CancelAdvert()
+    {
+        LOG_DEBUG(_log) << "DelegateIdentiityManager::CancelAdvert - Cancelling advertisement timer.";
+        std::lock_guard<std::mutex> lock(_ad_timer_mutex);
+        _timer.cancel();
+    }
+
     /// Advertise delegates ip
     /// @param epoch_number to advertise for
     /// @param delegate_id of the advertiser
@@ -236,6 +316,8 @@ public:
                    uint8_t delegate_id,
                    std::shared_ptr<ApprovedEB> epoch,
                    const std::vector<uint8_t>& ids);
+
+    void AdvertiseAndUpdateDB(const uint32_t &, const uint8_t &, std::shared_ptr<ApprovedEB>);
 
     /// Propagate advertisement message via p2p
     /// @param epoch_number to advertise for
@@ -331,6 +413,12 @@ public:
     /// @param sig hash's signature [out]
     static void Sign(const BlockHash &hash, DelegateSig &sig)
     {
+        if (!_bls_key)
+        {
+            Log log;
+            LOG_ERROR(log) << "DelegateIdentityManager::Sign - Not Sleeved.";
+            return;
+        }
         MessageValidator::Sign(hash, sig, [](bls::Signature &sig_real, const std::string &hash_str)
         {
             _bls_key->prv.sign(sig_real, hash_str);
@@ -341,16 +429,36 @@ public:
     /// @returns bls public key
     static DelegatePubKey BlsPublicKey()
     {
+        if (!_bls_key)
+        {
+            Log log;
+            LOG_ERROR(log) << "DelegateIdentityManager::BlsPublicKey - Not Sleeved.";
+            return DelegatePubKey();
+        }
         return MessageValidator::BlsPublicKey(_bls_key->pub);
     }
 
 private:
 
     static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
-    static constexpr std::chrono::minutes AD_TIMEOUT_1{50};
-    static constexpr std::chrono::minutes AD_TIMEOUT_2{20};
-    static constexpr std::chrono::minutes PEER_TIMEOUT{10};
-    static constexpr std::chrono::seconds TIMEOUT_SPREAD{1200};
+    static constexpr Minutes AD_TIMEOUT_1{50};
+    static constexpr Minutes AD_TIMEOUT_2{20};
+    static constexpr Seconds TIMEOUT_SPREAD{1200};
+
+    /// Helper function to check if the node is Sleeved
+    ///
+    /// The caller of this function is responsible for acquiring `_activation_mutex`!
+    /// @return true if Sleeved, false otherwise
+    bool IsSleeved();
+
+    /// Start consensus / advertisement if activated
+    ///
+    ///     This method is called internally by Sleeve() and Unlock
+    /// @param[in] LMDB transaction wrapper
+    void OnSleeved(logos::transaction const &);
+
+    /// Tear down consensus and cancel advertising
+    void OnUnsleeved();
 
     void ReadAddressAd(std::shared_ptr<Socket> socket,
                        std::function<void(std::shared_ptr<AddressAd>)>);
@@ -396,6 +504,9 @@ private:
     /// Load/clean up on start up ad information from DB
     void LoadDB();
 
+    /// Load delegate endpoint ads to self
+    void LoadDBAd2Self();
+
     /// Schedule advertisement
     /// @param msec timeout value
     void ScheduleAd(boost::posix_time::milliseconds msec);
@@ -414,26 +525,32 @@ private:
     /// Get random time for ad scheduling
     /// @param t base time
     /// @returns rand time
-    std::chrono::seconds GetRandAdTime(const std::chrono::minutes &t)
+    template<typename T>
+    Seconds GetRandAdTime(const T &t)
     {
-        return std::chrono::seconds(rand() % TIMEOUT_SPREAD.count()) + t;
+        if (TIMEOUT_SPREAD == Seconds(0)) return TConvert<Seconds>(t);
+        return Seconds(rand() % TIMEOUT_SPREAD.count()) + TConvert<Seconds>(t);
     }
 
-    static bool             _epoch_transition_enabled; ///< is epoch transition enabled
-    static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
-    static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
-    /// TODO keys should be retrieved on start up from the wallet
-    static ECIESKeyPair     _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
-    static BlsKeyPairPtr    _bls_key;              ///< bls key
-    Store &                 _store;                ///< logos block store reference
-    Log                     _log;                  ///< boost log instances
-    ValidatorBuilder        _validator_builder;    ///< validator builder
-    AddressAdList           _address_ad;           ///< list of delegates advertisement messages
-    AddressAdTxAList        _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
-    std::mutex              _ad_mutex;             ///< protect address ad/txa lists
-    Timer                   _timer;                ///< time for delegate/txacceptor advertisement
-    logos::node &           _node;                 ///< logos node reference
-    DelegateIdCache         _idx_cache;            ///< epoch to this delegate id map
-    std::mutex              _cache_mutex;
-    const uint8_t           MAX_CACHE_SIZE = 2;
+    static bool                 _epoch_transition_enabled; ///< is epoch transition enabled
+    static uint8_t              _global_delegate_idx;  ///< global delegate index in all delegate's list
+    /// Keys are retrieved from the wallet
+    static ECIESKeyPairPtr      _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
+    static BLSKeyPairPtr        _bls_key;              ///< bls key
+    Store &                     _store;                ///< logos block store reference
+    Log                         _log;                  ///< boost log instances
+    ValidatorBuilder            _validator_builder;    ///< validator builder
+    AddressAdList               _address_ad;           ///< list of delegates advertisement messages
+    AddressAdTxAList            _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
+    std::mutex                  _ad_mutex;             ///< protect address ad/txa lists
+    Timer                       _timer;                ///< time for delegate/txacceptor advertisement
+    std::mutex                  _ad_timer_mutex;       ///< mutex for protecting async timer
+    logos::NodeInterface &      _node;                 ///< reference to logos node interface
+    DelegateIdCache             _idx_cache;            ///< epoch to this delegate id map
+    std::mutex                  _cache_mutex;
+    const uint8_t               MAX_CACHE_SIZE = 2;
+    class Sleeve &              _sleeve;               ///< Sleeve instance reference
+    activation_schedule         _activation_schedule;  ///< activation schedule
+    umap<QueriedEpoch, bool>    _activated;            ///< keeps track of activation status for both current and next epochs
+    std::mutex                  _activation_mutex;     ///< mutex for protecting activation settings and timer
 };

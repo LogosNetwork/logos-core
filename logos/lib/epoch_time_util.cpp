@@ -18,13 +18,9 @@ EpochTimeUtil::GetNextTime(T timeout, uint8_t skip)
     {
         return  Milliseconds(timeout_msec * (skip +1) - rem);
     }
-    else if (skip != 0)
-    {
-        return Milliseconds(timeout_msec * skip);
-    }
     else
     {
-        return Milliseconds(0);
+        return Milliseconds(timeout_msec * skip);
     }
 }
 
@@ -43,8 +39,33 @@ EpochTimeUtil::GetNextMicroBlockTime(
     return GetNextTime(MICROBLOCK_PROPOSAL_TIME, skip);
 }
 
+std::shared_ptr<TimeUtil>
+ArchivalTimer::_util_instance = nullptr;
+
+std::shared_ptr<TimeUtil>
+ArchivalTimer::GetInstance()
+{
+    if (!_util_instance)
+    {
+        _util_instance = std::make_shared<EpochTimeUtil>();
+    }
+    return _util_instance;
+}
+
+Milliseconds
+ArchivalTimer::GetNextMicroBlockTime(uint8_t skip)
+{
+    return GetInstance()->GetNextMicroBlockTime(skip);
+}
+
+Milliseconds
+ArchivalTimer::GetNextEpochTime(uint8_t skip)
+{
+    return GetInstance()->GetNextEpochTime(skip);
+}
+
 bool
-EpochTimeUtil::IsPastEpochBlockTime()
+ArchivalTimer::IsPastEpochBlockTime()
 {
     auto now = GetStamp();
     auto epoch = TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count();
