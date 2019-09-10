@@ -27,7 +27,7 @@ class DelegateMap
     Sinks second;
     static std::mutex mutex;
 
-
+    friend class TestNode;
 
     DelegateMap()
     {}

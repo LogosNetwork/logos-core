@@ -141,7 +141,7 @@ void
 TxAcceptorChannel::Validate(std::shared_ptr<Socket> socket)
 {
     std::weak_ptr<TxAcceptorChannel> this_w = Self<TxAcceptorChannel>::shared_from_this();
-    DelegateIdentityManager::ValidateTxAcceptorConnection(socket, _bls_pub, [this_w, socket](bool result, const char *err){
+    DelegateIdentityManager::TxAValidateDelegate(socket, _bls_pub, [this_w, socket](bool result, const char *err){
         auto this_s = GetSharedPtr(this_w, "TxAcceptorChannel::Validate, object destroyed");
         if (!this_s)
         {

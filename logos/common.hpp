@@ -328,8 +328,8 @@ public:
 struct genesis_delegate
 {
    logos::public_key  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
-   bls::KeyPair    bls_key;
-   ECIESKeyPair    ecies_key;
+   bls::PublicKey  bls_pub;
+   ECIESPublicKey  ecies_pub;
    Amount          vote;
    Amount          stake;
 };

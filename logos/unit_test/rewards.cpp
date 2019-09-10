@@ -34,16 +34,9 @@ static Delegate init_delegate(AccountAddress account, Amount vote, Amount stake,
 {
     ECIESPublicKey ecies;
     init_ecies(ecies);
-    bls::PublicKey bls_key;
-    stringstream str("1 0x16d73fc6647d0f9c6c50ec2cae8a04f20e82bee1d91ad3f7e3b3db8008db64ba "
-                     "0x17012477a44243795807c462a7cce92dc71d1626952cae8d78c6be6bd7c2bae4 "
-                     "0x13ef6f7873bc4a78feae40e9a25396a0f0a52fbb28c3d38b4bf50e18c48632c "
-                     "0x7390eee94c740350098a653d57c1705b24470434709a92f624589dc8537429d");
-    str >> bls_key;
-    std::string s;
-    bls_key.serialize(s);
+    std::string bls_pub_str("BA64DB0880DBB3E3F7D31AD9E1BE820EF2048AAE2CEC506C9C0F7D64C63FD716E4BAC2D76BBEC6788DAE2C9526161DC72DE9CCA762C40758794342A477240117");
     DelegatePubKey pub;
-    memcpy(pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
+    pub.from_hex_string(bls_pub_str);
     return {account, pub, ecies, vote, stake, starting_term};
 }
 
