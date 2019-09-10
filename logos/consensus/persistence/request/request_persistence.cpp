@@ -14,6 +14,7 @@
 #include <logos/staking/voting_power_manager.hpp>
 #include <logos/staking/staking_manager.hpp>
 #include <logos/node/node.hpp>
+#include <logos/node/websocket.hpp>
 
 std::mutex PersistenceManager<R>::_write_mutex;
 
@@ -973,6 +974,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
             trace_and_halt();
         }
     }
+
+    logos_global::OnNewBlock<R>(message);
 }
 
 void PersistenceManager<R>::ApplyRequestBlock(

@@ -10,6 +10,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/staking/staking_manager.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/node/websocket.hpp>
 
 #include <numeric>
 
@@ -191,6 +192,8 @@ PersistenceManager<ECT>::ApplyUpdates(
                         << block.previous.to_string();
         trace_and_halt();
     }
+
+    logos_global::OnNewBlock<ECT>(block);
 
     // Link epoch's first request block with previous epoch's last request block
     // starting from epoch 3 (i.e. after Genesis)

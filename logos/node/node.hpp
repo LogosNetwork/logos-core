@@ -10,6 +10,7 @@
 #include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/p2p/p2p.h>
+#include <logos/node/websocket.hpp>
 
 #include <condition_variable>
 #include <memory>
@@ -312,6 +313,7 @@ public:
     std::shared_ptr<TxReceiver> _tx_receiver;
     Bootstrap::BootstrapInitiator bootstrap_initiator;
     Bootstrap::BootstrapListener bootstrap_listener;
+    std::shared_ptr<logos::websocket::listener> websocket_server;
 
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;

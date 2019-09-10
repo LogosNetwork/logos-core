@@ -726,6 +726,9 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
 
+    websocket_server = std::make_shared<logos::websocket::listener> (*this, config.consensus_manager_config.local_address);
+    websocket_server->run ();
+
     p2p_conf = config.p2p_conf;
     p2p_conf.lmdb_env = store.environment.environment;
     p2p_conf.lmdb_dbi = store.p2p_db;
@@ -824,6 +827,10 @@ void logos::node::stop ()
     bootstrap_initiator.stop ();
     bootstrap_listener.stop ();
     p2p.Shutdown ();
+    if (websocket_server)
+    {
+        websocket_server->stop ();
+    }
 }
 
 bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, unsigned size) {

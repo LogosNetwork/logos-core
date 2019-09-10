@@ -387,6 +387,8 @@ add_library (node
     logos/node/rpc_logic.cpp
     logos/node/stats.hpp
     logos/node/stats.cpp
+    logos/node/websocket.hpp
+    logos/node/websocket.cpp
     logos/node/working.hpp
     logos/request/requests.cpp
     logos/request/utility.cpp
