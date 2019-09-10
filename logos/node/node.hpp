@@ -1,9 +1,9 @@
 #pragma once
 
 #include <logos/node/stats.hpp>
-#include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
+#include <logos/identity_management/sleeve.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/consensus/consensus_container.hpp>
@@ -235,6 +235,7 @@ public:
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
     static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
+    bool identity_control_enabled;
 };
 
 class Logos_p2p_interface : public p2p_interface {
@@ -309,12 +310,26 @@ struct BootstrapProgress
     }
 };
 
-class node : public std::enable_shared_from_this<logos::node>
+class NodeInterface
+{
+public:
+    virtual ~NodeInterface() = default;
+    virtual void ActivateConsensus() = 0;
+    virtual void DeactivateConsensus() = 0;
+    virtual const logos::node_config & GetConfig() = 0;
+    virtual std::shared_ptr<NewEpochEventHandler> GetEpochEventHandler() = 0;
+    virtual IRecallHandler & GetRecallHandler() = 0;
+    virtual bool P2pPropagateMessage(const void *message, unsigned size, bool output) = 0;
+    virtual bool UpdateTxAcceptor(const std::string &ip, uint16_t port, bool add) = 0;
+};
+
+class node : public NodeInterface,
+             public std::enable_shared_from_this<logos::node>
 {
 public:
     node (logos::node_init &, boost::asio::io_service &, uint16_t, boost::filesystem::path const &, logos::alarm &, logos::logging const &/*, logos::work_pool &*/);
     node (logos::node_init &, boost::asio::io_service &, boost::filesystem::path const &, logos::alarm &, logos::node_config const &/*, logos::work_pool &*/);
-    ~node ();
+    ~node () override;
     template <typename T>
     void background (T action_a)
     {
@@ -322,6 +337,8 @@ public:
     }
     bool copy_with_compaction (boost::filesystem::path const &);
     void start ();
+    void ActivateConsensus() override;
+    void DeactivateConsensus() override;
     void stop ();
     std::shared_ptr<logos::node> shared ();
     int store_version ();
@@ -333,13 +350,27 @@ public:
                              bool should_buffer);
     process_return BufferComplete();
 
+    /// Access node config
+    /// @return const reference to node's config
+    const logos::node_config & GetConfig() override;
+
+    /// Access the NewEpochEventHandler interface of ConsensusContainer
+    /// @return shared pointer to consensus container interface
+    std::shared_ptr<NewEpochEventHandler> GetEpochEventHandler() override;
+
+    /// Access recall handler interface
+    /// @retun reference to recall handler interface
+    IRecallHandler & GetRecallHandler() override;
+
+    /// Wrapper for p2p.PropagateMessage
+    bool P2pPropagateMessage(const void *message, unsigned size, bool output) override;
+
     /// update tx acceptor configuration, don't allow switch between the delegate and standalone modes
     /// @param ip acceptor's ip
     /// @param port acceptor's port
     /// @param add true if adding
     /// @returns true if can update
-    bool update_tx_acceptor(const std::string &ip, uint16_t port, bool add);
-
+    bool UpdateTxAcceptor(const std::string &ip, uint16_t port, bool add) override;
 
     boost::asio::io_service & service;
     logos::node_config config;
@@ -351,8 +382,8 @@ public:
     logos::stat stats;
     RecallHandler _recall_handler;
     Logos_p2p_interface p2p;
-    DelegateIdentityManager _identity_manager;
-    Archiver _archiver;
+    Sleeve _sleeve;
+    std::shared_ptr<DelegateIdentityManager> _identity_manager;
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;
