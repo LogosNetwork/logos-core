@@ -452,6 +452,7 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
     tree_a.put ("state_block_parse_canary", state_block_parse_canary.to_string ());
     tree_a.put ("state_block_generate_canary", state_block_generate_canary.to_string ());
 
+    tree_a.put ("identity_control_enabled", identity_control_enabled);
     boost::property_tree::ptree consensus_manager;
     consensus_manager_config.SerializeJson(consensus_manager);
     tree_a.add_child("ConsensusManager", consensus_manager);
@@ -669,6 +670,7 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
             result = true;
         }
 
+        identity_control_enabled = tree_a.get<bool>("identity_control_enabled", false);
         result |= consensus_manager_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
         try { // temp for backward compatability
             result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
@@ -709,22 +711,18 @@ application_path (application_path_a),
 stats (config.stat_config),
 _recall_handler(),
 p2p(*this),
-_identity_manager(*this),
-_archiver(alarm_a, store, _recall_handler),
+_sleeve(application_path_a / "sleeve.ldb", config_a.password_fanout, init_a.block_store_init),
+_identity_manager{std::make_shared<DelegateIdentityManager>(*this, store, alarm.service, _sleeve)},
 _consensus_container{std::make_shared<ConsensusContainer>(
-        service_a, store, block_cache, alarm_a, config, _archiver, _identity_manager, p2p)},
-_tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
-    ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
-    : nullptr},
-_tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
-    ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
-    : nullptr},
+        service_a, store, block_cache, alarm_a, config, _recall_handler, *_identity_manager, p2p)},
+_tx_acceptor(nullptr),
+_tx_receiver(nullptr),
 bootstrap_initiator (alarm_a, store, block_cache, _consensus_container->GetPeerInfoProvider()),
 bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_address)
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 
-    BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
+    LOG_DEBUG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
 
     p2p_conf = config.p2p_conf;
     p2p_conf.lmdb_env = store.environment.environment;
@@ -736,7 +734,7 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
     {
         if (config.logging.node_lifetime_tracing ())
         {
-            BOOST_LOG (log) << "Constructing node";
+            LOG_DEBUG (log) << "Constructing node";
         }
     }
 }
@@ -756,7 +754,27 @@ bool logos::node::copy_with_compaction (boost::filesystem::path const & destinat
     destination_file.string ().c_str (), MDB_CP_COMPACT);
 }
 
-bool logos::node::update_tx_acceptor(const std::string &ip, uint16_t port, bool add)
+const logos::node_config & logos::node::GetConfig()
+{
+    return config;
+}
+
+std::shared_ptr<NewEpochEventHandler> logos::node::GetEpochEventHandler()
+{
+    return _consensus_container;
+}
+
+IRecallHandler & logos::node::GetRecallHandler()
+{
+    return _recall_handler;
+}
+
+bool logos::node::P2pPropagateMessage(const void *message, unsigned size, bool output)
+{
+    return p2p.PropagateMessage(message, size, output);
+}
+
+bool logos::node::UpdateTxAcceptor(const std::string &ip, uint16_t port, bool add)
 {
     // can't transition from the delegate mode to standalone mode
     // or deleting tx acceptor while in the delegate mode
@@ -796,16 +814,10 @@ bool logos::parse_port (std::string const & string_a, uint16_t & port_a)
 void logos::node::start ()
 {
     // CH added starting logic here instead of inside constructors
+
+    // TODO: check for bootstrap completion first
+
     _consensus_container->Start();
-    _archiver.Start(*_consensus_container);
-    if (_tx_acceptor != nullptr)
-    {
-        _tx_acceptor->Start();
-    }
-    if (_tx_receiver != nullptr)
-    {
-        _tx_receiver->Start();
-    }
 
     bootstrap_listener.start ();
     ongoing_bootstrap ();
@@ -813,9 +825,40 @@ void logos::node::start ()
     logos_global::AssignNode(this_l);
 }
 
+void logos::node::ActivateConsensus()
+{
+    _consensus_container->ActivateConsensus();
+
+    if (config.tx_acceptor_config.tx_acceptors.size() == 0)
+    {
+        _tx_acceptor = std::make_shared<TxAcceptorDelegate>(service, _consensus_container, config);
+    }
+    if (config.tx_acceptor_config.tx_acceptors.size() != 0)
+    {
+        _tx_receiver = std::make_shared<TxReceiver>(service, alarm, _consensus_container, config);
+    }
+    if (_tx_acceptor)
+    {
+        _tx_acceptor->Start();
+    }
+    if (_tx_receiver)
+    {
+        _tx_receiver->Start();
+    }
+}
+
+void logos::node::DeactivateConsensus()
+{
+    _consensus_container->DeactivateConsensus();
+
+    // TODO: gracefully stop TxAcceptor and TxReceiver
+    _tx_acceptor = nullptr;
+    _tx_receiver = nullptr;
+}
+
 void logos::node::stop ()
 {
-    BOOST_LOG (log) << "Node stopping";
+    LOG_DEBUG (log) << "Node stopping";
     {
         std::shared_ptr<logos::node> this_l(nullptr);
         logos_global::AssignNode(this_l);
@@ -824,6 +867,7 @@ void logos::node::stop ()
     bootstrap_initiator.stop ();
     bootstrap_listener.stop ();
     p2p.Shutdown ();
+    _identity_manager->CancelAdvert();
 }
 
 bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, unsigned size) {

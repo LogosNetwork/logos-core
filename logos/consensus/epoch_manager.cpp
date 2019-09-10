@@ -14,7 +14,7 @@ EpochManager::EpochManager(Service & service,
                            const Config & config,
                            Archiver & archiver,
                            std::atomic<EpochTransitionState> & state,
-                           EpochTransitionDelegate delegate,
+                           std::atomic<EpochTransitionDelegate> & delegate,
                            EpochConnection connection,
                            const uint32_t epoch_number,
                            ConsensusScheduler & scheduler,
@@ -22,7 +22,7 @@ EpochManager::EpochManager(Service & service,
                            p2p_interface & p2p,
                            uint8_t delegate_id,
                            PeerAcceptorStarter & starter,
-                           std::shared_ptr<ApprovedEB> eb)
+                           const std::shared_ptr<ApprovedEB> & eb)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
@@ -45,10 +45,9 @@ EpochManager::EpochManager(Service & service,
 
 EpochManager::~EpochManager()
 {
-    LOG_DEBUG(_log) << "EpochManager::~EpochManager";
-    if (_delegate == EpochTransitionDelegate::Retiring ||
-            _delegate == EpochTransitionDelegate::RetiringForwardOnly ||
-            _delegate == EpochTransitionDelegate::None)
+    LOG_DEBUG(_log) << "EpochManager::~EpochManager" << std::endl;  // TODO: figure out why this isn't logged
+    CleanUp();
+    if (_delegate == EpochTransitionDelegate::Retiring || _delegate == EpochTransitionDelegate::None)
     {
         _request_manager->ClearMessageList();
         _micro_manager->ClearMessageList();
@@ -62,9 +61,11 @@ EpochManager::OnPostCommit(
 {
     // Persistent in the new Delegate's set
     if (_delegate == EpochTransitionDelegate::Persistent &&
-            _connection_state == EpochConnection::Transitioning)
+            _state == EpochTransitionState::EpochTransitionStart)
     {
-        _new_epoch_handler.OnPostCommit(epoch_number);
+        // only the first call to EpochStart will pass its _transition_state check (see
+        // ConsensusContainer implementation) since the invocation modifies the _transition_state.
+        _new_epoch_handler.EpochStart();
     }
 }
 
@@ -77,7 +78,9 @@ EpochManager::OnPrePrepareRejected()
             (_delegate == EpochTransitionDelegate::Persistent &&
             _connection_state == EpochConnection::Current))
     {
-        _new_epoch_handler.OnPrePrepareRejected(_delegate);
+        // Note that this can only be invoked once per EpochManager since
+        // ConsensusContainer will change this EpochManager's connection state
+        _new_epoch_handler.EpochStart();
     }
 }
 

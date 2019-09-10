@@ -20,9 +20,7 @@ enum class EpochTransitionDelegate : uint8_t
 {
     New,
     Persistent,
-    PersistentReject,
     Retiring,
-    RetiringForwardOnly,
     None
 };
 
@@ -97,14 +95,8 @@ TransitionDelegateToName(const EpochTransitionDelegate &delegate)
         case EpochTransitionDelegate::Persistent:
             result = "Persistent";
             break;
-        case EpochTransitionDelegate::PersistentReject:
-            result = "PersistentReject";
-            break;
         case EpochTransitionDelegate::Retiring:
             result = "Retiring";
-            break;
-        case EpochTransitionDelegate::RetiringForwardOnly:
-            result = "RetiringForwardOnly";
             break;
         case EpochTransitionDelegate::None:
             result = "None";

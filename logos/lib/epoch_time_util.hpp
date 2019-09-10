@@ -25,16 +25,13 @@ static const TimePoint Min_DT = TimePoint(boost::posix_time::min_date_time);
 #ifndef FAST_MB_EB_TEST
 /// Epoch transition starts every 12 hours
 /// Epoch events
-/// 1. Epoch start time: 12h
-static const Hours EPOCH_PROPOSAL_TIME(12); // 12 hours
-//static const Minutes EPOCH_PROPOSAL_TIME(5);
-/// 2. New delegates set connection time 12h - 5m
-static const Minutes EPOCH_DELEGATES_CONNECT(5); // 5 minunes
-/// 3. Epoch transition start time: 12h - 20s
+/// 1. New delegates set connection time 12h - 5m
+static const Minutes EPOCH_DELEGATES_CONNECT(5); // 5 minutes
+/// 2. Epoch transition start time: 12h - 20s
 static const Seconds EPOCH_TRANSITION_START(20); // 20 seconds
-/// 4. Epoch start time: 12h
-static const Seconds EPOCH_START(20); // 20 seconds after epoch trans start
-/// 5. Epoch transition end time: 12h + 20s
+/// 3. Epoch start time: 12h
+static const Hours EPOCH_PROPOSAL_TIME(12); // 12 hours
+/// 4. Epoch transition end time: 12h + 20s
 static const Seconds EPOCH_TRANSITION_END(20); // 20 seconds
 static const Minutes MICROBLOCK_PROPOSAL_TIME(10); // 10 minutes
 static const Minutes MICROBLOCK_CUTOFF_TIME(10); // 10 minutes
@@ -73,26 +70,32 @@ C TConvert(T t)
     return std::chrono::duration_cast<C>(t);
 }
 
+/// Interface for getting epoch and microblock times
+class TimeUtil
+{
+public:
+    virtual ~TimeUtil() = default;
+    virtual Milliseconds GetNextMicroBlockTime(uint8_t skip) = 0;
+    virtual Milliseconds GetNextEpochTime(uint8_t skip) = 0;
+};
+
 /// Defines times for epoch and microblock events
-class EpochTimeUtil {
+class EpochTimeUtil : public TimeUtil
+{
 public:
     /// Class constructor
     EpochTimeUtil() = default;
-    ~EpochTimeUtil() = default;
+    ~EpochTimeUtil() override = default;
 
     /// Get time for the next microblock construction
     /// @param skip number of proposal intervals, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next microblock event
-    Milliseconds GetNextMicroBlockTime(uint8_t skip=0);
+    Milliseconds GetNextMicroBlockTime(uint8_t skip) override;
 
     /// Get time for the next epoch construction/transition
     /// @param skip number of proposal intervals, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next epoch event
-    Milliseconds GetNextEpochTime(uint8_t skip=0);
-
-    /// Is this at or past epoch time (> 12h boundary  + 10min MB time - clock drift)
-    /// @returns true if it is at or past epoch construction/transition time
-    static bool IsPastEpochBlockTime();
+    Milliseconds GetNextEpochTime(uint8_t skip) override;
 
     /// Returns the number of seconds to wait until reproposing
     template <ConsensusType CT>
@@ -105,4 +108,21 @@ private:
     /// @returns time lapse in seconds for the next epoch event
     template<typename T>
     Milliseconds GetNextTime(T timeout, uint8_t skip);
+};
+
+class ArchivalTimer
+{
+friend void SetTestTimeUtil(uint64_t);
+
+private:
+    static std::shared_ptr<TimeUtil> _util_instance;
+    static std::shared_ptr<TimeUtil> GetInstance();
+
+public:
+    static Milliseconds GetNextMicroBlockTime(uint8_t skip=0);
+    static Milliseconds GetNextEpochTime(uint8_t skip=0);
+
+    /// Is this at or past epoch time (> 12h boundary  + 10min MB time - clock drift)
+    /// @returns true if it is at or past epoch construction/transition time
+    static bool IsPastEpochBlockTime();
 };

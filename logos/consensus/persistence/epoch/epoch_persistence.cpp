@@ -524,7 +524,7 @@ void PersistenceManager<ECT>::ApplyRewards(const ApprovedEB & block, const Block
             }
         };
 
-        Reward reward = Reward(earnings.numerator() / earnings.denominator(),
+        Reward reward = Reward((earnings.numerator() / earnings.denominator()).convert_to<logos::uint128_t>(),
                                Rational(earnings.numerator() % earnings.denominator(),
                                         earnings.denominator()));
 
