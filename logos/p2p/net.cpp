@@ -2539,8 +2539,8 @@ CNode::CNode(NodeId idIn,
     fPauseRecv = false;
     fPauseSend = false;
     nProcessQueueSize = 0;
-    first_propagate_index = session->connman.p2p_store->GetNextLabel();
-    next_propagate_index = 0;
+    important_propagate_index = 0;
+    regular_propagate_index = session->connman.p2p_store->GetNextLabel();
     sendCompleted = true;
 
     for (const std::string &msg : getAllNetMessageTypes())

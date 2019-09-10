@@ -17,10 +17,11 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <hash.h>
 
-#define DEFAULT_PROPAGATE_STORE_SIZE    0x10000
-#define DEFAULT_PROPAGATE_HASH_SIZE     0x100000
-#define PROPAGATE_HASH_BUCKET_LOG       4
-#define PROPAGATE_HASH_BUCKET_SIZE      (1 << PROPAGATE_HASH_BUCKET_LOG)
+#define DEFAULT_PROPAGATE_STORE_SIZE        0x10000
+#define DEFAULT_PROPAGATE_IMPORTANT_SIZE    0x1000
+#define DEFAULT_PROPAGATE_HASH_SIZE         0x100000
+#define PROPAGATE_HASH_BUCKET_LOG           4
+#define PROPAGATE_HASH_BUCKET_SIZE          (1 << PROPAGATE_HASH_BUCKET_LOG)
 
 /*
  * This hash table by default has 2^16 buckets, each bucket has 16 entries.
@@ -102,10 +103,9 @@ struct PropagateMessage
     }
 };
 
-class PropagateStore
+class PropagateFIFO
 {
 private:
-    PropagateHash   hash;
     uint64_t        max_size;
     uint64_t        first_label;
     uint64_t        next_label;
@@ -121,20 +121,92 @@ private:
             >
         >
     >               store;
+
+    bool _Find(const PropagateMessage &mess)
+    {
+        return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+    }
+
+public:
+    PropagateFIFO(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE)
+        : max_size(size)
+        , first_label(0)
+        , next_label(0)
+    {
+    }
+
+    ~PropagateFIFO()
+    {
+    }
+
+    bool Find(const PropagateMessage &mess)
+    {
+        return _Find(mess);
+    }
+
+    bool Insert(PropagateMessage &mess)
+    {
+        if (!_Find(mess))
+        {
+            while (store.size() >= max_size && first_label < next_label)
+            {
+                auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
+                if (iter != store.get<PropagateMessage::ByLabel>().end())
+                    store.get<PropagateMessage::ByLabel>().erase(iter);
+                first_label++;
+            }
+            mess.label = next_label++;
+            store.insert(mess);
+            return true;
+        }
+        return false;
+    }
+
+    uint64_t GetNextLabel() const
+    {
+        return next_label;
+    }
+
+    const PropagateMessage *GetNext(uint64_t &current_label)
+    {
+        if (current_label < first_label)
+            current_label = first_label;
+
+        while (current_label < next_label)
+        {
+            auto iter = store.get<PropagateMessage::ByLabel>().find(current_label);
+            current_label++;
+            if (iter != store.get<PropagateMessage::ByLabel>().end())
+            {
+                const PropagateMessage &mess = *iter;
+                return &mess;
+            }
+        }
+
+        return 0;
+    }
+};
+
+class PropagateStore
+{
+private:
+    PropagateHash   hash;
+    PropagateFIFO   regular;
+    PropagateFIFO   important;
     std::mutex      mutex;
 
     bool _Find(const PropagateMessage &mess)
     {
-        return hash.find(mess.hash) ||
-            store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+        return hash.find(mess.hash) || regular.Find(mess) || important.Find(mess);
     }
 
 public:
-    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE, uint64_t hash_size = DEFAULT_PROPAGATE_HASH_SIZE)
+    PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE,
+                   uint64_t hash_size = DEFAULT_PROPAGATE_HASH_SIZE,
+                   uint64_t important_size = DEFAULT_PROPAGATE_IMPORTANT_SIZE)
         : hash(hash_size)
-        , max_size(size)
-        , first_label(0)
-        , next_label(0)
+        , regular(size)
+        , important(important_size)
     {
     }
 
@@ -153,15 +225,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex);
         if (!_Find(mess))
         {
-            while (store.size() >= max_size && first_label < next_label)
-            {
-                auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
-                if (iter != store.get<PropagateMessage::ByLabel>().end())
-                    store.get<PropagateMessage::ByLabel>().erase(iter);
-                first_label++;
-            }
-            mess.label = next_label++;
-            store.insert(mess);
+            if (mess.important)
+                important.Insert(mess);
+            else
+                regular.Insert(mess);
             hash.insert(mess.hash);
             return true;
         }
@@ -170,49 +237,22 @@ public:
 
     uint64_t GetNextLabel() const
     {
-        return next_label;
+        return regular.GetNextLabel();
     }
 
     /* This function is used only in unit tests, use GetNextHandle() elsewhere. */
-    const PropagateMessage *GetNext(uint64_t &current_label, bool important_only = false)
+    const PropagateMessage *GetNext(uint64_t &current_label)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (current_label < first_label)
-            current_label = first_label;
-
-        while (current_label < next_label)
-        {
-            auto iter = store.get<PropagateMessage::ByLabel>().find(current_label);
-            current_label++;
-            if (iter != store.get<PropagateMessage::ByLabel>().end())
-            {
-                const PropagateMessage &mess = *iter;
-                if (!important_only || mess.important)
-                    return &mess;
-            }
-        }
-
-        return 0;
+        return regular.GetNext(current_label);
     }
 
-    PropagateMessageHandle GetNextHandle(uint64_t &current_label, bool important_only = false)
+    PropagateMessageHandle GetNextHandle(uint64_t &current_label, uint64_t &important_label)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (current_label < first_label)
-            current_label = first_label;
-
-        while (current_label < next_label)
-        {
-            auto iter = store.get<PropagateMessage::ByLabel>().find(current_label);
-            current_label++;
-            if (iter != store.get<PropagateMessage::ByLabel>().end())
-            {
-                const PropagateMessage &mess = *iter;
-                if (!important_only || mess.important)
-                    return mess.message;
-            }
-        }
-
+        const PropagateMessage *res = important.GetNext(important_label);
+        if (!res) res = regular.GetNext(current_label);
+        if (res) return res->message;
         return PropagateMessageHandle();
     }
 };

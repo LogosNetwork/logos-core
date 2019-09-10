@@ -733,8 +733,8 @@ public:
     std::atomic_bool                        fPauseRecv;
     std::atomic_bool                        fPauseSend;
     std::atomic<size_t>                     nRecvMsgSize;
-    uint64_t                                first_propagate_index;
-    uint64_t                                next_propagate_index;
+    uint64_t                                important_propagate_index;
+    uint64_t                                regular_propagate_index;
     std::atomic_bool                        sendCompleted;
 protected:
 
