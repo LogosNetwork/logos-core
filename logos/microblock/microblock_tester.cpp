@@ -207,7 +207,7 @@ MicroBlockTester::generate_microblock(
     logos::transaction transaction(node.store.environment, nullptr, true);
     boost::property_tree::ptree response_l;
     bool last_block = _request.get<bool>("last", false);
-    node._archiver.Test_ProposeMicroBlock(*node._consensus_container, last_block);
+    node._consensus_container->_archiver.Test_ProposeMicroBlock(*node._consensus_container, last_block);
     response_l.put ("result", "sent");
     response (response_l);
 }
@@ -237,7 +237,7 @@ MicroBlockTester::start_epoch_transition(
     boost::property_tree::ptree response_l;
     int delay = _request.get<int>("delay", 0);
     RecallHandler handler;
-    EventProposer proposer(node.alarm, handler, false, false);
+    EventProposer proposer(node.alarm, handler);
     proposer.ProposeTransitionOnce([&node]()->void{
         node._consensus_container->EpochTransitionEventsStart();
     }, Seconds(delay));
@@ -261,7 +261,7 @@ MicroBlockTester::informational(
         size_t size = 0;
 
         ECIESPublicKey ecies;
-        ecies.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
+        ecies.FromHexString("8e1ad798008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
 
         std::vector<uint8_t> buf;
         {
@@ -359,11 +359,11 @@ MicroBlockTester::epoch_delegates(
     std::string epoch (_request.get<std::string> ("epoch", "current"));
     if (epoch == "current")
     {
-        node._identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, approvedEb);
+        node._identity_manager->IdentifyDelegates(QueriedEpoch::Current, delegate_idx, approvedEb);
     }
     else
     {
-        node._identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, approvedEb);
+        node._identity_manager->IdentifyDelegates(QueriedEpoch::Next, delegate_idx, approvedEb);
     }
 
     for (uint8_t del = 0; del < NUM_DELEGATES; del++)
@@ -371,7 +371,7 @@ MicroBlockTester::epoch_delegates(
         boost::property_tree::ptree response;
         char buff[5];
         sprintf(buff, "%d", (int)del);
-        response.put("ip", node._identity_manager.GetDelegateIP(approvedEb->epoch_number+2, del));
+        response.put("ip", node._identity_manager->GetDelegateIP(approvedEb->epoch_number+2, del));
         response_l.push_back(std::make_pair(buff, response));
     }
 
@@ -387,7 +387,7 @@ MicroBlockTester::advertise(
 
     uint8_t idx;
     std::shared_ptr<ApprovedEB> eb;
-    node._identity_manager.CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), true, idx, eb);
+    node._identity_manager->CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), true, idx, eb);
 
     response_l.put("result", "processing");
 

@@ -29,7 +29,8 @@ TEST (Archival, ShouldSkipMBProposal)
     boost::asio::io_service service;
     logos::alarm alarm (service);
     RecallHandler recall_handler;
-    Archiver archiver(alarm, *store, recall_handler);
+    EventProposer event_proposer(alarm, recall_handler);
+    Archiver archiver(alarm, *store, event_proposer, recall_handler);
 
     // 1. Simulate local clock lag (Archiver counter lags behind)
     stored_mb.sequence += 1;

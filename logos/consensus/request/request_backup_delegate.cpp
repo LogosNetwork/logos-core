@@ -163,15 +163,16 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::New_Epoch:
             auto notifier = GetSharedPtr(_events_notifier,
                     "RequestBackupDelegate::HandlerReject, object destroyed");
-            if (notifier && notifier->GetDelegate() == EpochTransitionDelegate::PersistentReject)
+            // Store requests in MessageHandler queue to be passed on to new EpochManager
+            if (notifier && notifier->GetConnection() == EpochConnection::WaitingDisconnect && notifier->GetDelegate() == EpochTransitionDelegate::Persistent)
             {
                 SetPrePrepare(message);
-                auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
+                auto timeout = Clock::now() + GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
                 for(uint64_t i = 0; i < message.requests.size(); ++i)
                 {
                     _handler.OnMessage(std::static_pointer_cast<Request>(message.requests[i]), timeout);
                 }
-                _scheduler.ScheduleTimer(R, Clock::now() + timeout);
+                _scheduler.ScheduleTimer(R, timeout);
             }
             break;
     }

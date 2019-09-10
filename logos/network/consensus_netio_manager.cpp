@@ -38,7 +38,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
         LOG_INFO(_log) << "ConsensusNetIOManager::ConsensusNetIOManager-"
             << "delegate =" << (int)d.id << " is in config"
             << ",ip = " << d.ip;
-        _delegates[d.id] = d; 
+        _delegates[d.id] = d;
     }
 }
 
@@ -65,7 +65,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
             auto backup = entry.second->AddBackupDelegate(ids);
             netio->AddConsensusConnection(entry.first,backup);
         }
-        //If delegate is in config, and id is greater than ours, connect now
+        //If delegate is in config, and id is greater than ours, connect now as client
         if(_delegate_id < i)
         {
             auto iter = _delegates.find(i);
@@ -75,7 +75,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
                 netio->BindEndpoint(endpoint);
                 netio->Connect();
                 LOG_INFO(_log) << "ConsensusNetIOManager::Start - delegate="
-                    << unsigned(iter->second.id) 
+                    << unsigned(iter->second.id)
                     << ",epoch_number = " << epoch_info->GetEpochNumber()
                     << "Connecting now.";
             }
@@ -106,7 +106,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 
         if (ec)
         {
-            LOG_ERROR(this_s->_log) 
+            LOG_ERROR(this_s->_log)
                 << "ConsensusNetIOManager::_startup_timer, error: "
                 << ec.message();
             if (ec == boost::asio::error::operation_aborted)
@@ -210,8 +210,7 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
         return;
     }
     LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
-                    << " connection " << (info?TransitionConnectionToName(info->GetConnection()):" not available")
-                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+                    << " connection " << (info?TransitionConnectionToName(info->GetConnection()):" not available");
 }
 
 void
@@ -394,6 +393,7 @@ ConsensusNetIOManager::OnTimeout(
 void
 ConsensusNetIOManager::CleanUp()
 {
+    _startup_timer.cancel();
 
     //TODO - do we need to lock both mutexs here?
     std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
