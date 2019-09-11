@@ -313,6 +313,7 @@ void
 ConsensusNetIO::ReadPrequel()
 {
 
+    std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
     LOG_INFO(_log) << "ConsensusNetIO::ReadPrequel - "
         << CommonInfoToLog();
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
@@ -337,6 +338,8 @@ void
 ConsensusNetIO::AsyncRead(size_t bytes,
                           ReadCallback callback)
 {
+
+    std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
     LOG_WARN(_log) << "ConsensusNetIO::AsyncRead - called";
     if(_assembler)
     {
@@ -347,6 +350,8 @@ ConsensusNetIO::AsyncRead(size_t bytes,
 void
 ConsensusNetIO::OnPrequel(const uint8_t * data)
 {
+
+    std::lock_guard<std::recursive_mutex> lock(_connecting_mutex);
     LOG_INFO(_log) << "ConsensusNetIO::OnPrequel - "
         << CommonInfoToLog();
     bool error = false;
