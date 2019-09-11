@@ -20,6 +20,7 @@
 class MessageParser;
 class EpochInfo;
 class NetIOErrorHandler;
+class ConsensusNetIOManager;
 
 namespace logos
 {
@@ -104,7 +105,6 @@ private:
 /// id ordering.
 class ConsensusNetIO: public IOChannel,
                       public IOChannelReconnect,
-                      public NetIOSend,
                       public ConsensusMsgProducer,
                       public ConsensusMsgSink,
                       public Self<ConsensusNetIO>
@@ -136,8 +136,8 @@ public:
                    const uint8_t local_delegate_id, 
                    IOBinder binder,
                    std::shared_ptr<EpochInfo> epoch_info,
-                   NetIOErrorHandler & error_handler,
-                   bool is_client);
+                   ConsensusNetIOManager & netio_mgr,
+                   bool is_server);
 
 
 
@@ -156,7 +156,7 @@ public:
 
     /// Send data
     ///
-    ///  Sends data to the connected peer
+    ///  Sendr data to the connected peer
     ///  @param data data to be send
     ///  @param size of the data
     void Send(const void *data, size_t size) override;
@@ -276,7 +276,7 @@ public:
 
 protected:
 
-    void OnError(const ErrorCode &ec) override;
+    void OnError(const ErrorCode &ec);
     bool AddToConsensusQueue(const uint8_t * data,
                              uint8_t version,
                              MessageType message_type,
@@ -291,6 +291,7 @@ protected:
 
 private:
 
+    void MakeAndBindNewSocket();
 
     std::string CommonInfoToLog();
 
@@ -332,8 +333,9 @@ private:
     Connections                    _connections;       	  ///< vector of connections bound to the net i/o
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
     SPTR<ConsensusNetIOAssembler>  _assembler;            ///< Assembles messages from TCP buffer
+    SPTR<NetIOSend>                _io_send;
     std::weak_ptr<EpochInfo>       _epoch_info;           ///< Epoch transition info
-    NetIOErrorHandler &            _error_handler;        ///< used to enable p2p on error 
+    ConsensusNetIOManager &        _netio_mgr;        ///< used to enable p2p on error 
     std::recursive_mutex           _connecting_mutex;     ///< mutex used in connection sequence 
     std::atomic_bool               _connecting;           ///< true if object is in the process of reconnecting
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp

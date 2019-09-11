@@ -73,7 +73,10 @@ RequestConsensusManager::BindIOChannel(
     _connected_vote += _weights[ids.remote].vote_weight;
     _connected_stake += _weights[ids.remote].stake_weight;
 
-    LOG_DEBUG (_log) << "_connected_vote: " << _connected_vote << ", _connected_stake: " << _connected_stake;
+
+    LOG_DEBUG (_log) << "ids.remote=" << unsigned(ids.remote) 
+        << "_connected_vote: " << _connected_vote 
+        << ", _connected_stake: " << _connected_stake;
     // SYL Integration fix: need to add in our own vote and stake as well
     if(ReachedQuorum(_connected_vote + _my_vote,
                      _connected_stake + _my_stake))

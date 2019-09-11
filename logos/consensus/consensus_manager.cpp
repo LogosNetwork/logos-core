@@ -382,10 +382,11 @@ ConsensusManager<CT>::CanReachQuorumViaDirectConnect()
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
         auto direct = (*it)->PrimaryDirectlyConnected()?1:0;
-        LOG_TRACE(_log) << "ConsensusManager<" << ConsensusToName(CT)
-            << ">::OnP2pTimeout-delegate=" << (int)((*it)->RemoteDelegateId())
-            << ",direct=" << (int)direct;
-        (*it)->ResetConnectCount();
+        LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT)
+            << ">::CanReachQuorumViaDirectConnect-delegate="
+            << (int)((*it)->RemoteDelegateId())
+            << ",direct=" << (int)direct
+            << ",vote=" << vote << ",stake=" << stake;
         vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
         stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
     }
@@ -407,8 +408,10 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
 
     if (!CanReachQuorumViaDirectConnect())
     {
+
         LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                        << ">::OnP2pTimeout, scheduling p2p timer ";
+                        << ">::OnP2pTimeout, resetting connect count"
+                        << ",scheduling p2p timer ";
         std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
         ConsensusP2pBridge::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
             auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
@@ -438,6 +441,12 @@ ConsensusManager<CT>::EnableP2p(bool enable)
         << "EnableP2p - " << enable_str;
     if (enable)
     {
+        //reset connect count here
+        //only do this when first enabling p2p
+        for (auto it = _connections.begin(); it != _connections.end(); ++it)
+        {
+            (*it)->ResetConnectCount();
+        }
         std::weak_ptr<ConsensusManager<CT>> this_w =
                 std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
         ConsensusP2pBridge::ScheduleP2pTimer([this_w](const ErrorCode &ec) {

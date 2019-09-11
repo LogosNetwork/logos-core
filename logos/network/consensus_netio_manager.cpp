@@ -35,6 +35,9 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
 
     for(auto& d: config.delegates)
     {
+        LOG_INFO(_log) << "ConsensusNetIOManager::ConsensusNetIOManager-"
+            << "delegate =" << (int)d.id << " is in config"
+            << ",ip = " << d.ip;
         _delegates[d.id] = d; 
     }
 }
@@ -129,6 +132,11 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
                         << "ConsensusNetIOManager::_startup_timer - "
                         << "Delegates not connected, starting p2p consensus";
                     mgr->StartConsensusWithP2p();
+                }
+                else
+                {
+                    LOG_INFO(this_s->_log) << "ConsensusNetIOManager::_startup_timer"
+                        << "-delegates connected";
                 }
             }
         }

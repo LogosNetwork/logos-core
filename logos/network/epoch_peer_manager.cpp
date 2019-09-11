@@ -37,7 +37,12 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
                                 << " peer version=" << (int)ad->consensus_version
                                 << " my version=" << (int)logos_version;
                 socket->close();
-            } else {
+            }
+            else
+            {
+
+                LOG_INFO(_log) << "EpochPeerManager::OnConnectionAccepted -"
+                    << "server handshake successful";
                 auto res = _peer_binder.Bind(socket,
                                              Endpoint(boost::asio::ip::make_address_v4(ad->GetIP().c_str()), port),
                                              ad->epoch_number,
