@@ -243,6 +243,7 @@ public:
     void sleeve_reset ();
     void delegate_activate (bool activate = true);
     void cancel_activation_scheduling ();
+    void activation_status ();
     void new_bls_key_pair ();
     void new_ecies_key_pair ();
 

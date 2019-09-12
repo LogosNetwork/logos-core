@@ -375,6 +375,7 @@ sleeve_status Sleeve::Unsleeve(logos::transaction const & tx)
         return sleeve_code::sleeve_locked;
     }
 
+    // TODO: implement a separate database wrapper class to abstract away the database implementation, same below
     auto status(mdb_del(tx.handle, _sleeve_handle, logos::mdb_val(_bls_locator), nullptr));
     assert(!status || status == MDB_NOTFOUND);
     status = (mdb_del(tx.handle, _sleeve_handle, logos::mdb_val(_ecies_locator), nullptr));
