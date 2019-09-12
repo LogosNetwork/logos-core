@@ -173,6 +173,7 @@ public:
     std::vector<std::function<void(T...)>> observers;
 };
 
+// TODO: reduce duplication conversion implementations (other impl in bls)
 std::string unicode_to_hex(const std::string& input);
 std::string hex_to_unicode(const std::string& input);
 
