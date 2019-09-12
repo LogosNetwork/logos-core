@@ -698,6 +698,21 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
     }
 }
 
+std::shared_ptr<Request> Deserialize(uint8_t* data, uint32_t size)
+{
+
+    bool error = false;
+
+
+
+    logos::bufferstream stream2(data,size);
+
+
+    std::shared_ptr<Request> req = DeserializeRequest(error,stream2);
+    assert(!error);
+    return req;
+}
+
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
@@ -727,6 +742,15 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
         }
         case P2pAppType::AddressAdTxAcceptor: {
             return OnAddressAdTxAcceptor((uint8_t*)data, size);
+        }
+        case P2pAppType::Request: {
+            std::shared_ptr<Request> request = Deserialize((uint8_t*)data, size);
+                                      
+
+            logos::process_return result = OnDelegateMessage(static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),false);
+            //if not a delegate, propagate
+            //TODO validate the request
+            return result.code == logos::process_result::not_delegate; 
         }
         default:
             return false;

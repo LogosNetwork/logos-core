@@ -40,6 +40,42 @@ void ConsensusP2pOutput::AddMessageToBuffer(const uint8_t *data,
                     << " is added to p2p to delegate " << (unsigned)_delegate_id;
 }
 
+//void SerializeRequest(Request& request)
+//{
+//
+//    std::vector<uint8_t> buf;
+//    {
+//        logos::stream stream(buf);
+//        request.Serialize(stream);
+//    }
+//    SerializeRequest(buf.data(), buf.size());
+//}
+//
+//void SerializeRequest(const uint8_t *data, uint32_t size)
+//{
+//    P2pHeader p2pheader={logos_version, P2pAppType::Request};
+//    auto hdrs_size = P2pHeader::SIZE;
+//    _p2p_buffer.resize(size + hdrs_size);
+//
+//    std::vector<uint8_t> buf;
+//    {
+//        logos::vectorstream stream(buf);
+//        assert(p2pheader.Serialize(stream) == P2pHeader::SIZE);
+//    }
+//    memcpy(_p2p_buffer.data(), buf.data(), buf.size());
+//    memcpy(_p2p_buffer.data() + hdrs_size, data, size);
+//
+//}
+//
+//void DeserializeRequest(const uint8_t *data, uint32_t size)
+//{
+//    logos::bufferstream(data, size);
+//    bool error = false;
+//    Request request(error, bufferstream);
+//
+//
+//}
+
 void ConsensusP2pOutput::Clean()
 {
     _p2p_buffer.clear();
