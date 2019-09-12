@@ -86,6 +86,7 @@ namespace websocket
 		 * @param message_a the message to be checked
 		 * @return false - the message should always be broadcasted
 		 */
+		 //TODO can be removed, keep it for now in case we come up with more options, i.e. subclasses
 		virtual bool should_filter (message const & message_a) const
 		{
 			return false;
@@ -176,7 +177,7 @@ namespace websocket
 	class listener final : public std::enable_shared_from_this<listener>
 	{
 	public:
-		listener (logos::node & node_a, std::string & local_address);
+		listener (boost::asio::io_service & service, std::string & local_address);
 
 		/** Start accepting connections */
 		void run ();

@@ -175,6 +175,7 @@ public:
     unsigned io_threads;
     unsigned work_threads;
     bool enable_voting;
+    bool enable_websocket;
     unsigned bootstrap_connections;
     unsigned bootstrap_connections_max;
     std::string callback_address;

@@ -396,6 +396,7 @@ password_fanout (1024),
 io_threads (std::max<unsigned> (4, std::thread::hardware_concurrency ())),
 work_threads (std::max<unsigned> (4, std::thread::hardware_concurrency ())),
 enable_voting (true),
+enable_websocket (true),
 bootstrap_connections (4),
 bootstrap_connections_max (64),
 callback_port (0),
@@ -443,6 +444,7 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
     tree_a.put ("io_threads", std::to_string (io_threads));
     tree_a.put ("work_threads", std::to_string (work_threads));
     tree_a.put ("enable_voting", enable_voting);
+    tree_a.put ("enable_websocket", enable_websocket);
     tree_a.put ("bootstrap_connections", bootstrap_connections);
     tree_a.put ("bootstrap_connections_max", bootstrap_connections_max);
     tree_a.put ("callback_address", callback_address);
@@ -633,6 +635,7 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         auto io_threads_l (tree_a.get<std::string> ("io_threads"));
         auto work_threads_l (tree_a.get<std::string> ("work_threads"));
         enable_voting = tree_a.get<bool> ("enable_voting");
+        enable_websocket = tree_a.get<bool> ("enable_websocket");
         auto bootstrap_connections_l (tree_a.get<std::string> ("bootstrap_connections"));
         auto bootstrap_connections_max_l (tree_a.get<std::string> ("bootstrap_connections_max"));
         callback_address = tree_a.get<std::string> ("callback_address");
@@ -725,9 +728,11 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
-
-    websocket_server = std::make_shared<logos::websocket::listener> (*this, config.consensus_manager_config.local_address);
-    websocket_server->run ();
+    if(config_a.enable_websocket)
+    {
+        websocket_server = std::make_shared<logos::websocket::listener> (this->service, config.consensus_manager_config.local_address);
+        websocket_server->run ();
+    }
 
     p2p_conf = config.p2p_conf;
     p2p_conf.lmdb_env = store.environment.environment;

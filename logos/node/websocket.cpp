@@ -6,17 +6,17 @@
 #include <algorithm>
 #include <chrono>
 
-        template<ConsensusType CT>
-		logos::websocket::message logos::websocket::block_confirm_message_builder::build (const PostCommittedBlock<CT> & block)
-		{
-            logos::websocket::message message_l (logos::websocket::topic::confirmation);
-            message_l.contents.add ("block_type", ConsensusToName(CT));
+template<ConsensusType CT>
+logos::websocket::message logos::websocket::block_confirm_message_builder::build (const PostCommittedBlock<CT> & block)
+{
+    logos::websocket::message message_l (logos::websocket::topic::confirmation);
+    message_l.contents.add ("block_type", ConsensusToName(CT));
 
-            boost::property_tree::ptree block_node;
-            block.SerializeJson (block_node);
-            message_l.contents.add_child ("block", block_node);
-            return message_l;
-        }
+    boost::property_tree::ptree block_node;
+    block.SerializeJson (block_node);
+    message_l.contents.add_child ("block", block_node);
+    return message_l;
+}
 
 logos::websocket::confirmation_options::confirmation_options (boost::property_tree::ptree const & options_a)
 {
@@ -69,6 +69,8 @@ ws_listener (listener_a), ws (std::move (socket_a)), strand (ws.get_executor ())
 
 logos::websocket::session::~session ()
 {
+    LOG_TRACE(log) << "Websocket::session::dtor";
+
 	{
 		std::unique_lock<std::mutex> lk (subscriptions_mutex);
 		for (auto & subscription : subscriptions)
@@ -80,6 +82,8 @@ logos::websocket::session::~session ()
 
 void logos::websocket::session::handshake ()
 {
+    LOG_TRACE(log) << "Websocket::session::handshake";
+
 	auto this_l (shared_from_this ());
 	ws.async_accept ([this_l](boost::system::error_code const & ec) {
 		if (!ec)
@@ -113,10 +117,13 @@ void logos::websocket::session::close ()
 
 void logos::websocket::session::write (logos::websocket::message message_a)
 {
+    LOG_TRACE(log) << "Websocket::session::write";
+
 	// clang-format off
 	std::unique_lock<std::mutex> lk (subscriptions_mutex);
 	auto subscription (subscriptions.find (message_a.topic));
-	if (message_a.topic == logos::websocket::topic::ack || (subscription != subscriptions.end () && !subscription->second->should_filter (message_a)))
+	if (message_a.topic == logos::websocket::topic::ack ||
+        (subscription != subscriptions.end () && !subscription->second->should_filter (message_a)))
 	{
 		lk.unlock ();
 		auto this_l (shared_from_this ());
@@ -135,6 +142,8 @@ void logos::websocket::session::write (logos::websocket::message message_a)
 
 void logos::websocket::session::write_queued_messages ()
 {
+    LOG_TRACE(log) << "Websocket::session::write_queued_messages";
+
 	auto msg (send_queue.front ());
 	auto msg_str (msg.to_string ());
 	auto this_l (shared_from_this ());
@@ -157,6 +166,8 @@ void logos::websocket::session::write_queued_messages ()
 
 void logos::websocket::session::read ()
 {
+    LOG_TRACE(log) << "Websocket::session::read";
+
 	auto this_l (shared_from_this ());
 
 	// clang-format off
@@ -229,6 +240,7 @@ std::string from_topic (logos::websocket::topic topic_a)
 
 void logos::websocket::session::send_ack (std::string action_a, std::string id_a)
 {
+    LOG_TRACE(log) << "Websocket::session::send_ack";
 	auto milli_since_epoch = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
 	logos::websocket::message msg (logos::websocket::topic::ack);
 	boost::property_tree::ptree & message_l = msg.contents;
@@ -243,7 +255,7 @@ void logos::websocket::session::send_ack (std::string action_a, std::string id_a
 
 void logos::websocket::session::handle_message (boost::property_tree::ptree const & message_a)
 {
-    LOG_TRACE(log) << "Websocket::session::handle_message";
+    LOG_DEBUG(log) << "Websocket::session::handle_message";
 	std::string action (message_a.get<std::string> ("action", ""));
 	auto topic_l (to_topic (message_a.get<std::string> ("topic", "")));
 	auto ack_l (message_a.get<bool> ("ack", false));
@@ -294,6 +306,8 @@ void logos::websocket::session::handle_message (boost::property_tree::ptree cons
 
 void logos::websocket::listener::stop ()
 {
+    LOG_TRACE(log) << "Websocket::listener::stop";
+
 	stopped = true;
 	acceptor.close ();
 
@@ -309,9 +323,9 @@ void logos::websocket::listener::stop ()
 	sessions.clear ();
 }
 
-logos::websocket::listener::listener (logos::node & node_a, std::string & local_address) :
-acceptor (node_a.service),
-socket (node_a.service)
+logos::websocket::listener::listener (boost::asio::io_service & service, std::string & local_address) :
+acceptor (service),
+socket (service)
 {
     boost::asio::ip::tcp::endpoint endpoint_a(boost::asio::ip::address::from_string(local_address), listener_port);
 	try
@@ -320,15 +334,17 @@ socket (node_a.service)
 		acceptor.set_option (boost::asio::socket_base::reuse_address (true));
 		acceptor.bind (endpoint_a);
 		acceptor.listen (boost::asio::socket_base::max_listen_connections);
-	}
+        LOG_DEBUG(log) << "Websocket: listener constructed";
+    }
 	catch (std::exception const & ex)
 	{
-		LOG_WARN(log) << "Websocket: listen failed: " << ex.what ();
+		LOG_WARN(log) << "Websocket: listener ctor, listen failed: " << ex.what ();
 	}
 }
 
 void logos::websocket::listener::run ()
 {
+    LOG_DEBUG(log) << "Websocket: listener started";
 	if (acceptor.is_open ())
 	{
 		accept ();
@@ -337,6 +353,7 @@ void logos::websocket::listener::run ()
 
 void logos::websocket::listener::accept ()
 {
+    LOG_DEBUG(log) << "Websocket::listener::accept";
 	auto this_l (shared_from_this ());
 	acceptor.async_accept (socket,
 	[this_l](boost::system::error_code const & ec) {
@@ -346,6 +363,8 @@ void logos::websocket::listener::accept ()
 
 void logos::websocket::listener::on_accept (boost::system::error_code ec)
 {
+    LOG_TRACE(log) << "Websocket::listener::on_accept";
+
 	if (ec)
 	{
 		LOG_WARN(log) << "Websocket: accept failed: " << ec.message ();
@@ -401,6 +420,8 @@ void logos::websocket::listener::broadcast_confirmation (const PostCommittedBloc
 
 void logos::websocket::listener::broadcast (logos::websocket::message message_a)
 {
+    LOG_TRACE(log) << "Websocket::listener::broadcast";
+
 	std::lock_guard<std::mutex> lk (sessions_mutex);
 	for (auto & weak_session : sessions)
 	{
@@ -414,11 +435,15 @@ void logos::websocket::listener::broadcast (logos::websocket::message message_a)
 
 void logos::websocket::listener::increase_subscriber_count (logos::websocket::topic const & topic_a)
 {
+    LOG_TRACE(log) << "Websocket::listener::increase_subscriber_count";
+
 	topic_subscriber_count[static_cast<std::size_t> (topic_a)] += 1;
 }
 
 void logos::websocket::listener::decrease_subscriber_count (logos::websocket::topic const & topic_a)
 {
+    LOG_TRACE(log) << "Websocket::listener::decrease_subscriber_count";
+
 	auto & count (topic_subscriber_count[static_cast<std::size_t> (topic_a)]);
 	assert (count > 0);
 	count -= 1;
