@@ -59,6 +59,7 @@ private:
                      uint32_t size,
                      uint8_t version,
                      PostCommittedBlock<CT> &block);
+    bool ValidateRequest(std::shared_ptr<Request> req);
 
     Log                                                                                         _log;
     std::function<bool (const PostCommittedBlock<CT> &)>                                        _AddBlock;

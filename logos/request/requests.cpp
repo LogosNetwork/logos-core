@@ -300,30 +300,36 @@ void Request::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, type);
     if(error)
     {
+        std::cout << "type rror" << std::endl;
         return;
     }
 
     error = logos::read(stream, origin);
     if(error)
     {
+        std::cout << "origin error" << std::endl;
         return;
     }
 
     error = logos::read(stream, previous);
     if(error)
     {
+        std::cout << "previous error" << std::endl;
         return;
     }
 
     error = logos::read(stream, fee);
     if(error)
     {
+        std::cout << "fee error" << std::endl;
         return;
     }
 
     error = logos::read(stream, sequence);
     if(error)
     {
+
+        std::cout << "sequence error" << std::endl;
         return;
     }
 
@@ -482,12 +488,14 @@ Send::Send(bool & error,
 {
     if(error)
     {
+        std::cout << "error in base class" << std::endl;
         return;
     }
 
     Deserialize(error, stream);
     if(error)
     {
+        std::cout << "error in derived class" << std::endl;
         return;
     }
 
@@ -579,6 +587,8 @@ uint64_t Send::Serialize(logos::stream & stream) const
     uint64_t bytes_written = 0;
 
     bytes_written += SerializeVector(stream, transactions);
+    std::cout << "serialized transactions,size = "
+        << transactions.size() << std::endl;
     bytes_written += logos::write(stream, signature);
 
     return bytes_written;
@@ -592,6 +602,8 @@ void Send::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
+    std::cout << "deserializing transactions, count = " 
+        << (int)count << std::endl;
 
     for(size_t i = 0; i < count; ++i)
     {

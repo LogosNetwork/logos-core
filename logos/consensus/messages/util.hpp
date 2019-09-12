@@ -161,6 +161,9 @@ std::ostream& operator<<(std::ostream &os, P2pAppType at)
         case P2pAppType::AddressAdTxAcceptor:
             os << "AddressAdTxAcceptor";
             break;
+        case P2pAppType::Request:
+            os << "Request";
+            break;
     }
     return os;
 }
