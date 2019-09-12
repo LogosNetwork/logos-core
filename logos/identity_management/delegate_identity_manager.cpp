@@ -342,6 +342,7 @@ DelegateIdentityManager::UnlockSleeve(std::string const & password)
 
     // Sleeve is now Unlocked.
     // Check if existing BLS and ECIES keys exist, and enter Sleeved state if so
+    std::lock_guard<std::mutex> lock(_activation_mutex);
     if (_sleeve.KeysExist(tx))
     {
         OnSleeved(tx);
@@ -370,6 +371,12 @@ DelegateIdentityManager::Sleeve(PlainText const & bls_prv, PlainText const & eci
 
     if (!status)
         return status;
+
+    std::lock_guard<std::mutex> lock(_activation_mutex);
+    if (status && overwrite)  // re-entering sleeved state
+    {
+        _node.DeactivateConsensus();
+    }
 
     // Entering sleeved state
     OnSleeved(tx);
@@ -580,6 +587,7 @@ DelegateIdentityManager::ApplyActivationSchedule()
     {
         // Sanity check: in the previous epoch, the scheduled epoch would have been "Next"
         assert(_activated[QueriedEpoch::Next] == _activation_schedule.activate);
+        _activation_schedule.start_epoch = 0;  // reset schedule (although not necessary)
     }
     // scheduled change for next epoch
     else if (cur_epoch + 1 == _activation_schedule.start_epoch)
@@ -1311,9 +1319,8 @@ DelegateIdentityManager::IsSleeved()
 void
 DelegateIdentityManager::OnSleeved(logos::transaction const & tx)
 {
-    std::lock_guard<std::mutex> lock(_activation_mutex);
-
     // retrieve BLS and ECIES keypairs from Sleeve database, and enter Sleeved state
+    // TODO: benchmark relative performance loss of storing governance keys using fan-out in memory
     _bls_key = _sleeve.GetBLSKey(tx);
     assert (_bls_key);
     _ecies_key = _sleeve.GetECIESKey(tx);
@@ -1341,6 +1348,7 @@ void DelegateIdentityManager::OnUnsleeved()
     std::lock_guard<std::mutex> lock(_activation_mutex);
     _node.DeactivateConsensus();
 
+    // TODO: zero the keys' content first
     _bls_key = nullptr;
     _ecies_key = nullptr;
 }

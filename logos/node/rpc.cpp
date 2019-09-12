@@ -4233,7 +4233,7 @@ void logos::rpc_handler::sleeve_unlock()
     auto status = node._identity_manager->UnlockSleeve(password);
     if (!status)
     {
-        error_response (response, SleeveResultToString(sleeve_code::invalid_password))
+        error_response (response, SleeveResultToString(status.code))
     }
     boost::property_tree::ptree resp_tree;
     resp_tree.put("success", true);
@@ -4289,7 +4289,7 @@ void logos::rpc_handler::sleeve_store_keys()
     using namespace request::fields;
     ByteArray<32> ecies_prv (request.get<std::string>(request::fields::ECIES));
     ByteArray<32> bls_prv (request.get<std::string>(BLS));
-    bool overwrite (boost::lexical_cast<bool>(request.get<std::string>(OVERWRITE)));
+    bool overwrite (request.get<bool>(OVERWRITE, false));
 
     auto status (node._identity_manager->Sleeve(bls_prv, ecies_prv, overwrite));
 
@@ -4365,6 +4365,38 @@ void logos::rpc_handler::cancel_activation_scheduling()
     }
     boost::property_tree::ptree resp_tree;
     resp_tree.put("success", true);
+    response (resp_tree);
+}
+
+void logos::rpc_handler::activation_status()
+{
+    boost::property_tree::ptree resp_tree;
+    bool unlocked = node._sleeve.IsUnlocked();
+    resp_tree.put("unlocked", unlocked);
+    if (unlocked)
+    {
+        bool sleeved = node._identity_manager->IsSleeved();
+        resp_tree.put("sleeved", sleeved);
+        auto status = node._identity_manager->GetActivationStatus();
+        resp_tree.put("activated", status.first);
+        if (sleeved && status.first)  // both sleeved and activated now
+        {
+            auto delegate_idx = node._consensus_container->GetCurDelegateIdx();
+            if (delegate_idx != NON_DELEGATE)
+            {
+                resp_tree.put("delegate_idx", delegate_idx);
+            }
+            else
+            {
+                resp_tree.put("delegate_idx", "-1");
+            }
+        }
+        if (status.second.start_epoch > ConsensusContainer::GetCurEpochNumber())
+        {
+            resp_tree.put("scheduled_epoch", status.second.start_epoch);
+            resp_tree.put("scheduled_activate", status.second.activate);
+        }
+    }
     response (resp_tree);
 }
 
@@ -5001,6 +5033,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "cancel_activation_scheduling")
         {
             cancel_activation_scheduling();
+        }
+        else if (action == "activation_status")
+        {
+            activation_status();
         }
         else if (action == "new_bls_key_pair")
         {

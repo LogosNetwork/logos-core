@@ -63,7 +63,7 @@ public:
 private:
     Service &       _service;       /// boost asio service reference
     Endpoint        _endpoint;      /// local endpoint
-    PeerAcceptor    _peer_acceptor; /// acceptor's instance
+    std::shared_ptr<PeerAcceptor>   _peer_acceptor; /// acceptor's instance
     Reader          _reader;        /// json/binary member function pointer
     TxAcceptor &    _tx_acceptor;   /// tx acceptor reference to call reader with
     Log             _log;           /// boost asio log

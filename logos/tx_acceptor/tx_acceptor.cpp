@@ -22,13 +22,13 @@ TxPeerManager::TxPeerManager(
     Reader reader)
     : _service(service)
     , _endpoint(Endpoint(boost::asio::ip::make_address_v4(ip), port))
-    , _peer_acceptor(service, _endpoint, *this)
+    , _peer_acceptor(std::make_shared<PeerAcceptor>(service, _endpoint, *this))
     , _tx_acceptor(tx_acceptor)
     , _reader(reader)
 
 {
     LOG_INFO(_log) << "TxPeerManager::TxPeerManager creating acceptor on " << _endpoint;
-    _peer_acceptor.Start();
+    _peer_acceptor->Start();
 }
 
 void

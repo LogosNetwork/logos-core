@@ -220,6 +220,11 @@ public:
     /// @returns current epoch id
     static uint32_t GetCurEpochNumber() { return _cur_epoch_number; }
 
+    /// Convert queried epoch (Current/Next) to the corresponding database epoch block number
+    /// Note that this should only be used for retrieving information from old epoch blocks.
+    ///
+    /// @param[in] Epoch to query
+    /// @return database epoch block number that contains the delegate information for the queried epoch
     static uint32_t QueriedEpochToNumber(QueriedEpoch q)
     {
         return (q == QueriedEpoch::Current) ? (GetCurEpochNumber() - 2) : (GetCurEpochNumber() - 1);
@@ -245,6 +250,11 @@ public:
     {
         return _identity_manager;
     }
+
+    /// Get delegate index (if any) during current epoch
+    ///
+    /// @return delegate index in current epoch, if it is activated and in office. NON_DELEGATE otherwise.
+    uint8_t GetCurDelegateIdx();
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;

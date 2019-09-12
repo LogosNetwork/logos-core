@@ -8,7 +8,7 @@
 #include <memory>
 #include <set>
 
-class PeerAcceptor
+class PeerAcceptor : public std::enable_shared_from_this<PeerAcceptor>
 {
     using Service  = boost::asio::io_service;
     using Socket   = boost::asio::ip::tcp::socket;

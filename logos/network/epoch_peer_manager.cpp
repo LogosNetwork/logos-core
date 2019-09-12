@@ -12,9 +12,9 @@
 EpochPeerManager::EpochPeerManager(Service& service,
                                    const Config &config,
                                    PeerBinder & binder)
-    : _peer_acceptor(service,
+    : _peer_acceptor(std::make_shared<PeerAcceptor>(service,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
-                              config.peer_port), *this)
+                              config.peer_port), *this))
     , _peer_binder(binder)
 {}
 
