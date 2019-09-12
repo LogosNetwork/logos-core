@@ -71,7 +71,7 @@ private:
 
     Service &               _service;               /// boost asio service reference
     Endpoint                _endpoint;              /// local endpoint
-    PeerAcceptor            _delegate;              /// delegate's acceptor
+    std::shared_ptr<PeerAcceptor>   _delegate;      /// delegate's acceptor
     Log                     _log;                   /// boost log
     uint64_t                _last_sent;             /// last sent message's time stamp
     Timer                   _inactivity_timer;      /// inactivity timer

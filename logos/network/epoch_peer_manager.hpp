@@ -50,13 +50,13 @@ public:
     /// @param end_points peers endpoints
     void Start() override
     {
-        _peer_acceptor.Start();
+        _peer_acceptor->Start();
     }
 
 private:
     static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
 
-    PeerAcceptor    _peer_acceptor; ///< Accepts connections from peers
+    std::shared_ptr<PeerAcceptor>   _peer_acceptor; ///< Accepts connections from peers
     Log             _log;           ///< Boost log
     PeerBinder &    _peer_binder;   ///< Peer binding to NetIOConsensus
 };

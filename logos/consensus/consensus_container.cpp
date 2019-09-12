@@ -164,6 +164,8 @@ ConsensusContainer::DeactivateConsensus()
         LOG_INFO(_log) << "ConsensusContainer::DeactivateConsensus - erasing EpochManager for epoch " << entry->first;
         _binding_map.erase(entry);
     }
+    // Clear DelegateMap. TODO: this is just a crude temporary fix. DelegateMap may need its Reset method.
+    DelegateMap::instance = nullptr;
 
     // Reset transition states
     _transition_delegate = EpochTransitionDelegate::None;
@@ -520,6 +522,17 @@ ConsensusContainer::Bind(
     epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, delegate_id);
 
     return true;
+}
+
+uint8_t
+ConsensusContainer::GetCurDelegateIdx()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_binding_map.find(GetCurEpochNumber()) != _binding_map.end())
+    {
+        return _binding_map[GetCurEpochNumber()]->GetDelegateId();
+    }
+    return NON_DELEGATE;
 }
 
 void

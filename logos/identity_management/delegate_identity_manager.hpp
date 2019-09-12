@@ -147,8 +147,24 @@ public:
     /// Initialize Genesis blocks/accounts
     void Init();
 
+    /// Helper function to check if the node is Sleeved
+    ///
+    /// The caller of this function is responsible for acquiring `_activation_mutex`!
+    /// @return true if Sleeved, false otherwise
+    bool IsSleeved();
+
+    /// Attempt to unlock Sleeve with provided password. If the Sleeve is successfully unlocked and
+    /// already contains governance keys, IM will load the keys in memory and additionally coordinate
+    /// consensus activation.
+    ///
+    ///     @param[in] password (in plaintext)
+    /// @return sleeve command status
     sleeve_status UnlockSleeve(std::string const &);
 
+    /// Attempt to lock the Sleeve (clearing its stored password). If successful, IM will also
+    /// clear its stored keys from memory, as well as tear down any ongoing consensus components.
+    ///
+    /// @return sleeve command status
     sleeve_status LockSleeve();
 
     /// Store governance keys in the Sleeve, if Sleeve is unlocked, and start consensus / advertisement if activated
@@ -161,16 +177,33 @@ public:
     sleeve_status Sleeve(PlainText const &, PlainText const &, bool overwrite = false);
 
     /// Unsleeve, erasing any stored keys, tearing down consensus and cancelling advertisements
+    ///
+    /// @return sleeve command status
     sleeve_status Unsleeve();
 
+    /// Reset the Sleeve (clearing everything stored). IM will also
+    /// clear its stored keys from memory, as well as tear down any ongoing consensus components.
+    ///
+    /// @return sleeve command status
     void ResetSleeve();
 
+    /// Check if any future activation change is scheduled
+    ///
+    /// @return true if scheduled, false otherwise.
     bool IsSettingChangeScheduled();
 
     /// Change activation status and scheduling
     /// Caller is responsible for acquiring _activation_mutex lock!
+    ///
+    ///     @param[in] whether to activate. true for activate, false for deactivate
+    ///     @param[in] epoch number starting from which the activation status will take effect. 0 for immediate change
+    /// @return sleeve command status
     sleeve_status ChangeActivation(bool const &, uint32_t const &);
 
+    /// Attempt to cancel scheduled activation changes.
+    /// If a deactivation scheduled for the next epoch is cancelled,
+    /// IM will also advertise endpoints. Note that during the period of [ETES, ES),
+    /// any scheduled activation changes for the immediately upcoming epoch cannot be cancelled.
     sleeve_status CancelActivationScheduling();
 
     /// Helper function to indicate whether the node, if sleeved, should be active in the next epoch
@@ -185,6 +218,22 @@ public:
     /// Calling it any other time than right after current epoch number is incremented would lead to unexpected behavior
     void ApplyActivationSchedule();
 
+    /// (1 of 2 overloads)
+    /// Get the activation status summary.
+    ///
+    /// @return pair where the first element is whether IM is activated in current epoch,
+    /// and the second the activation schedule. Note that an activation schedule with any
+    /// start epoch **not greater than** the current epoch is considered not scheduled.
+    std::pair<bool, activation_schedule> GetActivationStatus()
+    {
+        return std::make_pair(_activated[QueriedEpoch::Current], _activation_schedule);
+    }
+
+    /// (2 of 2 overloads)
+    /// Get the activation status for the queried epoch (current or next).
+    ///
+    ///     @param[in] Epoch for which the activation status will be returned
+    /// @return true if activated in the queried epoch, false otherwise
     bool GetActivationStatus(QueriedEpoch queried_epoch) { return _activated[queried_epoch]; }
 
     /// Identify this delegate and group of delegates in this epoch
@@ -475,12 +524,6 @@ private:
     static constexpr Minutes AD_TIMEOUT_1{50};
     static constexpr Minutes AD_TIMEOUT_2{20};
     static constexpr Seconds TIMEOUT_SPREAD{1200};
-
-    /// Helper function to check if the node is Sleeved
-    ///
-    /// The caller of this function is responsible for acquiring `_activation_mutex`!
-    /// @return true if Sleeved, false otherwise
-    bool IsSleeved();
 
     /// Start consensus / advertisement if activated
     ///

@@ -28,6 +28,7 @@ class DelegateMap
     static std::mutex mutex;
 
     friend class TestNode;
+    friend class ConsensusContainer;
 
     DelegateMap()
     {}
