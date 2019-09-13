@@ -50,6 +50,15 @@ public:
     void StoreBlock(MBPtr block);
     void StoreBlock(RBPtr block);
 
+    bool ValidateRequest(
+            std::shared_ptr<Request> req,
+            uint32_t epoch_num,
+            logos::process_return& result)
+    {
+        
+        return _rb_handler.ValidateSingleRequest(req, epoch_num,result);
+    }
+
 private:
     struct BlockPtr
     {

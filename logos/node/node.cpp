@@ -951,32 +951,40 @@ uint8_t* Serialize(std::shared_ptr<Request> request,std::vector<uint8_t>& p2p_bu
 
 logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
 {
-    DelegateIdentityManager& id_mgr = 
-        _consensus_container->GetIdentityManager();
+    logos::process_return result = _consensus_container->OnDelegateMessage(
+            static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),
+            should_buffer);
 
-    uint8_t delegate_idx = NON_DELEGATE;
+    LOG_DEBUG(log) << "node::OnRequest - "
+        << "hash=" << request->Hash().to_string()
+        << ",result=" << ProcessResultToString(result.code);
 
-    id_mgr.IdentifyDelegates(EpochDelegates::Current,delegate_idx);
-    if(delegate_idx == NON_DELEGATE)
+    if(result.code == logos::process_result::not_delegate)
     {
-        //TODO validate the request
-        //TODO P2P REQUEST: send to p2p network
-        LOG_INFO(log) << "node::OnRequest - "
-            << "node is non_delegate"
-            << ".propagating request";
+        if(block_cache.ValidateRequest(request,ConsensusContainer::GetCurEpochNumber(),result))
+        {
+            std::vector<uint8_t> p2p_buffer;
+            uint8_t* data = Serialize(request,p2p_buffer);
 
-        std::vector<uint8_t> p2p_buffer;
-        uint8_t* data = Serialize(request,p2p_buffer);
-        p2p.PropagateMessage(p2p_buffer.data(),p2p_buffer.size(),true);
+            LOG_DEBUG(log) << "P2PRequestPropagation-hash="
+                << request->Hash().to_string()
+                << ",submitted,propagating";
+
+            p2p.PropagateMessage(p2p_buffer.data(),p2p_buffer.size(),true);
+
+            result.code = logos::process_result::propagate;
+        }
+        else
+        {
+            LOG_DEBUG(log) << "P2PRequestPropagation-hash="
+                << request->Hash().to_string()
+                << ",submitted,but invalid,not propagating"
+                << ",result=" << ProcessResultToString(result.code);
+        }
     }
-    else
-    {
+    return result;
 
 
-        return _consensus_container->OnDelegateMessage(
-                static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),
-                should_buffer);
-    }
 }
 
 logos::process_return logos::node::BufferComplete()

@@ -295,7 +295,8 @@ enum class process_result
     insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
     invalid_account_type,         // Logos - origin account is not the proper type for the request
     proxy_to_self,                // Logos - request is attempting to proxy to self
-    invalid_epoch_hash            // Logos - invalid epoch hash
+    invalid_epoch_hash,            // Logos - invalid epoch hash
+    propagate
 };
 
 // This enum represents type of dependency which we need to wait in the cache, type is based on the returned error code

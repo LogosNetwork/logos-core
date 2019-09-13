@@ -2437,9 +2437,11 @@ void logos::rpc_handler::process(
     switch(result.code)
     {
         case logos::process_result::progress:
+        case logos::process_result::propagate:
             {
                 boost::property_tree::ptree response_l;
                 response_l.put ("hash", hash.to_string ());
+                response_l.put("result", ProcessResultToString(result.code));
                 response (response_l);
                 break;
             }
