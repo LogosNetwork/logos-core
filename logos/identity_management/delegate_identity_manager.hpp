@@ -42,6 +42,7 @@ namespace logos {
 }
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
+constexpr int MAX_NTP_RETRIES = 20;
 
 enum class EpochDelegates {
     Current,
