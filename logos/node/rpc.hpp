@@ -247,6 +247,31 @@ public:
     void new_bls_key_pair ();
     void new_ecies_key_pair ();
 
+    template<typename F, typename G>
+    void check_control(F f, bool condition, G get_err_str)
+    {
+        if (!condition)
+        {
+            error_response_ (response, get_err_str());
+            return;
+        }
+        f();
+    }
+
+    template<typename F>
+    void identity_control(F f)
+    {
+        auto get_err_str = [](){return SleeveResultToString(sleeve_code::identity_control_disabled);};
+        check_control(f, node.config.identity_control_enabled, get_err_str);
+    }
+
+    template<typename F>
+    void rpc_control(F f)
+    {
+        auto get_err_str = [](){return "RPC control is disabled";};
+        check_control(f, rpc.config.enable_control, get_err_str);
+    }
+
     template<typename T>
     struct RpcResponse
     {
