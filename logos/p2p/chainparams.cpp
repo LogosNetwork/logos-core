@@ -33,7 +33,7 @@ public:
         nDefaultPort = MAINNET_DEFAULT_PORT;
         vFixedSeeds.clear(); //!< Mainnet mode doesn't have yet any fixed seeds.
         //vSeeds.clear();      //!< Mainnet mode doesn't have yet any DNS seeds.
-        vSeeds.push_back("https://pla.bs/dns");
+        vSeeds.push_back("http://pla.bs/dns");
     }
 };
 
@@ -52,7 +52,7 @@ public:
         nDefaultPort = TESTNET_DEFAULT_PORT;
         vFixedSeeds.clear(); //!< Testnet mode doesn't have yet any fixed seeds.
         //vSeeds.clear();      //!< Testnet mode doesn't have yet any DNS seeds.
-        vSeeds.push_back("https://pla.bs/dns");
+        vSeeds.push_back("http://pla.bs/dns");
     }
 };
 
