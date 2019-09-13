@@ -1526,67 +1526,24 @@ void CConnman::ThreadDNSAddressSeed()
     {
         if (interruptNet)
             return;
-        // We using DNS Seeds as a oneshot to get nodes.
-        //AddOneShot(seed);
 
+        std::string delimiter = "://";
+        std::string protocol = seed.substr(0, seed.find(delimiter));
+        std::string address = seed.substr(seed.find(delimiter)+delimiter.size());
+        std::string host = address.substr(0, address.find("/"));
+        std::string target = address.substr(address.find("/"));
         LogPrintf("%s seeds", seed);
         boost::system::error_code ec;
         boost::asio::io_service service;
-        boost::asio::ip::tcp::resolver::query query("pla.bs", "http");
+        boost::asio::ip::tcp::resolver::query query(host, protocol);
         boost::asio::ip::tcp::resolver resolver(*io_service);
         boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
         boost::asio::ip::tcp::endpoint endpoint = iter->endpoint();
 
-        handler = std::make_shared<DNSHandler>(endpoint, iter, *io_service);
+        handler = std::make_shared<DNSHandler>(endpoint, iter, *io_service, addrman, *this, seed, host, target);
         handler->Start();
 
-        boost::filesystem::path data_path{"/home/stephen/work/Logos/autotest/deploy/local"};
-        logos::ip_config genconfig;
-
-        auto config_path((data_path / "ip.json"));
-        std::fstream config_file;
-        auto error (logos::fetch_object (genconfig, config_path, config_file));
-        CAddress addr;
-        std::vector<CAddress> vAdd;
-        CNetAddr resolveSource;
-        std::string host = strprintf("x%x.%s", 0, seed);
-        if (!resolveSource.SetInternal(host)) {
-            continue;
-        }
-        /*
-        //Local = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())));
-        for (int i = 0; i < 32; i++){
-            char cstr[genconfig.ips[i].size() + 1];
-            strcpy(cstr, genconfig.ips[i].c_str());
-            addr =  CAddress(CService(LookupNumeric(cstr, GetListenPort())));
-            vAdd.push_back(addr);
-            //CNetAddr resolveSource;
-            //addrman.Add (vAdd, resolveSource, 0);
-
-            found++;
-        }
-        */
-        for (int i = 0; i < 32; i++){
-            std::cout << "try: " << handler->ips[i] << std::endl;
-            char cstr[handler->ips[i].size() + 1];
-            strcpy(cstr, handler->ips[i].c_str());
-            std::cout << "trying " << cstr << std::endl;
-            addr =  CAddress(CService(LookupNumeric(cstr, GetListenPort())));
-            vAdd.push_back(addr);
-            //CNetAddr resolveSource;
-            //addrman.Add (vAdd, resolveSource, 0);
-
-            found++;
-        }
-        LogPrintf("size of vadd %s\n", std::to_string(vAdd.size()));
-
-
-        bool asdf = addrman.Add (vAdd, resolveSource);
-        LogPrintf("added %d", asdf);
     }
-    LogPrintf("size of addrman %s\n", std::to_string(addrman.size()));
-
-    LogPrintf("%d addresses found from DNS seeds\n", found);
 }
 
 void CConnman::DumpAddresses()
@@ -2743,14 +2700,20 @@ void logos::open_or_create1 (std::fstream & stream_a, std::string const & path_a
 
 DNSHandler::DNSHandler(const Endpoint callback_endpoint,
         Iter & iter,
-        Service & service)
+        Service & service,
+        CAddrMan & addrman,
+        CConnman & connman,
+        std::string seed,
+        std::string host,
+        std::string target)
     : _socket(service)
     , _callback_endpoint(callback_endpoint)
-{
-    if (iter != boost::asio::ip::tcp::resolver::iterator()) {
-        std::cout << "Trying " << iter->endpoint() << "...\n";}
-       
-}
+    , _addrman(addrman)
+    , _cconnman(connman)
+    , _seed(seed)
+    , _host(host)
+    , _target(target)
+{}
 
 void DNSHandler::Start()
 {
@@ -2772,9 +2735,9 @@ void DNSHandler::OnConnect(const boost::system::error_code & ec)
 
     _request = std::make_shared<Request>();
     _request->method(boost::beast::http::verb::post);
-    _request->target("/dns");
+    _request->target(_target);
     _request->version(11);
-    _request->insert(boost::beast::http::field::host, "pla.bs");
+    _request->insert(boost::beast::http::field::host, _host);
     _request->insert(boost::beast::http::field::content_type, "application/json");
     _request->prepare_payload();
 
@@ -2832,11 +2795,44 @@ void DNSHandler::OnRead(boost::system::error_code const & ec, size_t bytes)
         }
     }
 
+    CAddress addr;
+    std::vector<CAddress> vAdd;
     int found = 0;
+    CNetAddr resolveSource;
+    std::string host = strprintf("x%x.%s", 0, _seed);
+
+    /*
+    boost::filesystem::path data_path{"/home/stephen/work/Logos/autotest/deploy/local"};
+    logos::ip_config genconfig;
+
+    auto config_path((data_path / "ip.json"));
+    std::fstream config_file;
+    auto error1 (logos::fetch_object (genconfig, config_path, config_file));
+
+    //Local = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())));
+    for (int i = 0; i < 32; i++){
+        char cstr[genconfig.ips[i].size() + 1];
+        strcpy(cstr, genconfig.ips[i].c_str());
+        addr =  CAddress(CService(LookupNumeric(cstr, _cconnman.GetListenPort())));
+        vAdd.push_back(addr);
+        std::cout << "get " << cstr << std::endl;
+        found++;
+    }
+    */
+
     boost::property_tree::ptree::const_iterator end = tree.end();
     for (boost::property_tree::ptree::const_iterator it = tree.begin(); it != end; ++it)
     {
-        ips[found] = it->second.get<std::string>("ip");
+        if (found >= DEFAULT_MAX_PEER_CONNECTIONS) {break;}
+
+        char cstr[it->second.get<std::string>("ip").size() + 1];
+        strcpy(cstr, it->second.get<std::string>("ip").c_str());
+        addr =  CAddress(CService(LookupNumeric(cstr, _cconnman.GetListenPort())));
+        vAdd.push_back(addr);
+
         found++;
     }
+
+    _addrman.Add (vAdd, resolveSource);
+    LOG_INFO(_log) << "DNS seeds found: " << std::to_string(_addrman.size());
 }
