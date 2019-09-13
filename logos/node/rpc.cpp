@@ -268,43 +268,36 @@ void logos::rpc_handler::account_block_count ()
 
 void logos::rpc_handler::account_create ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
+//            const bool generate_work = request.get<bool> ("work", true);
+//            logos::account new_key (existing->second->deterministic_insert (generate_work));
+//            if (!new_key.is_zero ())
 //            {
-//                const bool generate_work = request.get<bool> ("work", true);
-//                logos::account new_key (existing->second->deterministic_insert (generate_work));
-//                if (!new_key.is_zero ())
-//                {
-//                    boost::property_tree::ptree response_l;
-//                    response_l.put ("account", new_key.to_account ());
-//                    response (response_l);
-//                }
-//                else
-//                {
-//                    error_response (response, "Wallet is locked");
-//                }
+//                boost::property_tree::ptree response_l;
+//                response_l.put ("account", new_key.to_account ());
+//                response (response_l);
 //            }
 //            else
 //            {
-//                error_response (response, "Wallet not found");
+//                error_response (response, "Wallet is locked");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Wallet not found");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::account_from_key ()
@@ -390,124 +383,110 @@ void logos::rpc_handler::account_list ()
 
 void logos::rpc_handler::account_move ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        std::string source_text (request.get<std::string> ("source"));
-//        auto accounts_text (request.get_child ("accounts"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    std::string source_text (request.get<std::string> ("source"));
+//    auto accounts_text (request.get_child ("accounts"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
+//            auto wallet (existing->second);
+//            logos::uint256_union source;
+//            auto error (source.decode_hex (source_text));
+//            if (!error)
 //            {
-//                auto wallet (existing->second);
-//                logos::uint256_union source;
-//                auto error (source.decode_hex (source_text));
-//                if (!error)
+//                auto existing (node.wallets.items.find (source));
+//                if (existing != node.wallets.items.end ())
 //                {
-//                    auto existing (node.wallets.items.find (source));
-//                    if (existing != node.wallets.items.end ())
+//                    auto source (existing->second);
+//                    std::vector<logos::public_key> accounts;
+//                    for (auto i (accounts_text.begin ()), n (accounts_text.end ()); i != n; ++i)
 //                    {
-//                        auto source (existing->second);
-//                        std::vector<logos::public_key> accounts;
-//                        for (auto i (accounts_text.begin ()), n (accounts_text.end ()); i != n; ++i)
-//                        {
-//                            logos::public_key account;
-//                            account.decode_hex (i->second.get<std::string> (""));
-//                            accounts.push_back (account);
-//                        }
-//                        logos::transaction transaction (node.store.environment, nullptr, true);
-//                        auto error (wallet->store.move (transaction, source->store, accounts));
-//                        boost::property_tree::ptree response_l;
-//                        response_l.put ("moved", error ? "0" : "1");
-//                        response (response_l);
+//                        logos::public_key account;
+//                        account.decode_hex (i->second.get<std::string> (""));
+//                        accounts.push_back (account);
 //                    }
-//                    else
-//                    {
-//                        error_response (response, "Source not found");
-//                    }
+//                    logos::transaction transaction (node.store.environment, nullptr, true);
+//                    auto error (wallet->store.move (transaction, source->store, accounts));
+//                    boost::property_tree::ptree response_l;
+//                    response_l.put ("moved", error ? "0" : "1");
+//                    response (response_l);
 //                }
 //                else
 //                {
-//                    error_response (response, "Bad source number");
+//                    error_response (response, "Source not found");
 //                }
 //            }
 //            else
 //            {
-//                error_response (response, "Wallet not found");
+//                error_response (response, "Bad source number");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Wallet not found");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::account_remove ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        std::string account_text (request.get<std::string> ("account"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    std::string account_text (request.get<std::string> ("account"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
+//            auto wallet (existing->second);
+//            logos::transaction transaction (node.store.environment, nullptr, true);
+//            if (existing->second->store.valid_password (transaction))
 //            {
-//                auto wallet (existing->second);
-//                logos::transaction transaction (node.store.environment, nullptr, true);
-//                if (existing->second->store.valid_password (transaction))
+//                logos::account account_id;
+//                auto error (account_id.decode_account (account_text));
+//                if (!error)
 //                {
-//                    logos::account account_id;
-//                    auto error (account_id.decode_account (account_text));
-//                    if (!error)
+//                    auto account (wallet->store.find (transaction, account_id));
+//                    if (account != wallet->store.end ())
 //                    {
-//                        auto account (wallet->store.find (transaction, account_id));
-//                        if (account != wallet->store.end ())
-//                        {
-//                            wallet->store.erase (transaction, account_id);
-//                            boost::property_tree::ptree response_l;
-//                            response_l.put ("removed", "1");
-//                            response (response_l);
-//                        }
-//                        else
-//                        {
-//                            error_response (response, "Account not found in wallet");
-//                        }
+//                        wallet->store.erase (transaction, account_id);
+//                        boost::property_tree::ptree response_l;
+//                        response_l.put ("removed", "1");
+//                        response (response_l);
 //                    }
 //                    else
 //                    {
-//                        error_response (response, "Bad account number");
+//                        error_response (response, "Account not found in wallet");
 //                    }
 //                }
 //                else
 //                {
-//                    error_response (response, "Wallet locked");
+//                    error_response (response, "Bad account number");
 //                }
 //            }
 //            else
 //            {
-//                error_response (response, "Wallet not found");
+//                error_response (response, "Wallet locked");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Wallet not found");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::account_representative ()
@@ -665,56 +644,49 @@ void logos::rpc_handler::accounts_balances ()
 
 void logos::rpc_handler::accounts_create ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        uint64_t count;
+//        std::string count_text (request.get<std::string> ("count"));
+//        auto count_error (decode_unsigned (count_text, count));
+//        if (!count_error && count != 0)
 //        {
-//            uint64_t count;
-//            std::string count_text (request.get<std::string> ("count"));
-//            auto count_error (decode_unsigned (count_text, count));
-//            if (!count_error && count != 0)
+//            auto existing (node.wallets.items.find (wallet));
+//            if (existing != node.wallets.items.end ())
 //            {
-//                auto existing (node.wallets.items.find (wallet));
-//                if (existing != node.wallets.items.end ())
+//                const bool generate_work = request.get<bool> ("work", false);
+//                boost::property_tree::ptree response_l;
+//                boost::property_tree::ptree accounts;
+//                for (auto i (0); accounts.size () < count; ++i)
 //                {
-//                    const bool generate_work = request.get<bool> ("work", false);
-//                    boost::property_tree::ptree response_l;
-//                    boost::property_tree::ptree accounts;
-//                    for (auto i (0); accounts.size () < count; ++i)
+//                    logos::account new_key (existing->second->deterministic_insert (generate_work));
+//                    if (!new_key.is_zero ())
 //                    {
-//                        logos::account new_key (existing->second->deterministic_insert (generate_work));
-//                        if (!new_key.is_zero ())
-//                        {
-//                            boost::property_tree::ptree entry;
-//                            entry.put ("", new_key.to_account ());
-//                            accounts.push_back (std::make_pair ("", entry));
-//                        }
+//                        boost::property_tree::ptree entry;
+//                        entry.put ("", new_key.to_account ());
+//                        accounts.push_back (std::make_pair ("", entry));
 //                    }
-//                    response_l.add_child ("accounts", accounts);
-//                    response (response_l);
 //                }
-//                else
-//                {
-//                    error_response (response, "Wallet not found");
-//                }
+//                response_l.add_child ("accounts", accounts);
+//                response (response_l);
 //            }
 //            else
 //            {
-//                error_response (response, "Invalid count limit");
+//                error_response (response, "Wallet not found");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Invalid count limit");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::accounts_exist ()
@@ -1032,156 +1004,148 @@ void logos::rpc_handler::block_create ()
 {
     //TODO: refactor this function to make it cleaner/shorter
     using namespace request::fields;
-    if (rpc.config.enable_control)
+    logos::uint256_union wallet (0);
+    boost::optional<std::string> wallet_text (request.get_optional<std::string> (WALLET));
+    if (wallet_text.is_initialized ())
     {
-
-        logos::uint256_union wallet (0);
-        boost::optional<std::string> wallet_text (request.get_optional<std::string> (WALLET));
-        if (wallet_text.is_initialized ())
+        auto error (wallet.decode_hex (wallet_text.get ()));
+        if (error)
         {
-            auto error (wallet.decode_hex (wallet_text.get ()));
-            if (error)
-            {
-                error_response (response, "Bad wallet number");
-            }
+            error_response (response, "Bad wallet number");
         }
-        AccountAddress origin(0);
-        boost::optional<std::string> origin_text (request.get_optional<std::string> (ORIGIN));
-        if (origin_text.is_initialized ())
+    }
+    AccountAddress origin(0);
+    boost::optional<std::string> origin_text (request.get_optional<std::string> (ORIGIN));
+    if (origin_text.is_initialized ())
+    {
+        auto error (origin.decode_account (origin_text.get ()));
+        if (error)
         {
-            auto error (origin.decode_account (origin_text.get ()));
-            if (error)
-            {
-                error_response (response, "Bad account number");
-            }
+            error_response (response, "Bad account number");
         }
+    }
 
-        logos::raw_key prv;
-        prv.data.clear ();
-        BlockHash previous (0);
-//        if (wallet != 0 && origin != 0)
+    logos::raw_key prv;
+    prv.data.clear ();
+    BlockHash previous (0);
+//    if (wallet != 0 && origin != 0)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
+//            logos::transaction transaction (node.store.environment, nullptr, false);
+//            auto unlock_check (existing->second->store.valid_password (transaction));
+//            if (unlock_check)
 //            {
-//                logos::transaction transaction (node.store.environment, nullptr, false);
-//                auto unlock_check (existing->second->store.valid_password (transaction));
-//                if (unlock_check)
+//                auto account_check (existing->second->store.find (transaction, origin));
+//                if (account_check != existing->second->store.end ())
 //                {
-//                    auto account_check (existing->second->store.find (transaction, origin));
-//                    if (account_check != existing->second->store.end ())
-//                    {
-//                        existing->second->store.fetch (transaction, origin, prv);
-//                        //previous = node.ledger.latest (transaction, origin);
-//                    }
-//                    else
-//                    {
-//                        error_response (response, "Account not found in wallet");
-//                    }
+//                    existing->second->store.fetch (transaction, origin, prv);
+//                    //previous = node.ledger.latest (transaction, origin);
 //                }
 //                else
 //                {
-//                    error_response (response, "Wallet is locked");
+//                    error_response (response, "Account not found in wallet");
 //                }
 //            }
 //            else
 //            {
-//                error_response (response, "Wallet not found");
+//                error_response (response, "Wallet is locked");
 //            }
 //        }
+//        else
+//        {
+//            error_response (response, "Wallet not found");
+//        }
+//    }
 
-        boost::optional<std::string> prv_text(request.get_optional<std::string>(PRIVATE_KEY));
-        if(prv_text.is_initialized())
+    boost::optional<std::string> prv_text(request.get_optional<std::string>(PRIVATE_KEY));
+    if(prv_text.is_initialized())
+    {
+        bool error = prv.data.decode_hex(prv_text.get());
+        if(error)
         {
-            bool error = prv.data.decode_hex(prv_text.get());
-            if(error)
-            {
-                error_response(response, "error decoding private key");
-                return;
-            }
+            error_response(response, "error decoding private key");
+            return;
         }
-        if (prv.data != 0)
+    }
+    if (prv.data != 0)
+    {
+        AccountPubKey pub;
+        ed25519_publickey (prv.data.data (), pub.data ());
+
+        // Check for incorrect account key
+        if (origin_text.is_initialized ())
         {
-            AccountPubKey pub;
-            ed25519_publickey (prv.data.data (), pub.data ());
-
-            // Check for incorrect account key
-            if (origin_text.is_initialized ())
+            if (origin != pub)
             {
-                if (origin != pub)
-                {
-                    error_response (response, "Incorrect key for given account");
-                }
+                error_response (response, "Incorrect key for given account");
             }
-            else
-            {
-                origin = pub;
-                request.put(ORIGIN,origin.to_account());
-            }
-
-            std::string pub_key_str;
-            pub.encode_hex(pub_key_str);
-            request.put(PUBLIC_KEY,pub_key_str);
-            bool error = false;
-            RequestType type = GetRequestType(error,request.get<std::string>(TYPE));
-            if(error)
-            {
-                error_response(response,"Unable to decode request type");
-                return;
-            }
-            if(type == RequestType::Issuance)
-            {
-                auto token_id_str = request.get_optional<std::string>(TOKEN_ID);
-                if(!token_id_str.is_initialized())
-                {
-                    request.put(TOKEN_ID,"placeholder");
-                }
-            }
-
-            logos::account_info info;
-            auto account_error(node.store.account_get(origin, info));
-            if(account_error)
-            {
-                error_response (response, "logos::rpc_handler::block_create - Unable to find account.");
-            }
-            request.put(SEQUENCE, info.block_count);
-
-
-
-            auto created_request = DeserializeRequest(error, request);
-            if(error)
-            {
-
-                std::stringstream ss;
-                boost::property_tree::json_parser::write_json(ss, request);
-                error_response (response, "error creating request from: \n" + ss.str());
-                return;
-
-            }
-
-            std::shared_ptr<logos::Account> info_ptr;
-            if(!node.store.account_get(created_request->GetAccount(),info_ptr))
-            {
-                created_request->sequence = info_ptr->block_count;
-                created_request->previous = info_ptr->head;
-                created_request->Sign(prv.data, pub);
-            }
-
-            boost::property_tree::ptree response_l;
-            response_l.put ("hash", created_request->GetHash ().to_string ());
-            std::string contents(created_request->ToJson());
-            response_l.put ("request", contents);
-            response (response_l);
-
         }
         else
         {
-            error_response (response, "Private key or local wallet and account required");
+            origin = pub;
+            request.put(ORIGIN,origin.to_account());
         }
+
+        std::string pub_key_str;
+        pub.encode_hex(pub_key_str);
+        request.put(PUBLIC_KEY,pub_key_str);
+        bool error = false;
+        RequestType type = GetRequestType(error,request.get<std::string>(TYPE));
+        if(error)
+        {
+            error_response(response,"Unable to decode request type");
+            return;
+        }
+        if(type == RequestType::Issuance)
+        {
+            auto token_id_str = request.get_optional<std::string>(TOKEN_ID);
+            if(!token_id_str.is_initialized())
+            {
+                request.put(TOKEN_ID,"placeholder");
+            }
+        }
+
+        logos::account_info info;
+        auto account_error(node.store.account_get(origin, info));
+        if(account_error)
+        {
+            error_response (response, "logos::rpc_handler::block_create - Unable to find account.");
+        }
+        request.put(SEQUENCE, info.block_count);
+
+
+
+        auto created_request = DeserializeRequest(error, request);
+        if(error)
+        {
+
+            std::stringstream ss;
+            boost::property_tree::json_parser::write_json(ss, request);
+            error_response (response, "error creating request from: \n" + ss.str());
+            return;
+
+        }
+
+        std::shared_ptr<logos::Account> info_ptr;
+        if(!node.store.account_get(created_request->GetAccount(),info_ptr))
+        {
+            created_request->sequence = info_ptr->block_count;
+            created_request->previous = info_ptr->head;
+            created_request->Sign(prv.data, pub);
+        }
+
+        boost::property_tree::ptree response_l;
+        response_l.put ("hash", created_request->GetHash ().to_string ());
+        std::string contents(created_request->ToJson());
+        response_l.put ("request", contents);
+        response (response_l);
+
     }
     else
     {
-        error_response (response, "RPC control is disabled");
+        error_response (response, "Private key or local wallet and account required");
     }
 }
 
@@ -2013,37 +1977,30 @@ void logos::rpc_handler::krai_to_raw ()
 
 void logos::rpc_handler::password_change ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
-//            {
-//                logos::transaction transaction (node.store.environment, nullptr, true);
-//                boost::property_tree::ptree response_l;
-//                std::string password_text (request.get<std::string> ("password"));
-//                auto error (existing->second->store.rekey (transaction, password_text));
-//                response_l.put ("changed", error ? "0" : "1");
-//                response (response_l);
-//            }
-//            else
-//            {
-//                error_response (response, "Wallet not found");
-//            }
+//            logos::transaction transaction (node.store.environment, nullptr, true);
+//            boost::property_tree::ptree response_l;
+//            std::string password_text (request.get<std::string> ("password"));
+//            auto error (existing->second->store.rekey (transaction, password_text));
+//            response_l.put ("changed", error ? "0" : "1");
+//            response (response_l);
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Wallet not found");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::password_enter ()
@@ -2713,39 +2670,25 @@ void logos::rpc_handler::receive ()
 
 void logos::rpc_handler::receive_minimum ()
 {
-    if (rpc.config.enable_control)
-    {
-        boost::property_tree::ptree response_l;
-        response_l.put ("amount", node.config.receive_minimum.to_string_dec ());
-        response (response_l);
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+    boost::property_tree::ptree response_l;
+    response_l.put ("amount", node.config.receive_minimum.to_string_dec ());
+    response (response_l);
 }
 
 void logos::rpc_handler::receive_minimum_set ()
 {
-    if (rpc.config.enable_control)
+    std::string amount_text (request.get<std::string> ("amount"));
+    logos::uint128_union amount;
+    if (!amount.decode_dec (amount_text))
     {
-        std::string amount_text (request.get<std::string> ("amount"));
-        logos::uint128_union amount;
-        if (!amount.decode_dec (amount_text))
-        {
-            node.config.receive_minimum = amount;
-            boost::property_tree::ptree response_l;
-            response_l.put ("success", "");
-            response (response_l);
-        }
-        else
-        {
-            error_response (response, "Bad amount number");
-        }
+        node.config.receive_minimum = amount;
+        boost::property_tree::ptree response_l;
+        response_l.put ("success", "");
+        response (response_l);
     }
     else
     {
-        error_response (response, "RPC control is disabled");
+        error_response (response, "Bad amount number");
     }
 }
 
@@ -3003,18 +2946,11 @@ void logos::rpc_handler::stats ()
 
 void logos::rpc_handler::stop ()
 {
-    if (rpc.config.enable_control)
-    {
-        boost::property_tree::ptree response_l;
-        response_l.put ("success", "");
-        response (response_l);
-        rpc.stop ();
-        node.stop ();
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+    boost::property_tree::ptree response_l;
+    response_l.put ("success", "");
+    response (response_l);
+    rpc.stop ();
+    node.stop ();
 }
 
 void logos::rpc_handler::tokens_info ()
@@ -3032,31 +2968,24 @@ void logos::rpc_handler::tokens_info ()
 
 void logos::rpc_handler::txacceptor_update (bool add)
 {
-    if (rpc.config.enable_control)
+    std::string sepoch = request.get<std::string>("epoch");
+    QueriedEpoch queried_epoch = QueriedEpoch::Next;
+    if (sepoch == "current")
     {
-        std::string sepoch = request.get<std::string>("epoch");
-        QueriedEpoch queried_epoch = QueriedEpoch::Next;
-        if (sepoch == "current")
-        {
-            queried_epoch = QueriedEpoch::Current;
-        }
-        else if (sepoch != "next")
-        {
-            error_response(response, "Invalid epoch");
-        }
-        std::string ip = request.get<std::string>("ip");
-        uint16_t port = request.get<uint16_t>("port");
-        uint16_t bin_port = request.get<uint16_t>("bin_port");
-        uint16_t json_port = request.get<uint16_t>("json_port");
-        bool res = node._identity_manager->OnTxAcceptorUpdate(queried_epoch, ip, port, bin_port, json_port, add);
-        boost::property_tree::ptree response_l;
-        response_l.put ("result", res?"processing":"failed");
-        response (response_l);
+        queried_epoch = QueriedEpoch::Current;
     }
-    else
+    else if (sepoch != "next")
     {
-        error_response (response, "RPC control is disabled");
+        error_response(response, "Invalid epoch");
     }
+    std::string ip = request.get<std::string>("ip");
+    uint16_t port = request.get<uint16_t>("port");
+    uint16_t bin_port = request.get<uint16_t>("bin_port");
+    uint16_t json_port = request.get<uint16_t>("json_port");
+    bool res = node._identity_manager->OnTxAcceptorUpdate(queried_epoch, ip, port, bin_port, json_port, add);
+    boost::property_tree::ptree response_l;
+    response_l.put ("result", res?"processing":"failed");
+    response (response_l);
 }
 
 void logos::rpc_handler::txacceptor_add ()
@@ -3411,53 +3340,46 @@ void logos::rpc_handler::wallet_balances ()
 
 void logos::rpc_handler::wallet_change_seed ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string seed_text (request.get<std::string> ("seed"));
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        logos::raw_key seed;
-//        auto error (seed.data.decode_hex (seed_text));
+//    std::string seed_text (request.get<std::string> ("seed"));
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    logos::raw_key seed;
+//    auto error (seed.data.decode_hex (seed_text));
+//    if (!error)
+//    {
+//        logos::uint256_union wallet;
+//        auto error (wallet.decode_hex (wallet_text));
 //        if (!error)
 //        {
-//            logos::uint256_union wallet;
-//            auto error (wallet.decode_hex (wallet_text));
-//            if (!error)
+//            auto existing (node.wallets.items.find (wallet));
+//            if (existing != node.wallets.items.end ())
 //            {
-//                auto existing (node.wallets.items.find (wallet));
-//                if (existing != node.wallets.items.end ())
+//                logos::transaction transaction (node.store.environment, nullptr, true);
+//                if (existing->second->store.valid_password (transaction))
 //                {
-//                    logos::transaction transaction (node.store.environment, nullptr, true);
-//                    if (existing->second->store.valid_password (transaction))
-//                    {
-//                        existing->second->store.seed_set (transaction, seed);
-//                        boost::property_tree::ptree response_l;
-//                        response_l.put ("success", "");
-//                        response (response_l);
-//                    }
-//                    else
-//                    {
-//                        error_response (response, "Wallet locked");
-//                    }
+//                    existing->second->store.seed_set (transaction, seed);
+//                    boost::property_tree::ptree response_l;
+//                    response_l.put ("success", "");
+//                    response (response_l);
 //                }
 //                else
 //                {
-//                    error_response (response, "Wallet not found");
+//                    error_response (response, "Wallet locked");
 //                }
 //            }
 //            else
 //            {
-//                error_response (response, "Bad wallet number");
+//                error_response (response, "Wallet not found");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad seed");
+//            error_response (response, "Bad wallet number");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad seed");
+//    }
 }
 
 void logos::rpc_handler::wallet_contains ()
@@ -4073,64 +3995,57 @@ void logos::rpc_handler::work_get ()
 
 void logos::rpc_handler::work_set ()
 {
-    if (rpc.config.enable_control)
-    {
-//        std::string wallet_text (request.get<std::string> ("wallet"));
-//        logos::uint256_union wallet;
-//        auto error (wallet.decode_hex (wallet_text));
-//        if (!error)
+//    std::string wallet_text (request.get<std::string> ("wallet"));
+//    logos::uint256_union wallet;
+//    auto error (wallet.decode_hex (wallet_text));
+//    if (!error)
+//    {
+//        auto existing (node.wallets.items.find (wallet));
+//        if (existing != node.wallets.items.end ())
 //        {
-//            auto existing (node.wallets.items.find (wallet));
-//            if (existing != node.wallets.items.end ())
+//            std::string account_text (request.get<std::string> ("account"));
+//            logos::account account;
+//            auto error (account.decode_account (account_text));
+//            if (!error)
 //            {
-//                std::string account_text (request.get<std::string> ("account"));
-//                logos::account account;
-//                auto error (account.decode_account (account_text));
-//                if (!error)
+//                logos::transaction transaction (node.store.environment, nullptr, true);
+//                auto account_check (existing->second->store.find (transaction, account));
+//                if (account_check != existing->second->store.end ())
 //                {
-//                    logos::transaction transaction (node.store.environment, nullptr, true);
-//                    auto account_check (existing->second->store.find (transaction, account));
-//                    if (account_check != existing->second->store.end ())
+//                    std::string work_text (request.get<std::string> ("work"));
+//                    uint64_t work;
+//                    auto work_error (logos::from_string_hex (work_text, work));
+//                    if (!work_error)
 //                    {
-//                        std::string work_text (request.get<std::string> ("work"));
-//                        uint64_t work;
-//                        auto work_error (logos::from_string_hex (work_text, work));
-//                        if (!work_error)
-//                        {
-//                            existing->second->store.work_put (transaction, account, work);
-//                            boost::property_tree::ptree response_l;
-//                            response_l.put ("success", "");
-//                            response (response_l);
-//                        }
-//                        else
-//                        {
-//                            error_response (response, "Bad work");
-//                        }
+//                        existing->second->store.work_put (transaction, account, work);
+//                        boost::property_tree::ptree response_l;
+//                        response_l.put ("success", "");
+//                        response (response_l);
 //                    }
 //                    else
 //                    {
-//                        error_response (response, "Account not found in wallet");
+//                        error_response (response, "Bad work");
 //                    }
 //                }
 //                else
 //                {
-//                    error_response (response, "Bad account number");
+//                    error_response (response, "Account not found in wallet");
 //                }
 //            }
 //            else
 //            {
-//                error_response (response, "Wallet not found");
+//                error_response (response, "Bad account number");
 //            }
 //        }
 //        else
 //        {
-//            error_response (response, "Bad wallet number");
+//            error_response (response, "Wallet not found");
 //        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
+//    }
+//    else
+//    {
+//        error_response (response, "Bad wallet number");
+//    }
 }
 
 void logos::rpc_handler::work_validate ()
@@ -4163,71 +4078,46 @@ void logos::rpc_handler::work_validate ()
 
 void logos::rpc_handler::work_peer_add ()
 {
-    if (rpc.config.enable_control)
+    std::string address_text = request.get<std::string> ("address");
+    std::string port_text = request.get<std::string> ("port");
+    uint16_t port;
+    if (!logos::parse_port (port_text, port))
     {
-        std::string address_text = request.get<std::string> ("address");
-        std::string port_text = request.get<std::string> ("port");
-        uint16_t port;
-        if (!logos::parse_port (port_text, port))
-        {
-            node.config.work_peers.push_back (std::make_pair (address_text, port));
-            boost::property_tree::ptree response_l;
-            response_l.put ("success", "");
-            response (response_l);
-        }
-        else
-        {
-            error_response (response, "Invalid port");
-        }
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
-}
-
-void logos::rpc_handler::work_peers ()
-{
-    if (rpc.config.enable_control)
-    {
-        boost::property_tree::ptree work_peers_l;
-        for (auto i (node.config.work_peers.begin ()), n (node.config.work_peers.end ()); i != n; ++i)
-        {
-            boost::property_tree::ptree entry;
-            entry.put ("", boost::str (boost::format ("%1%:%2%") % i->first % i->second));
-            work_peers_l.push_back (std::make_pair ("", entry));
-        }
-        boost::property_tree::ptree response_l;
-        response_l.add_child ("work_peers", work_peers_l);
-        response (response_l);
-    }
-    else
-    {
-        error_response (response, "RPC control is disabled");
-    }
-}
-
-void logos::rpc_handler::work_peers_clear ()
-{
-    if (rpc.config.enable_control)
-    {
-        node.config.work_peers.clear ();
+        node.config.work_peers.push_back (std::make_pair (address_text, port));
         boost::property_tree::ptree response_l;
         response_l.put ("success", "");
         response (response_l);
     }
     else
     {
-        error_response (response, "RPC control is disabled");
+        error_response (response, "Invalid port");
     }
+}
+
+void logos::rpc_handler::work_peers ()
+{
+    boost::property_tree::ptree work_peers_l;
+    for (auto i (node.config.work_peers.begin ()), n (node.config.work_peers.end ()); i != n; ++i)
+    {
+        boost::property_tree::ptree entry;
+        entry.put ("", boost::str (boost::format ("%1%:%2%") % i->first % i->second));
+        work_peers_l.push_back (std::make_pair ("", entry));
+    }
+    boost::property_tree::ptree response_l;
+    response_l.add_child ("work_peers", work_peers_l);
+    response (response_l);
+}
+
+void logos::rpc_handler::work_peers_clear ()
+{
+    node.config.work_peers.clear ();
+    boost::property_tree::ptree response_l;
+    response_l.put ("success", "");
+    response (response_l);
 }
 
 void logos::rpc_handler::sleeve_unlock()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
     using namespace request::fields;
     std::string password (request.get<std::string>(PASSWORD));
     auto status = node._identity_manager->UnlockSleeve(password);
@@ -4242,11 +4132,6 @@ void logos::rpc_handler::sleeve_unlock()
 
 void logos::rpc_handler::sleeve_lock()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-
     auto status (node._identity_manager->LockSleeve());
     if (!status)
     {
@@ -4259,11 +4144,6 @@ void logos::rpc_handler::sleeve_lock()
 
 void logos::rpc_handler::sleeve_update_password()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-
     using namespace request::fields;
     std::string password (request.get<std::string>(PASSWORD));
     logos::transaction tx(node._sleeve._env, nullptr, true);
@@ -4281,11 +4161,6 @@ void logos::rpc_handler::sleeve_update_password()
 
 void logos::rpc_handler::sleeve_store_keys()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-
     using namespace request::fields;
     ByteArray<32> ecies_prv (request.get<std::string>(request::fields::ECIES));
     ByteArray<32> bls_prv (request.get<std::string>(BLS));
@@ -4305,11 +4180,6 @@ void logos::rpc_handler::sleeve_store_keys()
 
 void logos::rpc_handler::unsleeve()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-
     auto status (node._identity_manager->Unsleeve());
     if (!status)
     {
@@ -4322,11 +4192,6 @@ void logos::rpc_handler::unsleeve()
 
 void logos::rpc_handler::sleeve_reset()
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-    node._identity_manager->ResetSleeve();
 
     boost::property_tree::ptree resp_tree;
     resp_tree.put("success", true);
@@ -4335,11 +4200,6 @@ void logos::rpc_handler::sleeve_reset()
 
 void logos::rpc_handler::delegate_activate(bool activate)
 {
-    if (!node.config.identity_control_enabled)
-    {
-        error_response (response, SleeveResultToString(sleeve_code::identity_control_disabled))
-    }
-
     using namespace request::fields;
     boost::optional<std::string> epoch_num_text (request.get_optional<std::string> (EPOCH_NUM));
     uint32_t epoch_num (epoch_num_text.is_initialized() ? std::stol(epoch_num_text.get()) : 0);
@@ -4521,7 +4381,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "password_change")
         {
-            password_change ();
+            rpc_control([this](){password_change ();});
             request.erase ("password");
             reprocess_body (body, request);
         }
@@ -4549,7 +4409,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "account_create")
         {
-            account_create ();
+            rpc_control([this](){account_create ();});
         }
         else if (action == "account_from_key")
         {
@@ -4573,11 +4433,11 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "account_move")
         {
-            account_move ();
+            rpc_control([this](){account_move ();});
         }
         else if (action == "account_remove")
         {
-            account_remove ();
+            rpc_control([this](){account_remove ();});
         }
         else if (action == "account_representative")
         {
@@ -4597,7 +4457,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "accounts_create")
         {
-            accounts_create ();
+            rpc_control([this](){accounts_create ();});
         }
         else if (action == "accounts_exist")
         {
@@ -4645,7 +4505,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "block_create")
         {
-            block_create ();
+            rpc_control([this](){block_create ();});
         }
         else if (action == "block_hash")
         {
@@ -4806,11 +4666,11 @@ void logos::rpc_handler::process_request ()
 //        }
         else if (action == "receive_minimum")
         {
-            receive_minimum ();
+            rpc_control([this](){receive_minimum ();});
         }
         else if (action == "receive_minimum_set")
         {
-            receive_minimum_set ();
+            rpc_control([this](){receive_minimum_set ();});
         }
         else if (action == "representatives")
         {
@@ -4843,7 +4703,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "stop")
         {
-            stop ();
+            rpc_control([this](){stop ();});
         }
         else if(action == "tokens_info")
         {
@@ -4851,11 +4711,11 @@ void logos::rpc_handler::process_request ()
         }
         else if(action == "txacceptor_add")
         {
-            txacceptor_add();
+            rpc_control([this](){txacceptor_add();});
         }
         else if(action == "txacceptor_delete")
         {
-            txacceptor_delete();
+            rpc_control([this](){txacceptor_delete();});
         }
         else if (action == "unchecked")
         {
@@ -4899,7 +4759,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "wallet_change_seed")
         {
-            wallet_change_seed ();
+            rpc_control([this](){wallet_change_seed ();});
         }
         else if (action == "wallet_contains")
         {
@@ -4976,7 +4836,7 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "work_set")
         {
-            work_set ();
+            rpc_control([this](){work_set ();});
         }
         else if (action == "work_validate")
         {
@@ -4984,15 +4844,15 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "work_peer_add")
         {
-            work_peer_add ();
+            rpc_control([this](){work_peer_add ();});
         }
         else if (action == "work_peers")
         {
-            work_peers ();
+            rpc_control([this](){work_peers ();});
         }
         else if (action == "work_peers_clear")
         {
-            work_peers_clear ();
+            rpc_control([this](){work_peers_clear ();});
         }
         else if (action == "buffer_complete")
         {
@@ -5000,39 +4860,39 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "sleeve_unlock")
         {
-            sleeve_unlock();
+            identity_control([this](){sleeve_unlock();});
         }
         else if (action == "sleeve_lock")
         {
-            sleeve_lock();
+            identity_control([this](){sleeve_lock();});
         }
         else if (action == "sleeve_update_password")
         {
-            sleeve_update_password();
+            identity_control([this](){sleeve_update_password();});
         }
         else if (action == "sleeve_store_keys")
         {
-            sleeve_store_keys();
+            identity_control([this](){sleeve_store_keys();});
         }
         else if (action == "unsleeve")
         {
-            unsleeve();
+            identity_control([this](){unsleeve();});
         }
         else if (action == "sleeve_reset")
         {
-            sleeve_reset();
+            identity_control([this](){sleeve_reset();});
         }
         else if (action == "delegate_activate")
         {
-            delegate_activate(true);
+            identity_control([this](){delegate_activate(true);});
         }
         else if (action == "delegate_deactivate")
         {
-            delegate_activate(false);
+            identity_control([this](){delegate_activate(false);});
         }
         else if (action == "cancel_activation_scheduling")
         {
-            cancel_activation_scheduling();
+            identity_control([this](){cancel_activation_scheduling();});
         }
         else if (action == "activation_status")
         {
