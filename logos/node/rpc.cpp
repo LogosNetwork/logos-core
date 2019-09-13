@@ -4237,11 +4237,12 @@ void logos::rpc_handler::activation_status()
     resp_tree.put("unlocked", unlocked);
     if (unlocked)
     {
-        bool sleeved = node._identity_manager->IsSleeved();
+        bool sleeved, activated;
+        DelegateIdentityManager::activation_schedule schedule;
+        std::tie(sleeved, activated, schedule) = node._identity_manager->GetActivationSummary();
         resp_tree.put("sleeved", sleeved);
-        auto status = node._identity_manager->GetActivationStatus();
-        resp_tree.put("activated", status.first);
-        if (sleeved && status.first)  // both sleeved and activated now
+        resp_tree.put("activated", activated);
+        if (sleeved && activated)  // both sleeved and activated now
         {
             auto delegate_idx = node._consensus_container->GetCurDelegateIdx();
             if (delegate_idx != NON_DELEGATE)
@@ -4253,10 +4254,10 @@ void logos::rpc_handler::activation_status()
                 resp_tree.put("delegate_idx", "-1");
             }
         }
-        if (status.second.start_epoch > ConsensusContainer::GetCurEpochNumber())
+        if (schedule.start_epoch > ConsensusContainer::GetCurEpochNumber())
         {
-            resp_tree.put("scheduled_epoch", status.second.start_epoch);
-            resp_tree.put("scheduled_activate", status.second.activate);
+            resp_tree.put("scheduled_epoch", schedule.start_epoch);
+            resp_tree.put("scheduled_activate", schedule.activate);
         }
     }
     response (resp_tree);
