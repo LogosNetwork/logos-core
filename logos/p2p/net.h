@@ -36,10 +36,6 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/beast/version.hpp>
-#include <boost/asio/strand.hpp>
 
 namespace logos{
     class DNSHandler;
@@ -938,10 +934,10 @@ class DNSHandler : public std::enable_shared_from_this<DNSHandler>
 public:
 
     DNSHandler(const Endpoint callback_endpoint, Iter & iter,
-                    Service & service);
+                    Service & service, CAddrMan & addrman, CConnman & cconnman, std::string seed, std::string host, std::string target);
     void Start();
 
-    std::string ips [64];
+    std::string ips [DEFAULT_MAX_PEER_CONNECTIONS];
 private:
 
     void OnConnect(const boost::system::error_code & ec);
@@ -959,6 +955,11 @@ private:
     std::shared_ptr<Response> _response;
     Log                       _log;
     Iter                      _iter;
+    CAddrMan                & _addrman;
+    CConnman                & _cconnman;
+    std::string               _seed;
+    std::string               _host;
+    std::string               _target;
 
 };
 

@@ -214,7 +214,7 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
                 << _pre_prepare_hash.to_string()
                 << " - "
                 << hash.to_string();
-        assert(_pre_prepare);
+        //assert(_pre_prepare);
         _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);
