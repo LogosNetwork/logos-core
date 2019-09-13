@@ -321,6 +321,7 @@ public:
     virtual IRecallHandler & GetRecallHandler() = 0;
     virtual bool P2pPropagateMessage(const void *message, unsigned size, bool output) = 0;
     virtual bool UpdateTxAcceptor(const std::string &ip, uint16_t port, bool add) = 0;
+    virtual boost::filesystem::path const & GetApplicationPath() = 0;
 };
 
 class node : public NodeInterface,
@@ -371,6 +372,10 @@ public:
     /// @param add true if adding
     /// @returns true if can update
     bool UpdateTxAcceptor(const std::string &ip, uint16_t port, bool add) override;
+
+    /// Getter method for node's application path
+    /// @return const reference to the node's data path
+    boost::filesystem::path const & GetApplicationPath() override {return application_path;}
 
     boost::asio::io_service & service;
     logos::node_config config;
