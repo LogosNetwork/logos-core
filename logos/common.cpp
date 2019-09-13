@@ -935,6 +935,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_epoch_hash:
             ret = "Invalid epoch block hash provided";
             break;
+        case process_result::propagate:
+            ret = "Propagating request";
+            break;
     }
     return ret;
 }
@@ -1104,6 +1107,8 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
         case process_result::proxy_to_self:
             break;
         case process_result::invalid_epoch_hash:
+            break;
+        case process_result::propagate:
             break;
     }
 

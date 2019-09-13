@@ -43,7 +43,6 @@ uint64_t SerializeVector(logos::stream & stream, const std::vector<T> & v)
                   "Integral type required.");
 
     assert(v.size() < std::numeric_limits<S>::max());
-    std::cout << "serializeVector, size = " << v.size() << std::endl;
 
     uint64_t written = logos::write(stream, S(v.size()));
 
