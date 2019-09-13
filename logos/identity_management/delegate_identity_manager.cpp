@@ -157,11 +157,15 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, lo
                 StartRepresenting start;
                 start.epoch_num = 0;
                 start.origin = pub;
+                start.set_stake = true;
                 start.stake = stake;
                 start.Sign(config.priv[i], pub);
                 rep.rep_action_tip = start.Hash();
                 LOG_INFO(_log) << "genstartrep {\"origin\": \"" << pub.to_string() << "\", \"stake\": \"" <<
                     stake.to_string_dec() << "\", \"signature\": \"" << start.signature.to_string() << "\"}";
+                LOG_INFO(_log) << "startrep sgu " << start.Hash().to_string() << " sqn " << std::to_string(start.sequence)
+                    << " levy " << std::to_string(start.levy_percentage) << " pub " << pub.to_string() << " stake " << start.stake.to_string()
+                    << " fee " << start.fee.to_string() << " previous " << start.previous.to_string() << " type " << std::to_string(uint8_t(start.type));
 
                 if (_store.request_put(start, transaction))
                 {
@@ -172,6 +176,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, lo
                 AnnounceCandidacy announce;
                 announce.epoch_num = 0;
                 announce.origin = pub;
+                announce.set_stake = true;
                 announce.stake = stake;
                 announce.bls_key = dpk;
                 announce.ecies_key = ecies_key;
@@ -180,7 +185,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, lo
                 LOG_INFO(_log) << "genannounce {\"origin\": \"" << pub.to_string() << "\", \"stake\": \"" <<
                     stake.to_string_dec() << "\", \"bls\": \"" << dpk.to_string() << "\", \"ecies\": \"" <<
                     ecies_key.ToHexString() << "\", \"signature\": \"" << announce.signature.to_string() << "\"}";
-
+                LOG_INFO(_log) << "announce sgu " << announce.Hash().to_string();
 
                 rep.candidacy_action_tip = announce.Hash();
                 if (_store.request_put(announce, transaction) || _store.rep_put(pub, rep, transaction))
@@ -216,6 +221,10 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, lo
 
         LOG_INFO(_log) << "genepoch {\"epoch_number\": \"" << std::to_string(e) <<"\", \"previous\": \"" <<
             epoch.previous.to_string() << "\", \"hash\": \"" << epoch_hash.to_string() << "\", \"delegates\": [";
+
+        LOG_INFO(_log) << "epoch sgu hash: "<< epoch_hash.to_string() <<"total supply " << epoch.total_supply.to_string()
+        << " txn_fee " << epoch.transaction_fee_pool.to_string() << " total rb " << std::to_string(epoch.total_RBs) << " del stake " << epoch.delegates[0].stake.to_string_dec()
+        << " raw stake " << epoch.delegates[0].raw_stake.to_string_dec() << " raw vote " << epoch.delegates[0].raw_vote.to_string_dec();
 
         for(int i = 0; i < NUM_DELEGATES; i++) {
             LOG_INFO(_log) << "{\"account\": \"" << epoch.delegates[i].account.to_string() << "\", \"bls_pub\": \"" <<
@@ -360,18 +369,25 @@ DelegateIdentityManager::Init(const Config &config)
 
         NTPClient nt("pool.ntp.org");
 
+        int ntp_attempts = 0;
         nt.asyncNTP();
-        if (nt.computeDelta() > 20)
-        {
-            LOG_INFO(_log) << "NTP is too much out of sync";
-            trace_and_halt();
+        while (true) {
+            if(ntp_attempts >= MAX_NTP_RETRIES) {
+                LOG_INFO(_log) << "NTP is too much out of sync";
+                trace_and_halt();
+            }
+            if (nt.computeDelta() < 20) {
+                break;
+            }
+            else {
+                nt.asyncNTP();
+                ntp_attempts++;
+            }
         }
 
-        boost::filesystem::path gen_data_path(boost::filesystem::current_path());
+        boost::filesystem::path gen_data_path(_node.application_path);
         GenesisBlock genesisBlock;
         std::fstream gen_config_file;
-
-
 
         Tip epoch_tip;
         BlockHash &epoch_tip_hash = epoch_tip.digest;
@@ -1994,7 +2010,7 @@ void NTPClient::timeout_s(NTPClient *this_l)
         sleep(1);
     }
 
-    std::cout << "NTPClient::timeout_s udp socket timed out\n";
+    //std::cout << "NTPClient::timeout_s udp socket timed out\n";
 }
 
 void NTPClient::asyncNTP()
