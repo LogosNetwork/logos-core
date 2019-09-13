@@ -45,6 +45,7 @@ public:
         , _config(config)
         , _store(init.block_store_init, application_path / "data.ldb", _config.lmdb_max_dbs)
         , _block_cache(service, _store)
+        , _application_path(application_path)
         , _recall_handler()
         , _p2p()
         , _sleeve(application_path / "sleeve.ldb", _config.password_fanout, init.block_store_init)
@@ -122,11 +123,14 @@ public:
         return true;
     }
 
+    boost::filesystem::path const & GetApplicationPath() override {return _application_path;}
+
     boost::asio::io_service &                   _service;
     logos::alarm                                _alarm;
     logos::node_config                          _config;
     logos::block_store                          _store;
     logos::BlockCache                           _block_cache;
+    boost::filesystem::path                     _application_path;
     RecallHandler                               _recall_handler;
     p2p_interface                               _p2p;                 ///< stub placeholder
     Sleeve                                      _sleeve;

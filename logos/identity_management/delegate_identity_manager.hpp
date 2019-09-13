@@ -56,7 +56,6 @@ public:
 
     Log _log;
     Send gen_sends[NUM_DELEGATES*2];
-    logos::genesis_delegate gen_delegates[NUM_DELEGATES*2];
     ApprovedMB gen_micro [3];
     ApprovedEB gen_epoch [3];
     StartRepresenting start [NUM_DELEGATES*2];
@@ -68,12 +67,15 @@ public:
 
 class DelegateIdentityManager : public std::enable_shared_from_this<DelegateIdentityManager>
 {
+public:
     struct activation_schedule {
         activation_schedule() = default;
         activation_schedule(uint32_t const & epoch, bool const & activate) : start_epoch(epoch), activate(activate) {}
         uint32_t start_epoch = 0;  ///< epoch starting from the beginning of which the activation change begins taking effect
         bool     activate = false; ///< set true to activate, false to deactivate; ignored if start_epoch is old
     };
+
+private:
     struct address_ad {
         address_ad() = default;
         address_ad(std::string &ip, uint16_t port) : ip(ip), port(port) {}
@@ -218,18 +220,17 @@ public:
     /// Calling it any other time than right after current epoch number is incremented would lead to unexpected behavior
     void ApplyActivationSchedule();
 
-    /// (1 of 2 overloads)
     /// Get the activation status summary.
     ///
-    /// @return pair where the first element is whether IM is activated in current epoch,
-    /// and the second the activation schedule. Note that an activation schedule with any
-    /// start epoch **not greater than** the current epoch is considered not scheduled.
-    std::pair<bool, activation_schedule> GetActivationStatus()
+    /// @return tuple of (Sleeved?, Is IM activated in current epoch?, activation schedule)
+    /// Note that an activation schedule with any start epoch **not greater than**
+    /// the current epoch is considered not scheduled.
+    std::tuple<bool, bool, activation_schedule> GetActivationSummary()
     {
-        return std::make_pair(_activated[QueriedEpoch::Current], _activation_schedule);
+        std::lock_guard<std::mutex> lock(_activation_mutex);
+        return std::make_tuple(IsSleeved(), _activated[QueriedEpoch::Current], _activation_schedule);
     }
 
-    /// (2 of 2 overloads)
     /// Get the activation status for the queried epoch (current or next).
     ///
     ///     @param[in] Epoch for which the activation status will be returned
