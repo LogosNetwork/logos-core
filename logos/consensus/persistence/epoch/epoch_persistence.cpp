@@ -29,14 +29,14 @@ PersistenceManager<ECT>::Validate(
 
     if (!status || status->progress < EVP_EPOCH_TIP)
     {
-        Tip epoch_tip;
-        BlockHash & previous_epoch_hash = epoch_tip.digest;
         ApprovedEB previous_epoch;
+        Tip epoch_tip;
 
-        if (epoch.primary_delegate >= NUM_DELEGATES)
+        if (_store.epoch_get(epoch.previous, previous_epoch))
         {
-            UpdateStatusReason(status, process_result::invalid_request);
-            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate primary index out of range " << (int) epoch.primary_delegate;
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate failed to get epoch: " <<
+                            epoch.previous.to_string();
+            UpdateStatusReason(status, process_result::gap_previous);
             return false;
         }
 
@@ -46,58 +46,15 @@ PersistenceManager<ECT>::Validate(
             trace_and_halt();
         }
 
-        if (_store.epoch_get(previous_epoch_hash, previous_epoch))
-        {
-            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate failed to get epoch: " <<
-                            previous_epoch_hash.to_string();
-            UpdateStatusReason(status, process_result::gap_previous);
-            return false;
-        }
-
         // verify epoch number = previous + 1
-        if (epoch.epoch_number != (previous_epoch.epoch_number + 1))
+        if (epoch.epoch_number != (previous_epoch.epoch_number + 1)
+                || epoch_tip.digest != epoch.previous
+                || epoch_tip.epoch != previous_epoch.epoch_number
+                || epoch_tip.sqn != previous_epoch.epoch_number)
         {
             LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate account invalid epoch number " <<
                             epoch.epoch_number << " " << previous_epoch.epoch_number;
             UpdateStatusReason(status, process_result::block_position);
-            return false;
-        }
-
-        if (status)
-            status->progress = EVP_EPOCH_TIP;
-    }
-
-    if (!status || status->progress < EVP_MICRO_TIP)
-    {
-        // verify microblock tip exists
-        Tip micro_block_tip;
-        if (_store.micro_block_tip_get(micro_block_tip))
-        {
-            LOG_FATAL(_log) << "PersistenceManager<ECT>::Validate failed to get microblock tip";
-            trace_and_halt();
-            return false;
-        }
-
-        if (epoch.micro_block_tip != micro_block_tip)
-        {
-            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate previous micro block doesn't exist " <<
-                            epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
-            UpdateStatusReason(status, process_result::invalid_tip);
-            return false;
-        }
-
-        if (status)
-            status->progress = EVP_MICRO_TIP;
-    }
-
-    if (!status || status->progress < EVP_NUMBER_RB)
-    {
-        ApprovedEB previous_epoch;
-        if (_store.epoch_get(epoch.previous, previous_epoch))
-        {
-            LOG_FATAL(_log) << "PersistenceManager<ECT>::Validate failed to get epoch: " <<
-                            epoch.previous.to_string();
-            trace_and_halt();
             return false;
         }
 
@@ -111,11 +68,51 @@ PersistenceManager<ECT>::Validate(
         }
 
         if (status)
-            status->progress = EVP_NUMBER_RB;
+            status->progress = EVP_EPOCH_TIP;
+    }
+
+    if (!status || status->progress < EVP_MICRO_TIP)
+    {
+        ApprovedMB last_micro_block;
+        Tip micro_block_tip;
+
+        if (_store.micro_block_get(epoch.micro_block_tip.digest, last_micro_block))
+        {
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate failed to get last microblock: " <<
+                            epoch.micro_block_tip.digest.to_string();
+            UpdateStatusReason(status, process_result::invalid_tip);
+            return false;
+        }
+
+        // verify microblock tip exists
+        if (_store.micro_block_tip_get(micro_block_tip))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::Validate failed to get microblock tip";
+            trace_and_halt();
+        }
+
+        if (epoch.micro_block_tip != micro_block_tip
+                || micro_block_tip.epoch != epoch.epoch_number)
+        {
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate previous micro block doesn't exist " <<
+                            epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
+            UpdateStatusReason(status, process_result::invalid_tip);
+            return false;
+        }
+
+        if (status)
+            status->progress = EVP_MICRO_TIP;
     }
 
     if (!status || status->progress < EVP_VOTING)
     {
+        if (epoch.primary_delegate >= NUM_DELEGATES)
+        {
+            UpdateStatusReason(status, process_result::invalid_request);
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate primary index out of range " << (int) epoch.primary_delegate;
+            return false;
+        }
+
         EpochVotingManager voting_mgr(_store);
         //epoch block has epoch_number 1 less than current epoch, so +1
         if (!voting_mgr.ValidateEpochDelegates(epoch.delegates, epoch.epoch_number + 1))
