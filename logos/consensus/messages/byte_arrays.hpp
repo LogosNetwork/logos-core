@@ -61,7 +61,11 @@ struct ByteArray : public std::array<byte, len>
     void from_hex_string(const std::string& hex_text)
     {
         logos::uint512_union num;
-        num.decode_hex(hex_text);
+        if (num.decode_hex(hex_text))
+        {
+            clear();
+            return;
+        }
         memcpy(this->data(), num.data() + 64 - len, len);
     }
 
