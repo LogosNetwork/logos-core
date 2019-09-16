@@ -1513,7 +1513,12 @@ DelegateIdentityManager::LoadDBAd2Self()
          ++it)
     {
         bool error (false);
-        assert(sizeof(adKey) == it->first.size());
+        if (sizeof(adKey) != it->first.size())
+        {
+            // delete and continue
+            assert(!it.delete_current_record());
+            continue;
+        }
         memcpy(&adKey, it->first.data(), it->first.size());
 
         /// all ad messages are saved to the database even if they are encrypted
