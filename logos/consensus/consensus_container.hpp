@@ -222,8 +222,6 @@ public:
 
     /// Convert queried epoch (Current/Next) to the corresponding database epoch block number
     /// Note that this should only be used for retrieving information from old epoch blocks.
-    ///
-    /// If enum type is not supported, return 0
     /// @param[in] Epoch to query
     /// @return database epoch block number that contains the delegate information for the queried epoch
     static uint32_t QueriedEpochToNumber(QueriedEpoch q)
@@ -234,8 +232,6 @@ public:
                 return GetCurEpochNumber() - 2;
             case QueriedEpoch::Next:
                 return GetCurEpochNumber() - 1;
-            default:
-                return 0;
         }
     }
 
