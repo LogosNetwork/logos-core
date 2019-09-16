@@ -4165,7 +4165,15 @@ void logos::rpc_handler::sleeve_store_keys()
 {
     using namespace request::fields;
     ByteArray<32> ecies_prv (request.get<std::string>(request::fields::ECIES));
+    if (ecies_prv.is_zero())
+    {
+        error_response (response, "Bad ECIES private key");
+    }
     ByteArray<32> bls_prv (request.get<std::string>(BLS));
+    if (bls_prv.is_zero())
+    {
+        error_response (response, "Bad BLS private key");
+    }
     bool overwrite (request.get<bool>(OVERWRITE, false));
 
     auto status (node._identity_manager->Sleeve(bls_prv, ecies_prv, overwrite));
@@ -4863,7 +4871,12 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "sleeve_unlock")
         {
-            identity_control([this](){sleeve_unlock();});
+            identity_control([this](){
+                sleeve_unlock();
+                using namespace request::fields;
+                request.erase (PASSWORD);
+                reprocess_body (body, request);
+            });
         }
         else if (action == "sleeve_lock")
         {
@@ -4871,11 +4884,22 @@ void logos::rpc_handler::process_request ()
         }
         else if (action == "sleeve_update_password")
         {
-            identity_control([this](){sleeve_update_password();});
+            identity_control([this](){
+                sleeve_update_password();
+                using namespace request::fields;
+                request.erase (PASSWORD);
+                reprocess_body (body, request);
+            });
         }
         else if (action == "sleeve_store_keys")
         {
-            identity_control([this](){sleeve_store_keys();});
+            identity_control([this](){
+                sleeve_store_keys();
+                using namespace request::fields;
+                request.erase (request::fields::ECIES);
+                request.erase (BLS);
+                reprocess_body (body, request);
+            });
         }
         else if (action == "unsleeve")
         {
