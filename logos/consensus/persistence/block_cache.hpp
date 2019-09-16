@@ -64,6 +64,12 @@ public:
     virtual void StoreMicroBlock(MBPtr block) = 0;
     virtual void StoreRequestBlock(RBPtr block) = 0;
 
+    virtual bool ValidateRequest(
+            std::shared_ptr<Request> req,
+            uint32_t epoch_num,
+            logos::process_return& result) 
+    {return false;}
+
     // should be called by bootstrap
     /**
      * check if a block is cached
@@ -110,6 +116,14 @@ public:
     void StoreEpochBlock(EBPtr block) override;
     void StoreMicroBlock(MBPtr block) override;
     void StoreRequestBlock(RBPtr block) override;
+
+    virtual bool ValidateRequest(
+            std::shared_ptr<Request> req,
+            uint32_t epoch_num,
+            logos::process_return& result)
+    {
+        return _write_q.ValidateRequest(req,epoch_num,result);
+    }
 
     /**
      * (inherited) check if a block is cached

@@ -698,6 +698,15 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
     }
 }
 
+std::shared_ptr<Request> Deserialize(uint8_t* data, uint32_t size)
+{
+    bool error = false;
+    logos::bufferstream stream(data,size);
+    std::shared_ptr<Request> req = DeserializeRequest(error,stream);
+    assert(!error);
+    return req;
+}
+
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
@@ -727,6 +736,82 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
         }
         case P2pAppType::AddressAdTxAcceptor: {
             return OnAddressAdTxAcceptor((uint8_t*)data, size);
+        }
+        case P2pAppType::Request: {
+            std::shared_ptr<Request> request = Deserialize((uint8_t*)data, size);
+
+            LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive-Request"
+                << ",hash=" << request->Hash().to_string();
+                 
+
+            //if the Request already exists in the store, do not propagate            
+            if(_store.request_exists(request->Hash()))
+            {
+                LOG_DEBUG(_log) << "P2PRequestPropagation-"
+                    << "hash=" << request->Hash().to_string()
+                    << ",request_exists,not propagating";
+                return false;
+            }
+
+            logos::process_return result = 
+                OnDelegateMessage(
+                        static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),false);
+
+            LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive-Request"
+                << ",hash=" << request->Hash().to_string()
+                << ",result=" << ProcessResultToString(result.code);
+            //if not a delegate, propagate if valid
+            if(result.code == logos::process_result::not_delegate)
+            {
+                bool res = _block_cache.ValidateRequest(
+                            request,ConsensusContainer::GetCurEpochNumber(),result);
+                if(res)
+                {
+                    LOG_DEBUG(_log) << "P2PRequestPropagation-"
+                        << "hash=" << request->Hash().to_string()
+                        << ",non_delegate"
+                        << ",propagating";
+                }
+                else
+                {
+                   LOG_DEBUG(_log) << "P2PRequestPropagation-"
+                        << "hash=" << request->Hash().to_string()
+                        << ",non_delegate"
+                        << ",request invalid,not propagating"
+                        << ",result=" << ProcessResultToString(result.code);
+                
+                }
+                return res;
+            }
+            else
+            {
+
+                if(result.code == logos::process_result::progress
+                        || result.code == logos::process_result::pending)
+                {
+                    LOG_DEBUG(_log) << "P2PRequestPropagation-"
+                        << "hash=" << request->Hash().to_string()
+                        << ",delegate"
+                        << ",processing,propagating"
+                        << ",result=" << ProcessResultToString(result.code);
+                    //If we are processing the Request, still propagate to p2p
+                    //Propagating the Request via p2p adds the Request to the
+                    //p2p propagate store, which prevents deserializing this
+                    //request more than once (due to multiple peers propagating
+                    //this request)
+                    return true;
+                }
+                else
+                {
+                    LOG_DEBUG(_log) << "P2PRequestPropagation-"
+                        << "hash=" << request->Hash().to_string()
+                        << ",delegate"
+                        << ",request invalid,not propagating"
+                        << ",result=" << ProcessResultToString(result.code);
+                    //if the Request is invalid, do not propagate 
+                    return false;
+                }
+            }
         }
         default:
             return false;
