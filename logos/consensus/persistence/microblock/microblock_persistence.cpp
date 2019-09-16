@@ -16,45 +16,6 @@ PersistenceManager<MBCT>::Validate(
     using namespace logos;
     LOG_TRACE(_log) << "PersistenceManager<MBCT>::Validate {";
 
-    if (!status || status->progress < MVP_BASE)
-    {
-        BlockHash hash = block.Hash();
-        // block exists
-        if (_store.micro_block_exists(hash))
-        {
-            LOG_WARN(_log) << "PersistenceManager::VerifyMicroBlock micro block exists "
-                           << hash.to_string();
-            return true;
-        }
-
-        if (block.primary_delegate >= NUM_DELEGATES)
-        {
-            UpdateStatusReason(status, process_result::invalid_request);
-            LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) block.primary_delegate;
-            return false;
-        }
-
-        ApprovedEB previous_epoch;
-        Tip tip;
-        if (_store.epoch_tip_get(tip))
-        {
-            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
-                            << " hash " << hash.to_string();
-            trace_and_halt();
-        }
-        hash = tip.digest;
-
-        if (_store.epoch_get(hash, previous_epoch))
-        {
-            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch: "
-                            << hash.to_string();
-            trace_and_halt();
-        }
-
-        if (status)
-            status->progress = MVP_BASE;
-    }
-
     if (!status || status->progress < MVP_TIPS_DONE)
     {
         // verify can get the batch block tips
@@ -91,7 +52,7 @@ PersistenceManager<MBCT>::Validate(
             status->progress = MVP_TIPS_DONE;
     }
 
-    if (!status || status->progress < MVP_END)
+    if (!status || status->progress < MVP_PREVIOUS)
     {
         ApprovedMB previous_microblock;
 
@@ -120,6 +81,24 @@ PersistenceManager<MBCT>::Validate(
             return false;
         }
 
+        Tip tip;
+        if (_store.micro_block_tip_get(tip))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
+                            << " hash " << block.Hash().to_string();
+            trace_and_halt();
+        }
+
+        if (tip.epoch != block.epoch_number
+                || tip.sqn != previous_microblock.sequence
+                || tip.digest != block.previous)
+        {
+            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed to validate micro_tip: "
+                            << block.Hash().to_string();
+            UpdateStatusReason(status, process_result::invalid_tip);
+            return false;
+        }
+
         /// verify the number of blocks
         int number_batch_blocks = 0;
         for (int del = 0; del < NUM_DELEGATES; ++del)
@@ -135,6 +114,44 @@ PersistenceManager<MBCT>::Validate(
                             << " number in block received=" << block.number_batch_blocks
                             << " locally expect=" << number_batch_blocks;
             UpdateStatusReason(status, process_result::invalid_number_blocks);
+            return false;
+        }
+
+        if (status)
+            status->progress = MVP_PREVIOUS;
+    }
+
+    if (!status || status->progress < MVP_END)
+    {
+        if (block.primary_delegate >= NUM_DELEGATES)
+        {
+            UpdateStatusReason(status, process_result::invalid_request);
+            LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) block.primary_delegate;
+            return false;
+        }
+
+        ApprovedEB previous_epoch;
+        Tip tip;
+        if (_store.epoch_tip_get(tip))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
+                            << " hash " << block.Hash().to_string();
+            trace_and_halt();
+        }
+
+        if (_store.epoch_get(tip.digest, previous_epoch))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch: "
+                            << block.Hash().to_string();
+            trace_and_halt();
+        }
+
+        if (tip.epoch + 1 != block.epoch_number
+                || tip.sqn != tip.epoch)
+        {
+            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed to validate epoch tip: "
+                            << block.Hash().to_string();
+            UpdateStatusReason(status, process_result::invalid_tip);
             return false;
         }
 
