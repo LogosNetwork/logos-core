@@ -152,7 +152,8 @@ ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &ip, uint16_
     LOG_INFO(_log) << "ConsensusNetIOManager::AddDelegate - "
         << "delegate.id=" << unsigned(delegate_id)
         << ",_delegate_id=" << unsigned(_delegate_id)
-        << ",epoch_number=" << GetEpochNumber();
+        << ",epoch_number=" << GetEpochNumber()
+        << ",remote ip=" << ip <<",port=" << port;
     auto iter = _delegates.find(delegate_id);
     if(iter != _delegates.end())
     {

@@ -6,7 +6,6 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
-#include <logos/identity_management/keys.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
@@ -108,7 +107,6 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, Ge
                &BlockStore::epoch_get, &BlockStore::epoch_put);
     }
 
-    bls::PublicKey bls_pub;
     for (int del = 0; del < NUM_DELEGATES*2; ++del)
     {
         // StartRepresenting requests
@@ -136,13 +134,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, Ge
             trace_and_halt();
         }
 
-        // TODO: the use of logos::genesis_delegates might no longer be necessary. Possibly delete in the future.
-        bls_pub.from_string(config.gen_epoch[0].delegates[del].bls_pub.to_string());
-        logos::genesis_delegate delegate{config.start[del].origin,
-                                         bls_pub,
-                                         config.gen_epoch[0].delegates[del].ecies_pub,
-                                         config.start[del].stake, config.start[del].stake};
-        logos::genesis_delegates.push_back(delegate);
+        logos::genesis_delegates.push_back(config.start[del].origin);
     }
 }
 
@@ -184,6 +176,10 @@ DelegateIdentityManager::Init()
     if (_store.epoch_tip_get(epoch_tip)) {
         auto gen_config_path((gen_data_path / "genlogos.json"));
         auto error(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
+        if (error)
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManage::Init - failed to read genlogos json file";
+        }
 
         if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
         {
@@ -310,23 +306,10 @@ void
 DelegateIdentityManager::LoadGenesisAccounts(GenesisBlock const &config)
 {
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
-        // load BLS pub key
-        std::string bls_pub_str (bls_keys[del]);
-        bls::PublicKey bls_pub;
-        bls_pub.from_string(bls_pub_str);
-
-        // load ECIES pub key
-        std::string ecies_pub_str = ecies_keys[del];
-        ECIESPublicKey ecies_pub(ecies_pub_str);
-
         // load EDDSA pub key
         logos::public_key pub = config.gen_sends[del].transactions.front().destination;
 
-        logos::genesis_delegate delegate{pub, bls_pub, ecies_pub,
-                                         config.gen_epoch[0].delegates[del].vote,
-                                         config.gen_epoch[0].delegates[del].stake};
-
-        logos::genesis_delegates.push_back(delegate);
+        logos::genesis_delegates.push_back(pub);
     }
 }
 
@@ -341,9 +324,11 @@ DelegateIdentityManager::UnlockSleeve(std::string const & password)
 
     // Sleeve is now Unlocked.
     // Check if existing BLS and ECIES keys exist, and enter Sleeved state if so
+    LOG_DEBUG(_log) << "DelegateIdentityManager::UnlockSleeve - Sleeve unlocked.";
     std::lock_guard<std::mutex> lock(_activation_mutex);
     if (_sleeve.KeysExist(tx))
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::UnlockSleeve - Detected governance keys, entering Sleeved state.";
         OnSleeved(tx);
     }
 
@@ -358,6 +343,7 @@ DelegateIdentityManager::LockSleeve()
     if (!status)
         return status;
 
+    LOG_DEBUG(_log) << "DelegateIdentityManager::LockSleeve - Sleeve locked, Unsleeving.";
     OnUnsleeved();
     return status;
 }
@@ -372,11 +358,13 @@ DelegateIdentityManager::Sleeve(PlainText const & bls_prv, PlainText const & eci
         return status;
 
     std::lock_guard<std::mutex> lock(_activation_mutex);
-    if (status && overwrite)  // re-entering sleeved state
+    if (status && overwrite && IsSleeved())  // re-entering sleeved state
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::Sleeve - overwriting existing identity.";
         _node.DeactivateConsensus();
     }
 
+    LOG_DEBUG(_log) << "DelegateIdentityManager::Sleeve - entering Sleeved state.";
     // Entering sleeved state
     OnSleeved(tx);
     return status;
@@ -391,6 +379,7 @@ DelegateIdentityManager::Unsleeve()
     if (!status)
         return status;
 
+    LOG_DEBUG(_log) << "DelegateIdentityManager::Unsleeve - Unsleeving.";
     OnUnsleeved();
     return status;
 }
@@ -400,7 +389,7 @@ DelegateIdentityManager::ResetSleeve()
 {
     logos::transaction tx(_sleeve._env, nullptr, true);
     _sleeve.Reset(tx);
-
+    LOG_DEBUG(_log) << "DelegateIdentityManager::ResetSleeve - Unsleeving.";
     OnUnsleeved();
 }
 
@@ -1028,11 +1017,29 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                                      std::string &ip,
                                      uint16_t &port)
 {
-    bool res = false;
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    bool current_or_next = prequel.epoch_number == current_epoch_number ||
+                           prequel.epoch_number == (current_epoch_number + 1);
+
+    if (!current_or_next)
+        return false;
+
+    uint8_t idx = GetDelegateIdFromCache(prequel.epoch_number);  // _activation_mutex locked by caller
+
+    // return false (do not proceed) if ad is not intended for this delegate (not encrypted with our ECIES public key)
+    if (prequel.encr_delegate_id != idx)
+        return false;
 
     // don't update if already have it
     if (_address_ad.find({prequel.epoch_number, prequel.delegate_id}) != _address_ad.end())
     {
+        // Retrieve from cache
+        ip = _address_ad[{prequel.epoch_number, prequel.delegate_id}].ip;
+        port = _address_ad[{prequel.epoch_number, prequel.delegate_id}].port;
+        LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd - ad already in cache; epoch " << prequel.epoch_number
+                        << " delegate id " << (int)prequel.delegate_id
+                        << " encr delegate id " << (int)prequel.encr_delegate_id
+                        << " store ip " << ip << "stored port " << port;
         return true;
     }
 
@@ -1041,58 +1048,45 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                     << " encr delegate id " << (int)prequel.encr_delegate_id
                     << " size " << size;
 
-    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
-    bool current_or_next = prequel.epoch_number == current_epoch_number ||
-                           prequel.epoch_number == (current_epoch_number + 1);
-    if (current_or_next)
-    {
-        uint8_t idx = GetDelegateIdFromCache(prequel.epoch_number);  // _activation_mutex locked by caller
-
-        // ad is encrypted with this delegate's ecies public key
-        if (prequel.encr_delegate_id == idx)
-        {
-            try {
-                bool error = false;
-                logos::bufferstream stream(data + PrequelAddressAd::SIZE, size - PrequelAddressAd::SIZE);
-                AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
-                if (error) {
-                    LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
-                    return false;
-                }
-                if (!ValidateSignature(prequel.epoch_number, addressAd)) {
-                    LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to validate AddressAd signature";
-                    return false;
-                }
-
-                ip = addressAd.GetIP();
-                port = addressAd.port;
-
-                {
-                    std::lock_guard<std::mutex> lock(_ad_mutex);
-                    _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
-                }
-                res = true;
-
-                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch number " << addressAd.epoch_number
-                                << ", delegate id " << (int)prequel.delegate_id
-                                << ", ip " << ip
-                                << ", port " << port;
-            } catch (const std::exception &e)
-            {
-                LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to decrypt AddressAd "
-                                << " epoch number " << prequel.epoch_number
-                                << " delegate id " << (int)prequel.delegate_id
-                                << " encr delegate id " << (int)prequel.encr_delegate_id
-                                << " size " << size
-                                << " exception " << e.what();
-                return false;
-            }
+    try {
+        bool error = false;
+        logos::bufferstream stream(data + PrequelAddressAd::SIZE, size - PrequelAddressAd::SIZE);
+        AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
+        if (error) {
+            LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
+            return false;
+        }
+        if (!ValidateSignature(prequel.epoch_number, addressAd)) {
+            LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to validate AddressAd signature";
+            return false;
         }
 
-        UpdateAddressAdDB(prequel, data, size);
+        ip = addressAd.GetIP();
+        port = addressAd.port;
+
+        {
+            std::lock_guard<std::mutex> lock(_ad_mutex);
+            _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
+        }
+
+        LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch number " << addressAd.epoch_number
+                        << ", delegate id " << (int)prequel.delegate_id
+                        << ", ip " << ip
+                        << ", port " << port;
+    } catch (const std::exception &e)
+    {
+        LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to decrypt AddressAd "
+                        << " epoch number " << prequel.epoch_number
+                        << " delegate id " << (int)prequel.delegate_id
+                        << " encr delegate id " << (int)prequel.encr_delegate_id
+                        << " size " << size
+                        << " exception " << e.what();
+        return false;
     }
 
-    return res;
+    UpdateAddressAdDB(prequel, data, size);
+
+    return true;
 }
 
 void
@@ -1112,6 +1106,10 @@ DelegateIdentityManager::UpdateAddressAdDB(const PrequelAddressAd &prequel, uint
                         << " encr delegate id " << (int)prequel.encr_delegate_id;
         trace_and_halt();
     }
+    LOG_DEBUG(_log) << "DelegateIdentityManager::UpdateAddressAdDB - added address ad; "
+                       "epoch number " << prequel.epoch_number
+                    << " delegate id " << (int)prequel.delegate_id
+                    << " encr delegate id " << (int)prequel.encr_delegate_id;
     // delete old
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
     _store.ad_del<logos::block_store::ad_key>(transaction,
@@ -1332,14 +1330,17 @@ DelegateIdentityManager::OnSleeved(logos::transaction const & tx)
     // if activated now, start all consensus components, and advertise immediately
     if (IsActiveInEpoch(QueriedEpoch::Current))
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::OnSleeved - Activated Current, Activating consensus now";
         _node.ActivateConsensus();
         // ConsensusContainer::ActivateConsensus() handles the case where the node is active currently but not next
     }
     else if (IsActiveInEpoch(QueriedEpoch::Next))
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::OnSleeved - Activated Next, setting up for upcoming epoch";
         // If already Transitioning, we may need to set up now (change transition delegate type and build EpochManager)
         _node.GetEpochEventHandler()->UpcomingEpochSetUp();
     }
+    LOG_DEBUG(_log) << "DelegateIdentityManager::OnSleeved - completed Sleeving setup";
 }
 
 void DelegateIdentityManager::OnUnsleeved()
@@ -1503,6 +1504,7 @@ DelegateIdentityManager::LoadDB()
 void
 DelegateIdentityManager::LoadDBAd2Self()
 {
+    LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDBAd2Self - beginning scan of database";
     logos::transaction transaction (_store.environment, nullptr, true);
 
     logos::block_store::ad_key adKey;
@@ -1516,6 +1518,7 @@ DelegateIdentityManager::LoadDBAd2Self()
         if (sizeof(adKey) != it->first.size())
         {
             // delete and continue
+            LOG_WARN(_log) << "DelegateIdentityManager::LoadDBAd2Self - detected corrupted database value";
             assert(!it.delete_current_record());
             continue;
         }
@@ -1525,6 +1528,7 @@ DelegateIdentityManager::LoadDBAd2Self()
         /// with another delegate id so that the delegate can respond to peer request
         /// for ad messages. we only store in memory messages encrypted with this delegate id
         auto idx = GetDelegateIdFromCache(adKey.epoch_number);  // _activation_mutex should be locked by caller
+        LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDBAd2Self - delegate idx is " << (unsigned)idx;
         if (idx == adKey.encr_delegate_id) {
             try {
                 logos::bufferstream stream(reinterpret_cast<uint8_t const *> (it->second.data()), it->second.size());
@@ -1833,7 +1837,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
         {
             gen_micro[idx].primary_delegate = 0xff;
             gen_micro[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
-            gen_micro[idx].sequence = 0;
+            gen_micro[idx].sequence = idx;
             gen_micro[idx].timestamp = 0;
             gen_micro[idx].previous.decode_hex(it->second.get<std::string>("previous"));
             gen_micro[idx].last_micro_block = 0;

@@ -103,6 +103,9 @@ ConsensusContainer::ActivateConsensus()
         // and only a past epoch's EpochManager can be WaitingDisconnect)
         _binding_map[_cur_epoch_number] = CreateEpochManager(_cur_epoch_number, epoch_config,
                                                              EpochConnection::Current, approved_EB_cur);
+
+        // Previous incoming address ads might have accumulated. We will have to establish connections here.
+        EstablishConnections(_cur_epoch_number);
     }
 
     /// 4. If consensus is activated past ETES, set up next epoch's EpochManager if activated and in office next;
@@ -522,6 +525,25 @@ ConsensusContainer::Bind(
     epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, delegate_id);
 
     return true;
+}
+
+void
+ConsensusContainer::EstablishConnections(uint32_t epoch_number)
+{
+    if (_binding_map.find(epoch_number) == _binding_map.end())
+        return;
+
+    auto epoch_manager = _binding_map[epoch_number];
+    LOG_DEBUG(_log) << "ConsensusContainer::EstablishConnections - establishing connections for epoch " << epoch_number;
+
+    for (uint8_t delegate_id = 0; delegate_id < NUM_DELEGATES; delegate_id++)
+    {
+        if (_identity_manager._address_ad.find({epoch_number, delegate_id}) != _identity_manager._address_ad.end())
+        {
+            auto ad = _identity_manager._address_ad[{epoch_number, delegate_id}];
+            epoch_manager->_netio_manager->AddDelegate(delegate_id, ad.ip, ad.port);
+        }
+    }
 }
 
 uint8_t
@@ -1006,6 +1028,7 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
         return false;
     }
 
+    std::lock_guard<std::mutex> lock(_identity_manager._activation_mutex);
     auto epoch = GetEpochManager(prequel.epoch_number);
 
     LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
@@ -1017,8 +1040,8 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
     std::string ip = "";
     uint16_t port = 0;
 
-    std::lock_guard<std::mutex> lock(_identity_manager._activation_mutex);
-    if (_identity_manager.OnAddressAd(data, size, prequel, ip, port) && epoch)
+    if (_identity_manager.OnAddressAd(data, size, prequel, ip, port) &&
+        epoch && epoch->GetDelegateId() == prequel.encr_delegate_id)
     {
         epoch->_netio_manager->AddDelegate(prequel.delegate_id, ip, port);
     }
