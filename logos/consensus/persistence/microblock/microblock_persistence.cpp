@@ -6,6 +6,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/node/node.hpp>
+#include <logos/node/websocket.hpp>
 
 bool
 PersistenceManager<MBCT>::Validate(
@@ -176,6 +177,8 @@ PersistenceManager<MBCT>::ApplyUpdates(
     }
     LOG_INFO(_log) << "PersistenceManager<MBCT>::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << block.previous.to_string();
+
+    logos_global::OnNewBlock<MBCT>(block);
 }
 
 bool PersistenceManager<MBCT>::BlockExists(
