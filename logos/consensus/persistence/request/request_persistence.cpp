@@ -1035,14 +1035,14 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
     }
 
-    if(_store.request_exists(hash,transaction))
-    {
-        LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - "
-            << "request already exists.hash="
-            << hash.to_string();
-    
-        return;
-    }
+//    if(_store.request_exists(hash,transaction))
+//    {
+//        LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - "
+//            << "request already exists.hash="
+//            << hash.to_string();
+//    
+//        return;
+//    }
 
     info->block_count++;
     info->head = request->GetHash();
