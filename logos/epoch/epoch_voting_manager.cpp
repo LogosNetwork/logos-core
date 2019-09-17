@@ -346,7 +346,7 @@ EpochVotingManager::ValidateEpochDelegates(
 
    for (auto delegate : logos::genesis_delegates)
    {
-       verify[delegate.key] = true;
+       verify[delegate] = true;
    }
 
    for (int i = 0; i < NUM_DELEGATES; ++i)
