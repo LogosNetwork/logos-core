@@ -127,7 +127,7 @@ logos::uint128_t const & logos::genesis_amount (globals.genesis_amount);
 logos::block_hash const & logos::not_a_block (globals.not_a_block);
 logos::block_hash const & logos::not_an_account (globals.not_an_account);
 logos::account const & logos::burn_account (globals.burn_account);
-std::vector<logos::genesis_delegate> logos::genesis_delegates;
+std::vector<logos::public_key> logos::genesis_delegates;
 
 // Create a new random keypair
 logos::keypair::keypair ()

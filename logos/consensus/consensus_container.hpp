@@ -235,7 +235,6 @@ public:
         }
     }
 
-
     /// Binds connected socket to the correct delegates set, mostly applicable during epoch transition
     /// @param endpoint connected endpoing
     /// @param socket connected socket
@@ -248,6 +247,12 @@ public:
     /// Returns true if binding map contains an entry for the specified
     //  epoch number
     bool CanBind(uint32_t epoch_number) override;
+
+    /// Retroactively establish direct connections with peers. It retrieves cached address ads
+    /// to self from identity manager, and attempts to connect directly to the remote peers.
+    /// Caller needs to lock _mutex.
+    /// @param epoch_number epoch number for which connections will be established
+    void EstablishConnections(uint32_t epoch_number);
 
     /// Get delegate identity manager reference
     /// @returns DelegateIdentityManager reference

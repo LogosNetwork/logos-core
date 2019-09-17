@@ -4202,7 +4202,7 @@ void logos::rpc_handler::unsleeve()
 
 void logos::rpc_handler::sleeve_reset()
 {
-
+    node._identity_manager->ResetSleeve();
     boost::property_tree::ptree resp_tree;
     resp_tree.put("success", true);
     response (resp_tree);
@@ -4211,8 +4211,7 @@ void logos::rpc_handler::sleeve_reset()
 void logos::rpc_handler::delegate_activate(bool activate)
 {
     using namespace request::fields;
-    boost::optional<std::string> epoch_num_text (request.get_optional<std::string> (EPOCH_NUM));
-    uint32_t epoch_num (epoch_num_text.is_initialized() ? std::stol(epoch_num_text.get()) : 0);
+    uint32_t epoch_num (request.get<uint32_t> (EPOCH_NUM, 0));
 
     auto status (node._identity_manager->ChangeActivation(activate, epoch_num));
 
