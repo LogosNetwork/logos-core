@@ -184,6 +184,13 @@ bool PersistenceManager<R>::ValidateRequest(
     auto hash = request->GetHash();
     LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request " << hash.to_string();
 
+    if(!prelim && !request->previous.is_zero() && !_store.request_exists(request->previous))
+    {
+        result.code = logos::process_result::gap_previous;
+        LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string();
+        return false;
+    }
+
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
@@ -281,10 +288,10 @@ bool PersistenceManager<R>::ValidateRequest(
     // This account has issued at least one send transaction.
     if(info->block_count)
     {
-        if(!_store.request_exists(request->previous))
+        if(request->previous.is_zero())
         {
-            result.code = logos::process_result::gap_previous;
-            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
+            result.code = logos::process_result::fork;
+            LOG_WARN (_log) << "FORK: unexpected block " << request->previous.to_string()
                             << "; current account info head is: " << info->head.to_string();
             return false;
         }
@@ -293,8 +300,8 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         if(!request->previous.is_zero())
         {
-            result.code = logos::process_result::gap_previous;
-            LOG_WARN (_log) << "GAP_PREVIOUS: account has no previous requests, current request sqn="
+            result.code = logos::process_result::invalid_request;
+            LOG_ERROR (_log) << "ILL REQUEST: previous exists but was not counted; sqn="
                             << request->sequence;
             return false;
         }
