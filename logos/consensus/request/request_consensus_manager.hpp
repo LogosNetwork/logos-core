@@ -20,6 +20,8 @@ class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
     using Hashes      = std::unordered_set<BlockHash>;
     using uint128_t   = logos::uint128_t;
 
+public:
+
     // Pairs a set of Delegate ID's with indexes,
     // where the indexes represent the requests
     // supported by those delegates.
@@ -39,7 +41,6 @@ class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
 
     using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
 
-public:
 
     /// Class constructor.
     ///
@@ -212,3 +213,5 @@ private:
     RequestInternalQueue  _request_queue;
     Seconds               _secondary_timeout;             ///< Secondary list timeout value for this delegate
 };
+
+#include <logos/consensus/request/generate_subsets.ipp>
