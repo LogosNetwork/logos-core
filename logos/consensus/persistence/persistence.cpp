@@ -25,7 +25,7 @@ void Persistence::PlaceReceive(ReceiveBlock & receive,
 
         auto get_timestamp = [&](const ReceiveBlock receive)
         {
-            if(_store.request_exists(receive.source_hash))
+            if(_store.request_exists(receive.source_hash, transaction))
             {
                 epoch_generated_cur = false;
 

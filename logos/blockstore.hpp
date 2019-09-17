@@ -146,7 +146,7 @@ public:
     bool request_get(const BlockHash &hash, std::shared_ptr<Request> & request, MDB_txn *transaction);
     bool request_put(const Request &, MDB_txn *);
     bool request_exists(const Request & request);
-    bool request_exists(const BlockHash & hash);
+    bool request_exists(const BlockHash & hash, MDB_txn * txn = nullptr);
 
     bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
