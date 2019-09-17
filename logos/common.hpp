@@ -345,7 +345,7 @@ extern std::string const & genesis_block;
 extern logos::account const & genesis_account;
 extern logos::account const & burn_account;
 extern logos::uint128_t const & genesis_amount;
-extern std::vector<genesis_delegate> genesis_delegates;
+extern std::vector<logos::public_key> genesis_delegates;
 // A block hash that compares inequal to any real block hash
 extern logos::block_hash const & not_a_block;
 // An account number that compares inequal to any real account number

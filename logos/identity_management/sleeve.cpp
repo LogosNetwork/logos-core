@@ -250,7 +250,7 @@ bool Sleeve::AuthenticatedDecrypt(CipherText const & cipher, PlainText & plain, 
 
         CryptoPP::AuthenticatedDecryptionFilter df(d,
                 new CryptoPP::ArraySink(plain.data(), sizeof(plain)),
-                CryptoPP::AuthenticatedDecryptionFilter::DEFAULT_FLAGS);
+                CryptoPP::AuthenticatedDecryptionFilter::DEFAULT_FLAGS, AES256GCM_TAG_SIZE);
 
         // The ArraySource dtor will be called immediately
         //  after construction below. This will cause the
