@@ -6,6 +6,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
+#include <logos/identity_management/keys.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
@@ -166,7 +167,7 @@ DelegateIdentityManager::Init()
             ntp_attempts++;
         }
     }
-
+    //boost::filesystem::path gen_data_path(boost::filesystem::current_path());
     boost::filesystem::path gen_data_path(_node.GetApplicationPath());
     GenesisBlock genesisBlock;
     std::fstream gen_config_file;
@@ -175,10 +176,12 @@ DelegateIdentityManager::Init()
     BlockHash &epoch_tip_hash = epoch_tip.digest;
     if (_store.epoch_tip_get(epoch_tip)) {
         auto gen_config_path((gen_data_path / "genlogos.json"));
-        auto error(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
-        if (error)
+        auto status(logos::fetch_object(genesisBlock, gen_config_path, gen_config_file));
+
+        if(!status)
         {
-            LOG_ERROR(_log) << "DelegateIdentityManage::Init - failed to read genlogos json file";
+            LOG_INFO(_log) << "Genesis Log failed while reading";
+            trace_and_halt();
         }
 
         if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
@@ -1835,12 +1838,12 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
         end = micro.end();
         for (boost::property_tree::ptree::const_iterator it = micro.begin(); it != end; ++it)
         {
-            gen_micro[idx].primary_delegate = 0xff;
+            //gen_micro[idx].primary_delegate = 0xff;
             gen_micro[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
-            gen_micro[idx].sequence = idx;
+            gen_micro[idx].sequence = it->second.get<uint32_t>("sequence");
             gen_micro[idx].timestamp = 0;
             gen_micro[idx].previous.decode_hex(it->second.get<std::string>("previous"));
-            gen_micro[idx].last_micro_block = 0;
+            gen_micro[idx].last_micro_block = 1;
             gen_micro[idx].Hash(hash);
             idx++;
         }
@@ -1851,11 +1854,12 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
         end = epoch.end();
         for (boost::property_tree::ptree::const_iterator it = epoch.begin(); it != end; ++it)
         {
-            gen_epoch[idx].primary_delegate = 0xff;
+            //gen_epoch[idx].primary_delegate = 0xff;
             gen_epoch[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
             gen_epoch[idx].sequence = 0;
             gen_epoch[idx].timestamp = 0;
             gen_epoch[idx].total_RBs = 0;
+            gen_epoch[idx].micro_block_tip = gen_micro[idx].CreateTip();
             gen_epoch[idx].previous.decode_hex(it->second.get<std::string>("previous"));
             auto delegates (it->second.get_child("delegates"));
             int del_idx = 0;
@@ -1911,6 +1915,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             announce[idx].epoch_num = 0;
             announce[idx].origin = pub;
             announce[idx].stake = stake;
+            announce[idx].set_stake = true;
             announce[idx].ecies_key.FromHexString(it->second.get<std::string>("ecies"));
             DelegatePubKey dpk(it->second.get<std::string>("bls"));
             announce[idx].bls_key = dpk;
