@@ -1004,7 +1004,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                    << request->Hash().to_string();
 
     std::shared_ptr<logos::Account> info;
-    auto account_error(_store.account_get(request->GetAccount(), info));
+    auto account_error(_store.account_get(request->GetAccount(), info, transaction));
 
     if(account_error)
     {

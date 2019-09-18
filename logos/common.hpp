@@ -225,6 +225,8 @@ struct reservation_info
 enum class process_result
 {
     progress,                     // Hasn't been seen before, signed correctly
+    propagate,                    // Valid but sent to non-delegate. Propagating via p2p
+    no_propagate,                 // Valid, sent to non-delegate, but not propagated
     bad_signature,                // Signature was bad, forged or transmission error
     old,                          // Already seen and was valid
     negative_spend,               // Malicious attempt to spend a negative amount

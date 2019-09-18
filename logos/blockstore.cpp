@@ -447,14 +447,21 @@ bool logos::block_store::request_exists(const Request & request)
     return request_exists(request.GetHash());
 }
 
-bool logos::block_store::request_exists(const BlockHash & hash)
+bool logos::block_store::request_exists(const BlockHash & hash, MDB_txn* txn)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
     logos::mdb_val junk;
-    logos::transaction transaction(environment, nullptr, false);
-
-    auto status (mdb_get (transaction, request_db, logos::mdb_val (hash), junk));
+    int status = 0;
+    if(!txn)
+    {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get (transaction, request_db, logos::mdb_val (hash), junk);
+    }
+    else
+    {
+        status = mdb_get (txn, request_db, logos::mdb_val (hash), junk);
+    }
     assert (status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
