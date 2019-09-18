@@ -723,6 +723,12 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::progress:
             ret = "Progress";
             break;
+        case process_result::propagate:
+            ret = "Propagating request via p2p network";
+            break;
+        case process_result::no_propagate:
+            ret = "Attempted to propagate via p2p, but request exists in p2p cache or an error occurred";
+            break;
         case process_result::bad_signature:
             ret = "Bad Signature";
             break;
@@ -935,9 +941,7 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_epoch_hash:
             ret = "Invalid epoch block hash provided";
             break;
-        case process_result::propagate:
-            ret = "Propagating request";
-            break;
+
     }
     return ret;
 }
@@ -950,6 +954,10 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
     {
         case process_result::progress:
             ret = process_result_dependency::progress;
+            break;
+        case process_result::propagate:
+            break;
+        case process_result::no_propagate:
             break;
         case process_result::bad_signature:
             ret = process_result_dependency::not_applied;
@@ -1107,8 +1115,6 @@ logos::process_result_dependency logos::ProcessResultToDependency(logos::process
         case process_result::proxy_to_self:
             break;
         case process_result::invalid_epoch_hash:
-            break;
-        case process_result::propagate:
             break;
     }
 

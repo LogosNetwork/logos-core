@@ -225,6 +225,8 @@ struct reservation_info
 enum class process_result
 {
     progress,                     // Hasn't been seen before, signed correctly
+    propagate,                    // Valid but sent to non-delegate. Propagating via p2p
+    no_propagate,                 // Valid, sent to non-delegate, but not propagated
     bad_signature,                // Signature was bad, forged or transmission error
     old,                          // Already seen and was valid
     negative_spend,               // Malicious attempt to spend a negative amount
@@ -295,8 +297,7 @@ enum class process_result
     insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
     invalid_account_type,         // Logos - origin account is not the proper type for the request
     proxy_to_self,                // Logos - request is attempting to proxy to self
-    invalid_epoch_hash,            // Logos - invalid epoch hash
-    propagate
+    invalid_epoch_hash            // Logos - invalid epoch hash
 };
 
 // This enum represents type of dependency which we need to wait in the cache, type is based on the returned error code

@@ -703,7 +703,13 @@ std::shared_ptr<Request> Deserialize(uint8_t* data, uint32_t size)
     bool error = false;
     logos::bufferstream stream(data,size);
     std::shared_ptr<Request> req = DeserializeRequest(error,stream);
-    assert(!error);
+    if(error)
+    {
+        Log log;
+        LOG_WARN(log) << "ConsensusContainer - Deserialize - "
+            << "error deserializing request from p2p network";
+        return nullptr;
+    }
     return req;
 }
 
@@ -739,6 +745,12 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
         }
         case P2pAppType::Request: {
             std::shared_ptr<Request> request = Deserialize((uint8_t*)data, size);
+            if(!request)
+            {
+                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive-"
+                    << "error deserializing request";
+                return false;
+            }
 
             LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive-Request"
                 << ",hash=" << request->Hash().to_string();

@@ -926,7 +926,7 @@ logos::BootstrapProgress logos::node::CreateBootstrapProgress()
     }
 }
 
-uint8_t* Serialize(std::shared_ptr<Request> request,std::vector<uint8_t>& p2p_buffer)
+void Serialize(std::shared_ptr<Request> request,std::vector<uint8_t>& p2p_buffer)
 {
     std::vector<uint8_t> buf;
     {
@@ -946,7 +946,6 @@ uint8_t* Serialize(std::shared_ptr<Request> request,std::vector<uint8_t>& p2p_bu
     p2p_buffer.resize(buf.size() + buf2.size());
     memcpy(p2p_buffer.data(), buf2.data(), buf2.size());
     memcpy(p2p_buffer.data() + hdrs_size, buf.data(), buf.size());
-    return p2p_buffer.data();
 }
 
 logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
@@ -964,15 +963,17 @@ logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, b
         if(block_cache.ValidateRequest(request,ConsensusContainer::GetCurEpochNumber(),result))
         {
             std::vector<uint8_t> p2p_buffer;
-            uint8_t* data = Serialize(request,p2p_buffer);
+            Serialize(request,p2p_buffer);
 
             LOG_DEBUG(log) << "P2PRequestPropagation-hash="
                 << request->Hash().to_string()
                 << ",submitted,propagating";
 
-            p2p.PropagateMessage(p2p_buffer.data(),p2p_buffer.size(),true);
+            bool propped = p2p.PropagateMessage(p2p_buffer.data(),p2p_buffer.size(),true);
 
-            result.code = logos::process_result::propagate;
+            result.code = propped ? 
+                logos::process_result::propagate : 
+                logos::process_result::no_propagate;
         }
         else
         {
