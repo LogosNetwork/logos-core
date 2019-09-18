@@ -6,7 +6,6 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
-#include <logos/identity_management/keys.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
@@ -156,7 +155,7 @@ DelegateIdentityManager::Init()
     nt.asyncNTP();
     while (true) {
         if(ntp_attempts >= MAX_NTP_RETRIES) {
-            LOG_INFO(_log) << "NTP is too much out of sync";
+            LOG_ERROR(_log) << "DelegateIdentityManage::Init - NTP is too much out of sync";
             trace_and_halt();
         }
         if (nt.computeDelta() < 20) {
@@ -167,7 +166,7 @@ DelegateIdentityManager::Init()
             ntp_attempts++;
         }
     }
-    //boost::filesystem::path gen_data_path(boost::filesystem::current_path());
+
     boost::filesystem::path gen_data_path(_node.GetApplicationPath());
     GenesisBlock genesisBlock;
     std::fstream gen_config_file;
@@ -180,13 +179,13 @@ DelegateIdentityManager::Init()
 
         if(!status)
         {
-            LOG_INFO(_log) << "Genesis Log failed while reading";
+            LOG_ERROR(_log) << "DelegateIdentityManage::Init - failed to read genlogos json file";
             trace_and_halt();
         }
 
         if(!genesisBlock.VerifySignature(logos::test_genesis_key.pub))
         {
-            LOG_INFO(_log) << "Genesis Log input failed signature " << genesisBlock.signature.to_string();
+            LOG_ERROR(_log) << "DelegateIdentityManage::Init - genlogos input failed signature " << genesisBlock.signature.to_string();
             trace_and_halt();
         }
 
@@ -1797,48 +1796,53 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
 
     auto status(blake2b_init(&hash, sizeof(BlockHash)));
     assert(status == 0);
-    auto error (false);
+
+    std::stringstream ss;
+    boost::property_tree::json_parser::write_json(ss, tree_a);
+    boost::property_tree::ptree::const_iterator end;
+    int idx = 0;
     try
     {
-        std::stringstream ss;
-        boost::property_tree::json_parser::write_json(ss, tree_a);
-
-        auto accnts (tree_a.get_child("accounts"));
-        int idx = 0;
-        boost::property_tree::ptree::const_iterator end = accnts.end();
+        auto accnts(tree_a.get_child("accounts"));
+        end = accnts.end();
         for (boost::property_tree::ptree::const_iterator it = accnts.begin(); it != end; ++it)
         {
             AccountAddress account;
             account.decode_hex(it->second.get<std::string>("account"));
-            //del_accounts[idx].decode_hex(it->second.get<std::string>("account"));
             Amount amount;
             amount.decode_dec(it->second.get<std::string>("amount"));
             BlockHash previous;
             previous.decode_hex(it->second.get<std::string>("previous"));
-            //del_amount[idx].decode_dec(it->second.get<std::string>("amount"));
             uint32_t sequence = it->second.get<uint32_t>("sequence");
             AccountSig signature;
             signature.decode_hex(it->second.get<std::string>("signature"));
 
             gen_sends[idx] = Send(logos::logos_test_account,   // account
-                     previous,                                 // previous
-                     sequence,                                 // sequence
-                     account,                                  // link/to
-                     amount,
-                     0,                                        // transaction fee
-                     signature);
+                                  previous,                    // previous
+                                  sequence,                    // sequence
+                                  account,                     // link/to
+                                  amount,                      // amount
+                                  0,                           // transaction fee
+                                  signature);                  // signature
 
             gen_sends[idx].Hash(hash);
             idx++;
         }
+    }
+    catch (std::runtime_error const &)
+    {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis Sends";
+        return false;
+    }
 
+    try
+    {
         // Deserialize microblocks from config
-        auto micro (tree_a.get_child("micros"));
+        auto micro(tree_a.get_child("micros"));
         idx = 0;
         end = micro.end();
         for (boost::property_tree::ptree::const_iterator it = micro.begin(); it != end; ++it)
         {
-            //gen_micro[idx].primary_delegate = 0xff;
             gen_micro[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
             gen_micro[idx].sequence = it->second.get<uint32_t>("sequence");
             gen_micro[idx].timestamp = 0;
@@ -1847,21 +1851,28 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             gen_micro[idx].Hash(hash);
             idx++;
         }
+    }
+    catch (std::runtime_error const &)
+    {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis Microblocks";
+        return false;
+    }
 
+    try
+    {
         // Deserialize epochs from config
-        auto epoch (tree_a.get_child("epochs"));
+        auto epoch(tree_a.get_child("epochs"));
         idx = 0;
         end = epoch.end();
         for (boost::property_tree::ptree::const_iterator it = epoch.begin(); it != end; ++it)
         {
-            //gen_epoch[idx].primary_delegate = 0xff;
             gen_epoch[idx].epoch_number = it->second.get<uint32_t>("epoch_number");
             gen_epoch[idx].sequence = 0;
             gen_epoch[idx].timestamp = 0;
             gen_epoch[idx].total_RBs = 0;
             gen_epoch[idx].micro_block_tip = gen_micro[idx].CreateTip();
             gen_epoch[idx].previous.decode_hex(it->second.get<std::string>("previous"));
-            auto delegates (it->second.get_child("delegates"));
+            auto delegates(it->second.get_child("delegates"));
             int del_idx = 0;
             boost::property_tree::ptree::const_iterator end1 = delegates.end();
             for (boost::property_tree::ptree::const_iterator it = delegates.begin(); it != end1; ++it)
@@ -1882,9 +1893,18 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             gen_epoch[idx].Hash(hash);
             idx++;
         }
+    }
+    catch (std::runtime_error const &)
+    {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis Epochs";
+        return false;
+    }
+
+    try
+    {
 
         // Deserialize StartRepresenting requests for genesis delegates from config
-        auto starts (tree_a.get_child("start"));
+        auto starts(tree_a.get_child("start"));
         idx = 0;
         end = starts.end();
         for (boost::property_tree::ptree::const_iterator it = starts.begin(); it != end; ++it)
@@ -1901,9 +1921,17 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             start[idx].Hash(hash);
             idx++;
         }
+    }
+    catch (std::runtime_error const &)
+    {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis StartRepresenting";
+        return false;
+    }
 
+    try
+    {
         // Deserialize AnnounceCandidacy requests for genesis delegates from config
-        auto announces (tree_a.get_child("announce"));
+        auto announces(tree_a.get_child("announce"));
         idx = 0;
         end = announces.end();
         for (boost::property_tree::ptree::const_iterator it = announces.begin(); it != end; ++it)
@@ -1930,17 +1958,23 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             announce[idx].Hash(hash);
             idx++;
         }
-
-        // Get signature from config
-        signature.decode_hex(tree_a.get<std::string>("signature"));
-        status = blake2b_final(&hash, digest.data(), sizeof(BlockHash));
-        //assert(status == 0);
-        //LOG_DEBUG(_log) << "SGU DEBUG HASH " << digest.to_string();
-        //Sign(logos::test_genesis_key.prv.data, logos::test_genesis_key.pub);
-        //LOG_DEBUG(_log) << "SGU DEBUG SIGNATURE " << signature.to_string();
     }
     catch (std::runtime_error const &)
     {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis AnnounceCandidacy";
+        return false;
+    }
+
+    try
+    {
+        // Get signature from config
+        signature.decode_hex(tree_a.get<std::string>("signature"));
+        status = blake2b_final(&hash, digest.data(), sizeof(BlockHash));
+        assert(status == 0);
+    }
+    catch (std::runtime_error const &)
+    {
+        LOG_ERROR(_log) << "GenesisBlock::deserialize_json - failed deserializing Genesis Signature";
         return false;
     }
 
