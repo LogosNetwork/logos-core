@@ -84,12 +84,12 @@ PersistenceManager<MBCT>::Validate(
         Tip tip;
         if (_store.micro_block_tip_get(tip))
         {
-            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
+            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get micro_tip "
                             << " hash " << block.Hash().to_string();
             trace_and_halt();
         }
 
-        if (tip.epoch != block.epoch_number
+        if (tip.epoch != previous_microblock.epoch_number
                 || tip.sqn != previous_microblock.sequence
                 || tip.digest != block.previous)
         {
@@ -147,7 +147,7 @@ PersistenceManager<MBCT>::Validate(
         }
 
         if (tip.epoch + 1 != block.epoch_number
-                || tip.sqn != tip.epoch)
+                /* || tip.sqn != tip.epoch */)
         {
             LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed to validate epoch tip: "
                             << block.Hash().to_string();

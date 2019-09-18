@@ -50,7 +50,7 @@ PersistenceManager<ECT>::Validate(
         if (epoch.epoch_number != (previous_epoch.epoch_number + 1)
                 || epoch_tip.digest != epoch.previous
                 || epoch_tip.epoch != previous_epoch.epoch_number
-                || epoch_tip.sqn != previous_epoch.epoch_number)
+                /* || epoch_tip.sqn != previous_epoch.epoch_number */)
         {
             LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate account invalid epoch number " <<
                             epoch.epoch_number << " " << previous_epoch.epoch_number;
