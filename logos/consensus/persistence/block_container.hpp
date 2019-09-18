@@ -200,6 +200,7 @@ public:
     }
 
     bool IsBlockCached(const BlockHash &hash);
+    bool IsBlockCachedOrQueued(const BlockHash &hash);
 
     bool BlockExistsAdd(EBPtr block);
     bool BlockExistsAdd(MBPtr block);

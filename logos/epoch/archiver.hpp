@@ -18,6 +18,7 @@ namespace logos
 {
     class alarm;
     class block_store;
+    class IBlockCache;
 }
 
 class ArchiverMicroBlockHandler
@@ -52,7 +53,8 @@ public:
     /// @param[in] store logos block_store reference
     /// @param[in] event proposer reference
     /// @param[in] recall recall handler interface reference
-    Archiver(logos::alarm &, BlockStore &, EventProposer &, IRecallHandler &);
+    /// @param[in] block cache interface reference
+    Archiver(logos::alarm &, BlockStore &, EventProposer &, IRecallHandler &, logos::IBlockCache &);
     ~Archiver() = default;
 
     /// Start archiving events
@@ -99,6 +101,7 @@ private:
     MicroBlockMessageHandler & _mb_message_handler;
     IRecallHandler &           _recall_handler;
     logos::block_store &       _store;
+    logos::IBlockCache &       _block_cache;
     Log                        _log;
 
     friend class Archival_ShouldSkipMBProposal_Test;

@@ -834,6 +834,10 @@ public:
     {
         return cached;
     }
+    virtual bool IsBlockCachedOrQueued(const BlockHash &b) override
+    {
+        return cached;
+    }
 
     bool addbsb = true;
     bool addmb = true;

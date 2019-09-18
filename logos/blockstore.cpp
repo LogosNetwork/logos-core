@@ -1171,7 +1171,15 @@ bool logos::block_store::is_first_microblock()
         trace_and_halt();
     }
 
-    return microblock.epoch_number == GENESIS_EPOCH && microblock.sequence == 0;
+    if (microblock.sequence == GENESIS_EPOCH)
+    {
+        if (microblock.epoch_number == GENESIS_EPOCH)
+            return true;
+        LOG_FATAL(log) << __func__ << " database corruption: microblock sequence at " << GENESIS_EPOCH
+                       << " but epoch_number at " << microblock.epoch_number;
+        trace_and_halt();
+    }
+    return false;
 }
 
 uint32_t logos::block_store::epoch_number_stored()

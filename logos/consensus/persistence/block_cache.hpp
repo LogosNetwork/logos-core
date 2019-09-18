@@ -77,6 +77,7 @@ public:
      * @return true if the block is in the cache
      */
     virtual bool IsBlockCached(const BlockHash &b) = 0;
+    virtual bool IsBlockCachedOrQueued(const BlockHash &b) = 0;
 
     virtual ~IBlockCache() = default;
 };
@@ -131,6 +132,7 @@ public:
      * @return true if the block is in the cache
      */
     bool IsBlockCached(const BlockHash &b) override;
+    bool IsBlockCachedOrQueued(const BlockHash &b) override;
 
     void ProcessDependencies(EBPtr block);
     void ProcessDependencies(MBPtr block);

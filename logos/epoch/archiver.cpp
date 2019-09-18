@@ -11,7 +11,8 @@
 Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    EventProposer & event_proposer,
-                   IRecallHandler & recall_handler)
+                   IRecallHandler & recall_handler,
+                   logos::IBlockCache & block_cache)
     : _event_proposer(event_proposer)
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
@@ -19,6 +20,7 @@ Archiver::Archiver(logos::alarm & alarm,
     , _mb_message_handler(MicroBlockMessageHandler::GetMessageHandler())
     , _recall_handler(recall_handler)
     , _store(store)
+    , _block_cache(block_cache)
 {}
 
 void
@@ -114,10 +116,20 @@ Archiver::ArchiveMB(InternalConsensus & consensus)
         // (since backup DB write takes place before queue clear)
         logos::transaction tx(_store.environment, nullptr, true);
         if (ShouldSkipMBBuild() || !_micro_block_handler.Build(*micro_block)) return;
-    }
 
-    _counter.first = micro_block->epoch_number;
-    _counter.second = micro_block->sequence;
+        _counter.first = micro_block->epoch_number;
+        _counter.second = micro_block->sequence;
+
+        // TODO: this is a very hacky fix. The proper solution would be to only trigger
+        //  clearing from MessageHandler Queue **after** MicroBlockPersistenceManager ApplyUpdates finishes execution.
+        //  Currently the queue clearing is triggered prematurely in BackupDelegate's on PostCommit message logic.
+        auto hash = micro_block->Hash();
+        if (_mb_message_handler.Contains(hash) || _block_cache.IsBlockCachedOrQueued(hash))
+        {
+            LOG_DEBUG(_log) << "Archiver::ArchiveMB - MB with hash " << hash.to_string()
+                            << " is already in message handler queue, block cache, or write queue. Skipping.";
+        }
+    }
 
     consensus.OnDelegateMessage(micro_block);
 }
@@ -159,6 +171,8 @@ Archiver::ShouldSkipMBBuild()
 
     // check queue content
     is_queued = _mb_message_handler.GetQueuedSequence(queued);
+    LOG_DEBUG(_log) << "Archiver::ShouldSkipMBBuild - queued MB epoch: " << queued.first
+                    << "; sequence: " << queued.second;
     if (!is_queued)  // queue is empty
     {
         latest = stored;
