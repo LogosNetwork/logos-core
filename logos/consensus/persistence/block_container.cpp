@@ -20,6 +20,12 @@ bool PendingBlockContainer::IsBlockCached(const BlockHash &hash)
     return in;
 }
 
+bool PendingBlockContainer::IsBlockCachedOrQueued(const BlockHash &hash)
+{
+    std::lock_guard<std::mutex> lck(_cache_blocks_mutex);
+    return _cached_blocks.find(hash) != _cached_blocks.end() || _write_q.IsBlockQueued(hash);
+}
+
 bool PendingBlockContainer::BlockExistsAdd(EBPtr block)
 {
     BlockHash hash = block->Hash();

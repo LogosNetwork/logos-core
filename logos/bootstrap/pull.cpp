@@ -215,7 +215,8 @@ namespace Bootstrap
                 << " block->previous: " << block->previous.to_string()
                 << " pull->prev_hash: " << pull->prev_hash.to_string();
 
-        assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
+        assert(state==PullerState::Batch || state==PullerState::Batch_No_MB ||
+               state==PullerState::Batch_No_MB_Next_Epoch);
         bool good_block = block->previous == pull->prev_hash &&
                 block->primary_delegate < NUM_DELEGATES &&
                 block_cache.AddRequestBlock(block) != logos::IBlockCache::add_result::FAILED;

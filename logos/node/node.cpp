@@ -635,8 +635,8 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         auto password_fanout_l (tree_a.get<std::string> ("password_fanout"));
         auto io_threads_l (tree_a.get<std::string> ("io_threads"));
         auto work_threads_l (tree_a.get<std::string> ("work_threads"));
-        enable_voting = tree_a.get<bool> ("enable_voting");
-        enable_websocket = tree_a.get<bool> ("enable_websocket");
+        enable_voting = tree_a.get<bool> ("enable_voting", false);
+        enable_websocket = tree_a.get<bool> ("enable_websocket", false);
         auto bootstrap_connections_l (tree_a.get<std::string> ("bootstrap_connections"));
         auto bootstrap_connections_max_l (tree_a.get<std::string> ("bootstrap_connections_max"));
         callback_address = tree_a.get<std::string> ("callback_address");

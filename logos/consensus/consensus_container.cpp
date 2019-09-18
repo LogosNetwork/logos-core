@@ -30,7 +30,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _alarm(alarm)
     , _config(config)
     , _event_proposer(alarm, recall_handler)
-    , _archiver(alarm, store, _event_proposer, recall_handler)
+    , _archiver(alarm, store, _event_proposer, recall_handler, block_cache)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
@@ -772,7 +772,9 @@ ConsensusContainer::EpochTransitionEnd()
 
     /// 3. Change the current EpochManager's connection state
     // (EM only exists if delegate type is Persistent or New, and node is active next)
-    if (_transition_delegate != EpochTransitionDelegate::Retiring && _identity_manager.IsActiveInEpoch(QueriedEpoch::Current))
+    if ((_transition_delegate == EpochTransitionDelegate::New ||
+         _transition_delegate == EpochTransitionDelegate::Persistent) &&
+        _identity_manager.IsActiveInEpoch(QueriedEpoch::Current))
     {
         auto proposer_epoch_manager = GetProposerEpochManager();
         CheckEpochNull(!proposer_epoch_manager, "EpochTransitionEnd");
@@ -914,7 +916,7 @@ ConsensusContainer::GetProposerEpochManager(bool archival)
                        "- transition state: " << TransitionStateToName(_transition_state)
                     << "; transition delegate: " << TransitionDelegateToName(_transition_delegate)
                     << "; current epoch number: " << _cur_epoch_number
-                    << "; desired binding number: cur_binding_epoch_num"
+                    << "; desired binding number: " << cur_binding_epoch_num
                     << "; proposer exists? " << (bool)proposer;
     return proposer;
 }

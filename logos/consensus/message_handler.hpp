@@ -86,6 +86,7 @@ public:
                     _entries.erase(it);
                     break;
                 }
+                // TODO: need to erase earlier messages as well?
             }
         }
     }
