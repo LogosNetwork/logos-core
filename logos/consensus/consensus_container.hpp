@@ -132,6 +132,26 @@ class ConsensusContainer : public ConsensusScheduler,
     using Timer      = boost::asio::deadline_timer;
     using Error      = boost::system::error_code;
 
+    class SequencedLock
+    {
+    public:
+        SequencedLock(std::mutex &mutex_1, std::mutex &mutex_2) : _mutex_1(mutex_1), _mutex_2(mutex_2)
+        {
+            _mutex_1.lock();
+            _mutex_2.lock();
+        }
+        ~SequencedLock()
+        {
+            _mutex_2.unlock();
+            _mutex_1.unlock();
+        }
+
+    private:
+
+        std::mutex & _mutex_1;
+        std::mutex & _mutex_2;
+    };
+
 public:
 
     /// Class constructor.
@@ -220,6 +240,9 @@ public:
     /// @returns current epoch id
     static uint32_t GetCurEpochNumber() { return _cur_epoch_number; }
 
+    /// Update internal epoch number counter to latest (post-bootstrap-completion)
+    void UpdateCurEpochNumberToLatest();
+
     /// Convert queried epoch (Current/Next) to the corresponding database epoch block number
     /// Note that this should only be used for retrieving information from old epoch blocks.
     /// @param[in] Epoch to query
@@ -247,12 +270,6 @@ public:
     /// Returns true if binding map contains an entry for the specified
     //  epoch number
     bool CanBind(uint32_t epoch_number) override;
-
-    /// Retroactively establish direct connections with peers. It retrieves cached address ads
-    /// to self from identity manager, and attempts to connect directly to the remote peers.
-    /// Caller needs to lock _mutex.
-    /// @param epoch_number epoch number for which connections will be established
-    void EstablishConnections(uint32_t epoch_number);
 
     /// Get delegate identity manager reference
     /// @returns DelegateIdentityManager reference
@@ -305,11 +322,14 @@ protected:
 
 private:
 
+    /// Log events related to epoch transition.
+    ///     @param[in] name of event
+    ///     @param[in] new epoch number to transition into
     void LogEvent(const std::string &, const uint32_t &);
 
     /// Set current epoch id, this is done by the NodeIdentityManager on startup
     /// And by epoch transition logic
-    /// @param id epoch id
+    ///     @param[in] id epoch id
     static void SetCurEpochNumber(uint32_t n) { _cur_epoch_number = n; }
 
     /// Epoch transition start event at T-20sec
@@ -321,8 +341,14 @@ private:
     /// Epoch start event at T+20sec
     void EpochTransitionEnd();
 
+    /// Schedule call to EpochTransitionStart (00:00-EPOCH_TRANSITION_START).
+    /// If current time is less than EPOCH_TRANSITION_START from T, schedule call immediately
     void ScheduleEpochTransitionStart();
 
+    /// Set internal EpochTransitionDelegate state
+    ///
+    ///     @param[in] is delegate in office this epoch?
+    ///     @param[in] is delegate in office the next epoch?
     void SetTransitionDelegate(bool, bool);
 
     /// Build consensus configuration
@@ -331,7 +357,14 @@ private:
     /// @returns delegate's configuration
     ConsensusManagerConfig BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
 
+    /// Creates EpochManager for the upcoming epoch, **if** `EpochTransitionDelegate` is `New` or `Persistent`
     void BuildUpcomingEpochManager(const uint8_t &, const std::shared_ptr<ApprovedEB> &);
+
+    /// Retroactively establish direct connections with peers. It retrieves cached address ads
+    /// to self from identity manager, and attempts to connect directly to the remote peers.
+    /// Caller needs to lock _mutex.
+    /// @param epoch_number epoch number for which connections will be established
+    void EstablishConnections(uint32_t epoch_number);
 
     /// Is Recall
     /// @returns true if recall
@@ -383,6 +416,10 @@ private:
     /// @param size message size
     /// @returns true on success
     bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
+
+    /// Locks both internal mutex and `DelegateIdentityManager`'s activation mutex.
+    /// @return a SequencedLock object that unlocks both mutexes once it goes out of scope
+    SequencedLock LockStateAndActivation() { return SequencedLock(_mutex, _identity_manager._activation_mutex); }
 
     static std::atomic<uint32_t>         _cur_epoch_number;    ///< current epoch number
     EpochPeerManager                     _peer_manager;        ///< processes accept callback

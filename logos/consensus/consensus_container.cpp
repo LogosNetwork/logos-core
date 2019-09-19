@@ -167,8 +167,9 @@ ConsensusContainer::DeactivateConsensus()
         LOG_INFO(_log) << "ConsensusContainer::DeactivateConsensus - erasing EpochManager for epoch " << entry->first;
         _binding_map.erase(entry);
     }
-    // Clear DelegateMap. TODO: this is just a crude temporary fix. DelegateMap may need its Reset method.
-    DelegateMap::instance = nullptr;
+
+    // Clear DelegateMap.
+    DelegateMap::Clear();
 
     // Reset transition states
     _transition_delegate = EpochTransitionDelegate::None;
@@ -247,7 +248,7 @@ ConsensusContainer::OnDelegateMessage(
     bool should_buffer)
 {
     logos::process_return result;
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     auto proposer_epoch_manager = GetProposerEpochManager();
     if (!proposer_epoch_manager)
@@ -289,7 +290,7 @@ TxChannel::Responses
 ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
 {
     logos::process_return result;
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     auto proposer_epoch_manager = GetProposerEpochManager();
     if (!proposer_epoch_manager)
@@ -306,7 +307,7 @@ void
 ConsensusContainer::AttemptInitiateConsensus(ConsensusType CT)
 {
     // Do nothing if we are retired
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     bool archival = CT == ConsensusType::MicroBlock || CT == ConsensusType::Epoch;
 
@@ -416,7 +417,7 @@ void
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     auto proposer_epoch_manager = GetProposerEpochManager();
     if (!proposer_epoch_manager)
@@ -431,11 +432,21 @@ ConsensusContainer::BufferComplete(
     proposer_epoch_manager->_request_manager->BufferComplete(result);
 }
 
+void
+ConsensusContainer::UpdateCurEpochNumberToLatest()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    // TODO: the StaleEpoch check is inaccurate if we are at GENESIS_EPOCH + 1 due to the extra-long first epoch.
+    //  Furthermore, the StaleEpoch check would lead to a potentially incorrect result if an epoch proposal is delayed.
+    //  Further logic is needed in the future.
+    SetCurEpochNumber(_store.epoch_number_stored() + (DelegateIdentityManager::StaleEpoch() ? 2 : 1));
+}
+
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
     std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     logos::process_return result;
     using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
@@ -460,7 +471,7 @@ logos::process_return
 ConsensusContainer::OnDelegateMessage(
     std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     logos::process_return result;
     using Request = DelegateMessage<ConsensusType::Epoch>;
 
@@ -510,7 +521,6 @@ ConsensusContainer::Bind(
     // After Epoch Start, a retiring EpochManager's connection state becomes WaitingDisconnect
     if (epoch->_connection_state == EpochConnection::WaitingDisconnect)
     {
-        socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections.";
         return false;
     }
@@ -574,8 +584,7 @@ void
 ConsensusContainer::EpochTransitionEventsStart()
 {
     LOG_DEBUG(_log) << "ConsensusContainer::" << __func__ << " - acquiring locks.";
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::lock_guard<std::mutex> activation_lock(_identity_manager._activation_mutex);
+    auto lock(LockStateAndActivation());
 
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
@@ -643,8 +652,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 void
 ConsensusContainer::EpochTransitionStart()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::lock_guard<std::mutex> activation_lock(_identity_manager._activation_mutex);
+    auto lock(LockStateAndActivation());
 
     if (_transition_state != EpochTransitionState::Connecting)
     {
@@ -698,8 +706,7 @@ void
 ConsensusContainer::EpochStart()
 {
     // TODO: need to support the scenario where a non-del node receives post-committed block with new epoch number
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::lock_guard<std::mutex> activation_lock(_identity_manager._activation_mutex);
+    auto lock(LockStateAndActivation());
 
     // use _transition_state as gatekeeper
     if (_transition_state != EpochTransitionState::EpochTransitionStart)
@@ -1077,7 +1084,7 @@ ConsensusContainer::OnP2pConsensus(uint8_t *data, size_t size)
     std::shared_ptr<EpochManager> epoch = nullptr;
 
     {
-        OptLock lock(_transition_state, _mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
         if (_binding_map.find(p2pconsensus_header.epoch_number) != _binding_map.end())
         {
@@ -1111,7 +1118,6 @@ ConsensusContainer::OnP2pConsensus(uint8_t *data, size_t size)
 std::shared_ptr<EpochManager>
 ConsensusContainer::GetEpochManager(uint32_t epoch_number)
 {
-    OptLock lock(_transition_state, _mutex);
     return (_binding_map.find(epoch_number) != _binding_map.end()) ? _binding_map[epoch_number] : nullptr;
 }
 
@@ -1127,7 +1133,8 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(_identity_manager._activation_mutex);
+    auto lock(LockStateAndActivation());
+    // Activation mutex lock is needed because address ad db read/write needs to be protected to ensure correct behavior
     auto epoch = GetEpochManager(prequel.epoch_number);
 
     LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
