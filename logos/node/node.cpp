@@ -1052,6 +1052,9 @@ void logos::node::ongoing_bootstrap ()
     auto cb = [this](logos_global::BootstrapResult res){
         LOG_DEBUG(log) << "node::ongoing_bootstrap, callback res="
                        << logos_global::BootstrapResultToString(res);
+
+        // update ConsensusContainer's internal epoch number
+        _consensus_container->UpdateCurEpochNumberToLatest();
     };
 
     auto next_wakeup (60);

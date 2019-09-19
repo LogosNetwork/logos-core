@@ -248,7 +248,8 @@ DelegateIdentityManager::Init()
     } else { LoadGenesisAccounts(genesisBlock); }
 
     _global_delegate_idx = cmconfig.delegate_id;
-    // TODO: set epoch number again after bootstrapping is complete
+
+    // Note that epoch number is set again after bootstrapping is complete
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 
     LOG_DEBUG(_log) << "DelegateIdentityManager::Init - Started identity manager, current epoch number: " << epoch_number;
@@ -745,7 +746,7 @@ DelegateIdentityManager::StaleEpoch(ApprovedEB & epoch)
 {
     auto cur_epoch_num (ConsensusContainer::GetCurEpochNumber());
     assert(epoch.epoch_number < cur_epoch_num);
-    return !(epoch.epoch_number + 1 == cur_epoch_num);
+    return epoch.epoch_number + 1 != cur_epoch_num;
 }
 
 bool

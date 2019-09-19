@@ -463,7 +463,7 @@ namespace logos_global
     void OnNewBlock(const PostCommittedBlock<CT> & block)
     {
         auto n = GetNode();
-        if(n != nullptr)
+        if(n != nullptr && n->websocket_server)
         {
             n->websocket_server->broadcast_confirmation(block);
         }

@@ -37,11 +37,18 @@ class DelegateMap
 
     static std::shared_ptr<DelegateMap> GetInstance()
     {
+        std::lock_guard<std::mutex> lock(mutex);
         if(!instance)
         {
             instance.reset(new DelegateMap());
         }
         return instance;
+    }
+
+    static void Clear()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        instance = nullptr;
     }
 
     void AddSink(uint32_t epoch, uint8_t remote_id, std::shared_ptr<ConsensusMsgSink> sink)
