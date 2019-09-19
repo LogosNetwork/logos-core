@@ -108,8 +108,14 @@ typedef boost::log::sinks::asynchronous_sink<
                 1000,                                        /*< record queue capacity >*/
                 boost::log::sinks::drop_on_overflow          /*< overflow handling policy >*/
         >
-> log_file_sink;
-constexpr int logger_thread_nice = 19;
+> log_file_sink_drop;
+
+//the default QueueingStrategyT = unbounded_fifo_queue
+typedef boost::log::sinks::asynchronous_sink<
+        log_file_backend
+> log_file_sink_all;
+
+constexpr int LOGGER_NICE_VALUE = 19;
 
 class logging
 {
@@ -154,6 +160,8 @@ public:
     bool flush;
     uintmax_t max_size;
     uintmax_t rotation_size;
+    bool drop_if_over_flow;
+    bool low_priority_thread;
 };
 
 /*
@@ -165,13 +173,17 @@ public:
     file_logger();
     ~file_logger();
     void init (boost::filesystem::path const & log_file_path,
-            uintmax_t rotation_size,
-            uintmax_t max_size,
-            bool flush);
+               uintmax_t rotation_size,
+               uintmax_t max_size,
+               bool flush,
+               bool drop_if_over_flow,
+               bool low_priority_thread);
     void flush_and_stop();
 
 private:
-    boost::shared_ptr<log_file_sink> file_sink;
+    //only one of file_sink_type_drop and file_sink_type_all will be used.
+    boost::shared_ptr<log_file_sink_drop> file_sink_type_drop;
+    boost::shared_ptr<log_file_sink_all> file_sink_type_all;
     std::shared_ptr<std::thread> log_writer;
     std::atomic<bool> stopped;
 };

@@ -143,7 +143,9 @@ work_generation_time_value (true),
 log_to_cerr_value (false),
 max_size (16 * 1024 * 1024),
 rotation_size (4 * 1024 * 1024),
-flush (false)
+flush (false),
+drop_if_over_flow (false),
+low_priority_thread (false)
 {
 }
 
@@ -185,7 +187,8 @@ boost::log::trivial::severity_level get_severity(const std::string& level)
 }
 
 logos::file_logger::file_logger()
-:file_sink(nullptr)
+:file_sink_type_drop(nullptr)
+,file_sink_type_all(nullptr)
 ,log_writer(nullptr)
 ,stopped(false)
 {}
@@ -200,11 +203,17 @@ void logos::file_logger::flush_and_stop()
     bool expect = false;
     if (!stopped.compare_exchange_strong(expect, true))
         return;
-    if(file_sink != nullptr)
+    if(file_sink_type_drop != nullptr)
     {
-        file_sink->flush();
-        file_sink->stop();
-        file_sink = nullptr;
+        file_sink_type_drop->flush();
+        file_sink_type_drop->stop();
+        file_sink_type_drop = nullptr;
+    }
+    if(file_sink_type_all != nullptr)
+    {
+        file_sink_type_all->flush();
+        file_sink_type_all->stop();
+        file_sink_type_all = nullptr;
     }
     if(log_writer != nullptr)
     {
@@ -216,9 +225,11 @@ void logos::file_logger::flush_and_stop()
 namespace expressions = boost::log::expressions;
 
 void logos::file_logger::init (boost::filesystem::path const & log_file_path,
-        uintmax_t rotation_size,
-        uintmax_t max_size,
-        bool flush)
+                               uintmax_t rotation_size,
+                               uintmax_t max_size,
+                               bool flush,
+                               bool drop_if_over_flow,
+                               bool low_priority_thread)
 {
     auto file_backend = boost::make_shared<log_file_backend>(
             boost::log::keywords::target = log_file_path / "log",
@@ -227,56 +238,74 @@ void logos::file_logger::init (boost::filesystem::path const & log_file_path,
             boost::log::keywords::auto_flush = flush,
             boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
             boost::log::keywords::max_size = max_size
-            //boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%"
     );
 
-    file_sink = boost::make_shared< log_file_sink >(file_backend, false);
+    //    std::cerr << "logos::logging::init, drop_if_over_flow="
+    //              << drop_if_over_flow
+    //              << " low_priority_thread="
+    //              << low_priority_thread
+    //              << std::endl;
 
     boost::log::formatter format(expressions::format("[%1% %2% %3%] %4%")
-        % expressions::max_size_decor< char >(30)[ expressions::stream << std::setw(30) << expressions::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S.%f") ]
-        % expressions::max_size_decor< char >(18)[ expressions::stream << std::setw(18) << expressions::attr<boost::log::attributes::current_thread_id::value_type>("ThreadID") ]
-        % expressions::max_size_decor< char >(5)[ expressions::stream << std::setw(5) << boost::log::trivial::severity ]
-        % expressions::smessage);
-    file_sink->set_formatter(format);
+                                 % expressions::max_size_decor< char >(30)[ expressions::stream << std::setw(30) << expressions::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S.%f") ]
+                                 % expressions::max_size_decor< char >(18)[ expressions::stream << std::setw(18) << expressions::attr<boost::log::attributes::current_thread_id::value_type>("ThreadID") ]
+                                 % expressions::max_size_decor< char >(5)[ expressions::stream << std::setw(5) << boost::log::trivial::severity ]
+                                 % expressions::smessage);
+    if(drop_if_over_flow)
+    {
+        file_sink_type_drop = boost::make_shared< log_file_sink_drop >(file_backend, !low_priority_thread);
+        file_sink_type_drop->set_formatter(format);
+        boost::log::core::get()->add_sink(file_sink_type_drop);
+    } else{
+        file_sink_type_all = boost::make_shared< log_file_sink_all >(file_backend, !low_priority_thread);
+        file_sink_type_all->set_formatter(format);
+        boost::log::core::get()->add_sink(file_sink_type_all);
+    }
 
-    /*
-     * create a log writer thread and try to lower its priority, continue if cannot
-    */
-    log_writer = std::make_shared<std::thread>([this]()
-            {
+    if(low_priority_thread)
+    {
+        /*
+         * create a log writer thread and try to lower its priority, continue if cannot
+        */
+        log_writer = std::make_shared<std::thread>([this, drop_if_over_flow]()
+        {
 #ifdef __linux__
-               pthread_setname_np(pthread_self(), "logger");
-               /*
-                * from the man page http://man7.org/linux/man-pages/man7/sched.7.html
-                * For threads scheduled under one of the normal scheduling policies
-                * (SCHED_OTHER, SCHED_IDLE, SCHED_BATCH), sched_priority is not used in
-                * scheduling decisions (it must be specified as 0).
-                */
-               struct sched_param param;
-               param.sched_priority = 0;
-               //most likely, it should already be SCHED_OTHER, just in case...
-               int error = sched_setscheduler(0/*this thread*/, SCHED_OTHER, &param);
-               if(error)
-               {
-                   std::cerr << "logos::logging::init, sched_setscheduler failed, "
-                                "errno=" << error << std::endl;
-               }
-               else
-               {
-                   int low_priority_nice = logger_thread_nice;
-                   int res = nice(low_priority_nice);
-                   if(res != low_priority_nice)
-                   {
-                       std::cerr << "logos::logging::init, nice failed, "
-                                    "errno=" << res << std::endl;
-                   }
-               }
+            pthread_setname_np(pthread_self(), "logger");
+            /*
+             * from the man page http://man7.org/linux/man-pages/man7/sched.7.html
+             * For threads scheduled under one of the normal scheduling policies
+             * (SCHED_OTHER, SCHED_IDLE, SCHED_BATCH), sched_priority is not used in
+             * scheduling decisions (it must be specified as 0).
+             */
+            struct sched_param param;
+            param.sched_priority = 0;
+            //most likely, it should already be SCHED_OTHER, just in case...
+            int error = sched_setscheduler(0/*this thread*/, SCHED_OTHER, &param);
+            if(error)
+            {
+                std::cerr << "logos::logging::init, sched_setscheduler failed, "
+                             "errno=" << error << std::endl;
+            }
+            else
+            {
+                int res = nice(LOGGER_NICE_VALUE);
+                if(res != LOGGER_NICE_VALUE)
+                {
+                    std::cerr << "logos::logging::init, nice failed, "
+                                 "errno=" << res << std::endl;
+                }
+            }
 #endif
-               boost::shared_ptr< log_file_sink > log_writer_sink = file_sink;
-               log_writer_sink->run();
-           });
-
-    boost::log::core::get()->add_sink(file_sink);
+            if(drop_if_over_flow) {
+                boost::shared_ptr<log_file_sink_drop> log_writer_sink = file_sink_type_drop;
+                log_writer_sink->run();
+            } else {
+                boost::shared_ptr<log_file_sink_all> log_writer_sink = file_sink_type_all;
+                log_writer_sink->run();
+            }
+        });
+        assert(log_writer != nullptr);
+    }
 }
 
 void logos::logging::init (boost::filesystem::path const & application_path_a)
@@ -298,7 +327,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
             boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
         }
 
-        logos_global::fileLogger.init(application_path_a, rotation_size, max_size, flush);
+        logos_global::fileLogger.init(application_path_a, rotation_size, max_size, flush, drop_if_over_flow, low_priority_thread);
     }
 }
 
@@ -323,6 +352,8 @@ void logos::logging::serialize_json (boost::property_tree::ptree & tree_a) const
     tree_a.put ("max_size", max_size);
     tree_a.put ("rotation_size", rotation_size);
     tree_a.put ("flush", flush);
+    tree_a.put ("drop_if_over_flow", drop_if_over_flow);
+    tree_a.put ("low_priority_thread", low_priority_thread);
 }
 
 bool logos::logging::upgrade_json (unsigned version_a, boost::property_tree::ptree & tree_a)
@@ -384,6 +415,8 @@ bool logos::logging::deserialize_json (bool & upgraded_a, boost::property_tree::
         max_size = tree_a.get<uintmax_t> ("max_size");
         rotation_size = tree_a.get<uintmax_t> ("rotation_size", 4194304);
         flush = tree_a.get<bool> ("flush", true);
+        drop_if_over_flow = tree_a.get<bool> ("drop_if_over_flow", false);
+        low_priority_thread = tree_a.get<bool> ("low_priority_thread", false);
     }
     catch (std::runtime_error const &)
     {
