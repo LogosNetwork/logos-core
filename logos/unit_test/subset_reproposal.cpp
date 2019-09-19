@@ -223,4 +223,45 @@ TEST (Subset_Reproposal, Test_3)
     print_subsets(subsets);
 }
 
+TEST (Subset_Reproposal, Test_4)
+{
+    using SupportMap = RequestConsensusManager::SupportMap;
+    using WeightList = RequestConsensusManager::WeightList;
+    using Weights    = RequestConsensusManager::Weights;
+    using Delegates  = Weights::Delegates;
+
+    uint128_t prepare_vote  = 0;
+    uint128_t prepare_stake = 0;
+    uint64_t  request_count = 21;
+    uint128_t vote_total  = 10000 * 32;
+    uint128_t stake_total = 10000 * 32;
+    uint128_t vote_quorum  = 0;
+    uint128_t stake_quorum = 0;
+    uint128_t max_vote_fault  = 0;
+    uint128_t max_stake_fault = 0;
+
+    PrimaryDelegate::SetQuorum(max_vote_fault, vote_quorum, vote_total);
+    PrimaryDelegate::SetQuorum(max_stake_fault,stake_quorum, stake_total);
+
+    uint128_t group_weight = 10000 * 24;
+
+    WeightList response_weights;
+
+    auto reached_quorum = [=](auto vote, auto stake)
+    {
+        return (vote >= vote_quorum) && (stake >= stake_quorum);
+    };
+
+    auto subsets = generate_subsets(prepare_vote,
+                                    prepare_stake,
+                                    request_count,
+                                    response_weights,
+                                    reached_quorum);
+
+    std::list<SupportMap> expected_subsets;
+
+    ASSERT_EQ(expected_subsets, subsets);
+    print_subsets(subsets);
+}
+
 #endif  // #ifdef Unit_Test_Subset_Reproposal
