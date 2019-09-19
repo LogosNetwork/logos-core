@@ -1498,6 +1498,12 @@ void CConnman::ThreadDNSAddressSeed()
     // Avoiding DNS seeds when we don't need them improves user privacy by
     //  creating fewer identifying DNS requests, reduces trust by giving seeds
     //  less influence on the network topology, and reduces traffic to the seeds.
+    if (vAddedNodes.size() > 0 && !Args.GetBoolArg("-dns", false))
+    {
+        LogPrintf("Peers already connected and no dns option specified: %s peers", vAddedNodes.size());
+        return;
+    }
+
     if ((addrman.size() > 0) && (!Args.GetBoolArg("-forcednsseed", DEFAULT_FORCEDNSSEED)))
     {
         if (!interruptNet.sleep_for(std::chrono::seconds(11)))

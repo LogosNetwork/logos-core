@@ -52,6 +52,7 @@ DelegateIdentityManager::DelegateIdentityManager(logos::NodeInterface &node,
 void
 DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction, GenesisBlock &config)
 {
+    LOG_INFO(_log) << "DelegateIdentityManager::CreateGenesisBlocks, creating genesis blocks";
     BlockHash epoch_hash(0);
     BlockHash microblock_hash(0);
     MDB_txn *tx = transaction;
@@ -1814,8 +1815,8 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             BlockHash previous;
             previous.decode_hex(it->second.get<std::string>("previous"));
             uint32_t sequence = it->second.get<uint32_t>("sequence");
-            AccountSig signature;
-            signature.decode_hex(it->second.get<std::string>("signature"));
+            AccountSig sendsig;
+            sendsig.decode_hex(it->second.get<std::string>("signature"));
 
             gen_sends[idx] = Send(logos::logos_test_account,   // account
                                   previous,                    // previous
@@ -1823,7 +1824,7 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
                                   account,                     // link/to
                                   amount,                      // amount
                                   0,                           // transaction fee
-                                  signature);                  // signature
+                                  sendsig);                    // signature
 
             gen_sends[idx].Hash(hash);
             idx++;
@@ -1875,16 +1876,16 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             auto delegates(it->second.get_child("delegates"));
             int del_idx = 0;
             boost::property_tree::ptree::const_iterator end1 = delegates.end();
-            for (boost::property_tree::ptree::const_iterator it = delegates.begin(); it != end1; ++it)
+            for (boost::property_tree::ptree::const_iterator it1 = delegates.begin(); it1 != end1; ++it1)
             {
                 logos::public_key pub;
-                pub.decode_hex(it->second.get<std::string>("account"));
-                DelegatePubKey dpk(it->second.get<std::string>("bls_pub"));
+                pub.decode_hex(it1->second.get<std::string>("account"));
+                DelegatePubKey dpk(it1->second.get<std::string>("bls_pub"));
                 ECIESPublicKey ecies_key;
-                ecies_key.FromHexString(it->second.get<std::string>("ecies"));
+                ecies_key.FromHexString(it1->second.get<std::string>("ecies_pub"));
                 Amount stake, vote;
-                stake.decode_dec(it->second.get<std::string>("stake"));
-                vote.decode_dec(it->second.get<std::string>("vote"));
+                stake.decode_dec(it1->second.get<std::string>("stake"));
+                vote.decode_dec(it1->second.get<std::string>("vote"));
                 Delegate delegate = {pub, dpk, ecies_key, stake, stake};
                 delegate.starting_term = false;
                 gen_epoch[idx].delegates[del_idx] = delegate;
@@ -1944,8 +1945,8 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
             announce[idx].origin = pub;
             announce[idx].stake = stake;
             announce[idx].set_stake = true;
-            announce[idx].ecies_key.FromHexString(it->second.get<std::string>("ecies"));
-            DelegatePubKey dpk(it->second.get<std::string>("bls"));
+            announce[idx].ecies_key.FromHexString(it->second.get<std::string>("ecies_pub"));
+            DelegatePubKey dpk(it->second.get<std::string>("bls_pub"));
             announce[idx].bls_key = dpk;
             announce[idx].signature.decode_hex(it->second.get<std::string>("signature"));
 
