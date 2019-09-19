@@ -130,4 +130,6 @@ RequestConsensusManager::GenerateSubsets(uint128_t vote,
             }
         }
     }
+
+    return subsets;
 }

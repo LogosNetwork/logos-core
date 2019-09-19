@@ -41,7 +41,6 @@ public:
 
     using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
 
-
     /// Class constructor.
     ///
     /// This constructor is called by ConsensusContainer.
@@ -88,7 +87,6 @@ public:
     std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
-
 
     void StartConsensusWithP2p();
 
