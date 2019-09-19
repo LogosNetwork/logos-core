@@ -100,7 +100,6 @@ public:
         return _epoch_number;
     }
 
-
 protected:
 
     virtual bool SendP2p(const uint8_t *, uint32_t, MessageType, uint32_t, uint8_t) = 0;

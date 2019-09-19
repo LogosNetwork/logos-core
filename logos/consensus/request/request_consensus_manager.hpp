@@ -20,6 +20,14 @@ class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
     using Hashes      = std::unordered_set<BlockHash>;
     using uint128_t   = logos::uint128_t;
 
+public:
+
+    // Pairs a set of Delegate ID's with indexes,
+    // where the indexes represent the requests
+    // supported by those delegates.
+    using SupportMap  = std::pair<std::unordered_set<uint8_t>,
+                                  std::unordered_set<uint64_t>>;
+
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
@@ -32,8 +40,6 @@ class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
     };
 
     using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
-
-public:
 
     /// Class constructor.
     ///
@@ -82,13 +88,20 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 
-
     void StartConsensusWithP2p();
 
     bool DelegatesConnected()
     {
         return _delegates_connected;
     }
+
+    template<typename F>
+    static std::list<SupportMap> GenerateSubsets(uint128_t vote,
+                                                 uint128_t stake,
+                                                 uint64_t request_count,
+                                                 const WeightList & weights,
+                                                 const F & reached_quorum);
+
 protected:
 
     /// Commit the block to the store.
@@ -198,3 +211,5 @@ private:
     RequestInternalQueue  _request_queue;
     Seconds               _secondary_timeout;             ///< Secondary list timeout value for this delegate
 };
+
+#include <logos/consensus/request/generate_subsets.ipp>
