@@ -274,10 +274,13 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate (immediate)
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        }
 
         // Sleep till epoch transition events start for epochs 3 ==> 4
         std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(10));
@@ -290,39 +293,48 @@ TEST (IdentityManagement, ImmediateActivation)
         ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
         ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
         {
-
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
         }
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
 
         // Check ETS
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
+        }
 
         // Check ES
         std::this_thread::sleep_for(EPOCH_TRANSITION_START);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() - 1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)->GetConnection(), EpochConnection::WaitingDisconnect);
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() - 1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)->GetConnection(), EpochConnection::WaitingDisconnect);
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
+        }
 
         // Check ETE
         std::this_thread::sleep_for(EPOCH_TRANSITION_END);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));  // TODO: this is a hacky way to avoid segfault, same below
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve then activate before ETES";
@@ -343,15 +355,21 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate (immediate)
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        }
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        }
 
         // Sleep till epoch transition events start for epochs 3 ==> 4
         std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(10));
@@ -394,24 +412,30 @@ TEST (IdentityManagement, ImmediateActivation)
         std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(10));
 
         // Check ETES states
-        LOG_DEBUG(node->_log) << __func__ << " - current time: " << GetStamp()
-                              << ", state=" << TransitionStateToName(node->_consensus_container->GetTransitionState())
-                              << ", delegate=" << TransitionDelegateToName(node->_consensus_container->GetTransitionDelegate());
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            LOG_DEBUG(node->_log) << __func__ << " - current time: " << GetStamp()
+                                  << ", state=" << TransitionStateToName(node->_consensus_container->GetTransitionState())
+                                  << ", delegate=" << TransitionDelegateToName(node->_consensus_container->GetTransitionDelegate());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        }
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        // Check EpochManager creation
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            // Check EpochManager creation
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        }
 
         // Check ETS
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
@@ -447,11 +471,14 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleep till ETS
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+        }
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
@@ -459,10 +486,13 @@ TEST (IdentityManagement, ImmediateActivation)
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
         // Check EpochManager creation
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        }
 
         // Check ES
         std::this_thread::sleep_for(EPOCH_TRANSITION_START);
@@ -513,11 +543,14 @@ TEST (IdentityManagement, ImmediateActivation)
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
         // Check EpochManager Creation
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        // TransitionDelegate should still be none since activation took place after ES
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            // TransitionDelegate should still be none since activation took place after ES
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+        }
 
         // Check ETE
         std::this_thread::sleep_for(EPOCH_TRANSITION_END);
@@ -575,11 +608,14 @@ TEST (IdentityManagement, ImmediateActivation)
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
         // Check EpochManager Creation
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber() + 1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve before ETES, Activate after ETE";
@@ -609,13 +645,15 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Check ETS states
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
@@ -651,10 +689,13 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Check ETS states
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
@@ -694,10 +735,13 @@ TEST (IdentityManagement, ImmediateActivation)
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
 
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Check ETS states
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START);
@@ -736,12 +780,15 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve between ETES and ETS, Activate between ETS and ES";
@@ -774,12 +821,15 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve between ETES and ETS, Activate between ES and ETE";
@@ -814,26 +864,35 @@ TEST (IdentityManagement, ImmediateActivation)
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
         ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Check ES states
         std::this_thread::sleep_for(EPOCH_TRANSITION_START);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+        }
 
         // Check ETE states
         std::this_thread::sleep_for(EPOCH_TRANSITION_END);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve then activate between ETS and ES";
@@ -863,10 +922,13 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Activate before ETES, Sleeve between ETS and ES";
@@ -898,10 +960,13 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Activate between ETES and ETS, Sleeve between ETS and ES";
@@ -932,10 +997,13 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Activate then sleeve between ETS and ES";
@@ -963,15 +1031,18 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve between ETS and ES, Activate between ES and ETE";
@@ -999,15 +1070,18 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve between ETS and ES, Activate after ETE";
@@ -1040,15 +1114,18 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Activate
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(true, 0));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
 
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve and then Activate between ES and ETE";
@@ -1079,12 +1156,15 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Activate before ETES, Sleeve between ES and ETE";
@@ -1115,11 +1195,14 @@ TEST (IdentityManagement, ImmediateActivation)
 
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Activate before ETES, Sleeve after ETE";
@@ -1149,18 +1232,25 @@ TEST (IdentityManagement, ImmediateActivation)
         // Sleeve
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
 
-        std::this_thread::sleep_for(EPOCH_PROPOSAL_TIME);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        lapse = ArchivalTimer::GetNextEpochTime(true);
+        std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(10));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Wait till ES
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Launching the node at [ETES, ETS), then Sleeve and Activate";
@@ -1195,19 +1285,25 @@ TEST (IdentityManagement, ScheduledActivation)
         std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(100));
 
         // Check ETES states
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Wait till ES
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve before ETES, Schedule for activation during epoch transition 3==>4";
@@ -1249,18 +1345,24 @@ TEST (IdentityManagement, ScheduledActivation)
 
         // Wait till ES
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT);
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
+        }
 
         // Wait till ETE
         std::this_thread::sleep_for(EPOCH_TRANSITION_END);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Schedule for activation during epoch transition 3==>4, Sleeve between [ETES, ETS)";
@@ -1289,12 +1391,15 @@ TEST (IdentityManagement, ScheduledActivation)
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
 
         // Check ETS states post-Sleeving
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::EpochTransitionStart);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)->GetConnection(), EpochConnection::Transitioning);
+        }
 
         // Wait till ES
         std::this_thread::sleep_for(EPOCH_TRANSITION_START);
@@ -1338,11 +1443,14 @@ TEST (IdentityManagement, ScheduledActivation)
         ASSERT_TRUE(node->_identity_manager->Sleeve(bls_prv_str, ecies_prv_str));
 
         // Check ES states post-Sleeving
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::None);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), NON_DELEGATE);
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Current);
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Schedule for activation during epoch transition 3==>4, Sleeve right after ES";
@@ -1367,10 +1475,13 @@ TEST (IdentityManagement, ScheduledActivation)
 
         // Schedule (invalid) Activation for next epoch
         ASSERT_EQ(node->_identity_manager->ChangeActivation(true, GENESIS_EPOCH + 2), sleeve_status(sleeve_code::epoch_transition_started));
-        ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Wait till ES
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT);
@@ -1420,12 +1531,15 @@ TEST (IdentityManagement, ScheduledActivation)
 
         // Wait till ES
         std::this_thread::sleep_for(lapse + Milliseconds(10));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
-        ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()-1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_EQ(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())->GetConnection(), EpochConnection::Transitioning);
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+        }
 
         // Attempt to activate immediately / schedule activation again
         ASSERT_EQ(node->_identity_manager->ChangeActivation(true, GENESIS_EPOCH + 2), sleeve_status(sleeve_code::setting_already_applied));
@@ -1465,10 +1579,13 @@ TEST (IdentityManagement, Deactivation)
 
         // Immediate deactivation
         ASSERT_TRUE(node->_identity_manager->ChangeActivation(false, 0));
-        ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Immediate deactivation between [ETS, ES)";
@@ -1505,12 +1622,15 @@ TEST (IdentityManagement, Deactivation)
         std::this_thread::sleep_for(grace_period);
 
         // Check ETES states (still Persistent despite not activated next)
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
 
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(EPOCH_DELEGATES_CONNECT);
         ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
@@ -1546,19 +1666,25 @@ TEST (IdentityManagement, Deactivation)
 
         // Check ETES states
         std::this_thread::sleep_for(lapse - EPOCH_DELEGATES_CONNECT + Milliseconds(10));
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
-        ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_EQ(node->_consensus_container->GetTransitionDelegate(), EpochTransitionDelegate::Persistent);
+            ASSERT_EQ(node->_consensus_container->GetTransitionIdx(), 0);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         // Wait till ETES for 4==>5
         std::this_thread::sleep_for(EPOCH_PROPOSAL_TIME);
-        ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
-        ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
-        ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
-        ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
-        ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        {
+            auto lock (node->_consensus_container->LockStateAndActivation());
+            ASSERT_TRUE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Current));
+            ASSERT_FALSE(node->_identity_manager->GetActivationStatus(QueriedEpoch::Next));
+            ASSERT_EQ(node->_consensus_container->GetTransitionState(), EpochTransitionState::Connecting);
+            ASSERT_TRUE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber())));
+            ASSERT_FALSE((bool)(node->_consensus_container->GetEpochManager(node->_consensus_container->GetCurEpochNumber()+1)));
+        }
 
         std::this_thread::sleep_for(Milliseconds(50));
         LOG_DEBUG(node->_log) << __func__ << " - FINISHED TESTING: Sleeve and Activate in 3, schedule for deactivation during epoch transition 4==>5";

@@ -310,6 +310,10 @@ public:
 
     uint8_t GetTransitionIdx() { return _transition_del_idx; }
 
+    /// Locks both internal mutex and `DelegateIdentityManager`'s activation mutex.
+    /// @return a SequencedLock object that unlocks both mutexes once it goes out of scope
+    SequencedLock LockStateAndActivation() { return SequencedLock(_mutex, _identity_manager._activation_mutex); }
+
 protected:
 
     /// Initiate MicroBlock consensus, internal request
@@ -416,10 +420,6 @@ private:
     /// @param size message size
     /// @returns true on success
     bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
-
-    /// Locks both internal mutex and `DelegateIdentityManager`'s activation mutex.
-    /// @return a SequencedLock object that unlocks both mutexes once it goes out of scope
-    SequencedLock LockStateAndActivation() { return SequencedLock(_mutex, _identity_manager._activation_mutex); }
 
     static std::atomic<uint32_t>         _cur_epoch_number;    ///< current epoch number
     EpochPeerManager                     _peer_manager;        ///< processes accept callback
