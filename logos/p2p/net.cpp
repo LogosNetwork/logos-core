@@ -2668,42 +2668,6 @@ uint64_t CConnman::CalculateKeyedNetGroup(const CAddress& ad) const
     return GetDeterministicRandomizer(RANDOMIZER_ID_NETGROUP).Write(vchNetGroup.data(), vchNetGroup.size()).Finalize();
 }
 
-logos::ip_config::ip_config ()
-{}
-
-bool logos::ip_config::deserialize_json (bool & upgraded_a, boost::property_tree::ptree & tree_a)
-{
-    auto error (false);
-    try
-    {
-        std::stringstream ss;
-        boost::property_tree::json_parser::write_json(ss, tree_a);
-
-        int found = 0;
-        boost::property_tree::ptree::const_iterator end = tree_a.end();
-        for (boost::property_tree::ptree::const_iterator it = tree_a.begin(); it != end; ++it) {
-            ips[found] = it->second.get<std::string>("ip");
-            found++;
-        }
-    }
-    catch (std::runtime_error const &)
-    {
-        return false;
-    }
-
-    return true;
-}
-void logos::open_or_create1 (std::fstream & stream_a, std::string const & path_a)
-{
-    stream_a.open (path_a, std::ios_base::in);
-    if (stream_a.fail ())
-    {
-        stream_a.open (path_a, std::ios_base::out);
-    }
-    stream_a.close ();
-    stream_a.open (path_a, std::ios_base::in | std::ios_base::out);
-}
-
 DNSHandler::DNSHandler(const Endpoint callback_endpoint,
         Iter & iter,
         Service & service,

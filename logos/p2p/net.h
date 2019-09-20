@@ -39,57 +39,6 @@
 
 namespace logos{
     class DNSHandler;
-    class ip_config
-    {
-    public:
-        ip_config();
-        bool deserialize_json (bool &, boost::property_tree::ptree &);
-        Log _log;
-        std::string ips [64];
-    };
-    void open_or_create1 (std::fstream &, std::string const &);
-    // Reads a json object from the stream and if was changed, write the object back to the stream
-    template <typename T>
-    bool fetch_object (T & object, boost::filesystem::path const & path_a, std::fstream & stream_a)
-    {
-        bool error (false);
-        logos::open_or_create1 (stream_a, path_a.string ());
-    if (!stream_a.fail ())
-    {
-        boost::property_tree::ptree tree;
-        try
-        {
-            boost::property_tree::read_json (stream_a, tree);
-        }
-        catch (std::runtime_error const &)
-        {
-            auto pos (stream_a.tellg ());
-            if (pos != std::streampos (0))
-            {
-                error = true;
-            }
-        }
-        if (!error)
-        {
-            auto updated (false);
-            error = object.deserialize_json (updated, tree);
-            if (!error && updated)
-            {
-                stream_a.close ();
-                stream_a.open (path_a.string (), std::ios_base::out | std::ios_base::trunc);
-                try
-                {
-                    boost::property_tree::write_json (stream_a, tree);
-                }
-                catch (std::runtime_error const &)
-                {
-                    error = true;
-                }
-            }
-        }
-    }
-    return error;
-}
 }
 
 class CNode;
