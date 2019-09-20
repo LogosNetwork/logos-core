@@ -1986,23 +1986,13 @@ bool GenesisBlock::deserialize_json (bool & upgraded_a, boost::property_tree::pt
 
 bool GenesisBlock::VerifySignature(AccountPubKey const & pub) const
 {
-    return 0 == ed25519_sign_open(const_cast<BlockHash &>(digest).data(),
+    return 0 == ed25519_sign_open(digest.data(),
                                   HASH_SIZE,
-                                  const_cast<AccountPubKey&>(pub).data(),
-                                  const_cast<AccountSig&>(signature).data());
+                                  pub.data(),
+                                  signature.data());
 }
 
-// For creating logs only (remove later)
-void GenesisBlock::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
-{
-
-    ed25519_sign(const_cast<BlockHash&>(digest).data(),
-                 HASH_SIZE,
-                 const_cast<AccountPrivKey&>(priv).data(),
-                 const_cast<AccountPubKey&>(pub).data(),
-                 signature.data());
-}
-
+// TODO: include validate
 bool GenesisBlock::Validate(logos::process_return & result) const
 {
     for (int i = 0; i < NUM_DELEGATES*2; ++i)
