@@ -368,6 +368,8 @@ add_library (node
     logos/governance/requests.cpp
     logos/identity_management/delegate_identity_manager.hpp
     logos/identity_management/delegate_identity_manager.cpp
+    logos/identity_management/ntp_client.hpp
+    logos/identity_management/ntp_client.cpp
     logos/identity_management/sleeve.hpp
     logos/identity_management/sleeve.cpp
     logos/microblock/microblock.cpp
