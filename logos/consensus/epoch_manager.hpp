@@ -73,7 +73,7 @@ public:
                  const Config & config,
                  Archiver & archiver,
                  std::atomic<EpochTransitionState> & state,
-                 EpochTransitionDelegate delegate,
+                 std::atomic<EpochTransitionDelegate> & delegate,
                  EpochConnection connection,
                  const uint32_t epoch_number,
                  ConsensusScheduler & scheduler,
@@ -81,9 +81,9 @@ public:
                  p2p_interface & p2p,
                  uint8_t delegate_id,
                  PeerAcceptorStarter & starter,
-                 std::shared_ptr<ApprovedEB> eb);
+                 const std::shared_ptr<ApprovedEB> & eb);
 
-    ~EpochManager();
+    ~EpochManager() final;
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
 
@@ -101,8 +101,10 @@ public:
 
     EpochTransitionDelegate GetDelegate() override { return _delegate; }
 
+    /// Transition if received PostCommit with E#_i
     void OnPostCommit(uint32_t epoch_number) override;
 
+    /// Transition Retiring delegate to ForwardOnly
     void OnPrePrepareRejected() override;
 
     bool IsRecall() override;
@@ -122,8 +124,8 @@ public:
 
 private:
 
-    std::atomic<EpochTransitionState> &     _state;             ///< State of transition
-    std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate
+    std::atomic<EpochTransitionState> &     _state;             ///< State of transition, synchronized with ConsensusContainer
+    std::atomic<EpochTransitionDelegate> &  _delegate;          ///< Type of transition delegate, synchronized with ConsensusContainer
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events

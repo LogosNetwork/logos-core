@@ -27,6 +27,7 @@ void MessageHandler<CT>::OnMessage(const MessagePtr & message, const TimePoint &
     // For MB/EB, persistence manager (Backup) / Archiver (Primary) checks guarantee that messages arrive
     // in ascending epoch + sequence number combination order
     LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnMessage - timeout is " << tp << ", "
+                     << "hash is " << hash.to_string()
                      << message->ToJson();
     _entries.push_back(Entry{hash, message, tp});
 }

@@ -159,6 +159,12 @@ bool BlockCache::IsBlockCached(const BlockHash &hash)
     return _block_container.IsBlockCached(hash);
 }
 
+bool BlockCache::IsBlockCachedOrQueued(const BlockHash &hash)
+{
+    LOG_TRACE(_log) << "BlockCache::" << __func__ << ":" << hash.to_string();
+    return _block_container.IsBlockCachedOrQueued(hash);
+}
+
 void BlockCache::Validate(uint8_t rb_idx)
 {
     LOG_TRACE(_log) << "BlockCache::"<<__func__<<"{";

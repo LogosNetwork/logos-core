@@ -10,16 +10,24 @@
 
 Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
-                   IRecallHandler & recall_handler)
-    : _first_epoch(store.is_first_epoch())
-    , _event_proposer(alarm, recall_handler, _first_epoch, IsFirstMicroBlock(store))
+                   EventProposer & event_proposer,
+                   IRecallHandler & recall_handler,
+                   logos::IBlockCache & block_cache)
+    : _event_proposer(event_proposer)
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
     , _mb_message_handler(MicroBlockMessageHandler::GetMessageHandler())
     , _recall_handler(recall_handler)
     , _store(store)
+    , _block_cache(block_cache)
+{}
+
+void
+Archiver::Start(InternalConsensus &consensus)
 {
+    // TODO: make sure we are done bootstrapping by this call
+
     Tip mb_tip;
     // fetch latest microblock (this requires DelegateIdentityManager be initialized earlier inside `node`)
     if (_store.micro_block_tip_get(mb_tip))
@@ -35,11 +43,7 @@ Archiver::Archiver(logos::alarm & alarm,
     }
     // Initialize internal counter
     _counter = std::make_pair(mb.epoch_number, mb.sequence);
-}
 
-void
-Archiver::Start(InternalConsensus &consensus)
-{
     auto micro_cb = [this, &consensus](){
         ArchiveMB(consensus);
     };
@@ -56,11 +60,13 @@ Archiver::Start(InternalConsensus &consensus)
         consensus.OnDelegateMessage(epoch);
     };
 
-    auto transition_cb = [&consensus](){
-        consensus.EpochTransitionEventsStart();
-    };
+    _event_proposer.StartArchival(micro_cb, epoch_cb, _store.is_first_microblock());
+}
 
-    _event_proposer.Start(micro_cb, transition_cb, epoch_cb);
+void
+Archiver::Stop()
+{
+    _event_proposer.StopArchival();
 }
 
 void
@@ -98,30 +104,6 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
     });
 }
 
-bool
-Archiver::IsFirstMicroBlock(BlockStore &store)
-{
-    Tip tip;
-    BlockHash &hash = tip.digest;
-    ApprovedMB microblock;
-
-    if (store.micro_block_tip_get(tip))
-    {
-        Log log;
-        LOG_ERROR(log) << "Archiver::IsFirstMicroBlock failed to get microblock tip. Genesis blocks are being generated.";
-        return true;
-    }
-
-    if (store.micro_block_get(hash, microblock))
-    {
-        LOG_ERROR(_log) << "Archiver::IsFirstMicroBlock failed to get microblock: "
-                        << hash.to_string();
-        return false;
-    }
-
-    return microblock.epoch_number == GENESIS_EPOCH;
-}
-
 void
 Archiver::ArchiveMB(InternalConsensus & consensus)
 {
@@ -134,10 +116,20 @@ Archiver::ArchiveMB(InternalConsensus & consensus)
         // (since backup DB write takes place before queue clear)
         logos::transaction tx(_store.environment, nullptr, true);
         if (ShouldSkipMBBuild() || !_micro_block_handler.Build(*micro_block)) return;
-    }
 
-    _counter.first = micro_block->epoch_number;
-    _counter.second = micro_block->sequence;
+        _counter.first = micro_block->epoch_number;
+        _counter.second = micro_block->sequence;
+
+        // TODO: this is a very hacky fix. The proper solution would be to only trigger
+        //  clearing from MessageHandler Queue **after** MicroBlockPersistenceManager ApplyUpdates finishes execution.
+        //  Currently the queue clearing is triggered prematurely in BackupDelegate's on PostCommit message logic.
+        auto hash = micro_block->Hash();
+        if (_mb_message_handler.Contains(hash) || _block_cache.IsBlockCachedOrQueued(hash))
+        {
+            LOG_DEBUG(_log) << "Archiver::ArchiveMB - MB with hash " << hash.to_string()
+                            << " is already in message handler queue, block cache, or write queue. Skipping.";
+        }
+    }
 
     consensus.OnDelegateMessage(micro_block);
 }
@@ -167,18 +159,20 @@ Archiver::ShouldSkipMBBuild()
     // get DB's latest MB first
     if (_store.micro_block_tip_get(mb_tip))
     {
-        LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock tip";
+        LOG_FATAL(_log) << "Archiver::ShouldSkipMBBuild - Failed to get microblock tip";
         trace_and_halt();
     }
     if (_store.micro_block_get(mb_tip.digest, mb))
     {
-        LOG_FATAL(_log) << "Archiver::ArchiveMB - Failed to get microblock";
+        LOG_FATAL(_log) << "Archiver::ShouldSkipMBBuild - Failed to get microblock";
         trace_and_halt();
     }
     stored = std::make_pair(mb.epoch_number, mb.sequence);
 
     // check queue content
     is_queued = _mb_message_handler.GetQueuedSequence(queued);
+    LOG_DEBUG(_log) << "Archiver::ShouldSkipMBBuild - queued MB epoch: " << queued.first
+                    << "; sequence: " << queued.second;
     if (!is_queued)  // queue is empty
     {
         latest = stored;
@@ -196,7 +190,7 @@ Archiver::ShouldSkipMBBuild()
     // 1) Check for local clock lag: is internal counter behind the latest queued / stored epoch sequence combo?
     if (_counter < latest)
     {
-        LOG_WARN(_log) << "Archiver::ArchiveMB - internal counter epoch:seq="
+        LOG_WARN(_log) << "Archiver::ShouldSkipMBBuild - internal counter epoch:seq="
                        << _counter.first << ":" << _counter.second
                        << ", latest stored/queued epoch:seq=" << latest.first << ":" << latest.second
                        << ", local clock is behind, skipping MB archival proposal.";
@@ -210,19 +204,18 @@ Archiver::ShouldSkipMBBuild()
     // 2) Check for unfinished consensus session
     if (is_queued && queued > stored)
     {
-        LOG_WARN(_log) << "Archiver::ArchiveMB - queued epoch:seq=" << queued.first << ":" << queued.second
+        LOG_WARN(_log) << "Archiver::ShouldSkipMBBuild - queued epoch:seq=" << queued.first << ":" << queued.second
                        << ", stored epoch:seq=" << stored.first << ":" << stored.second;
         // If queued (epoch, seq) is more than one ahead of stored (epoch, seq), then the database is out of sync
-        if ((queued.first > stored.first && queued.second) ||
-            (queued.first == stored.first && queued.second > stored.second + 1))
+        if (queued.second > stored.second + 1)
         {
-            LOG_ERROR(_log) << "Archiver::ArchiveMB - queued sequence is more than 1 ahead of stored. "
+            LOG_ERROR(_log) << "Archiver::ShouldSkipMBBuild - queued sequence is more than 1 ahead of stored. "
                             << "Database is out of sync";
             // TODO: bootstrap
         }
         else
         {
-            LOG_WARN(_log) << "Archiver::ArchiveMB - ongoing MB consensus is unfinished, "
+            LOG_WARN(_log) << "Archiver::ShouldSkipMBBuild - ongoing MB consensus is unfinished, "
                            << "skipping MB archival proposal.";
         }
         skip = true;

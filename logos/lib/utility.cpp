@@ -3,9 +3,9 @@
 #include <sstream>
 #include <iomanip>
 
-std::string string_to_hex_str(const std::string& input)
+std::string logos::unicode_to_hex(std::string const & input)
 {
-    static const char* const lut = "0123456789ABCDEF";
+    static const char* const lut = "0123456789abcdef";
     size_t len = input.length();
 
     std::string output;
@@ -15,6 +15,26 @@ std::string string_to_hex_str(const std::string& input)
         const unsigned char c = input[i];
         output.push_back(lut[c >> 4]);
         output.push_back(lut[c & 15]);
+    }
+    return output;
+}
+
+std::string logos::hex_to_unicode(std::string const & input)
+{
+    std::string output;
+
+    assert((input.length() % 2) == 0);
+
+    size_t cnt = input.length() / 2;
+
+    output.reserve(cnt);
+    for (size_t i = 0; cnt > i; ++i) {
+        uint32_t s = 0;
+        std::stringstream ss;
+        ss << std::hex << input.substr(i * 2, 2);
+        ss >> s;
+
+        output.push_back(static_cast<unsigned char>(s));
     }
     return output;
 }

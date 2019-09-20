@@ -1153,6 +1153,35 @@ bool logos::block_store::is_first_epoch()
     return epoch.epoch_number == GENESIS_EPOCH;
 }
 
+bool logos::block_store::is_first_microblock()
+{
+    Tip mb_tip;
+    BlockHash & hash = mb_tip.digest;
+
+    if (micro_block_tip_get(mb_tip))
+    {
+        LOG_ERROR(log) << __func__ << " failed to get microblock tip. Genesis blocks are being generated.";
+        return true;
+    }
+
+    ApprovedMB microblock;
+    if (micro_block_get(hash, microblock))
+    {
+        LOG_FATAL(log) << __func__ << " failed to get microblock: " << hash.to_string();
+        trace_and_halt();
+    }
+
+    if (microblock.sequence == GENESIS_EPOCH)
+    {
+        if (microblock.epoch_number == GENESIS_EPOCH)
+            return true;
+        LOG_FATAL(log) << __func__ << " database corruption: microblock sequence at " << GENESIS_EPOCH
+                       << " but epoch_number at " << microblock.epoch_number;
+        trace_and_halt();
+    }
+    return false;
+}
+
 uint32_t logos::block_store::epoch_number_stored()
 {
     Tip epoch_tip;

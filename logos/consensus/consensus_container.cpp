@@ -13,7 +13,6 @@
 #include <logos/lib/trace.hpp>
 
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
-const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
 bool ConsensusContainer::_validate_sig_config = false;
 
 ConsensusContainer::ConsensusContainer(Service & service,
@@ -21,28 +20,34 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        Cache & block_cache,
                                        logos::alarm & alarm,
                                        const logos::node_config & config,
-                                       Archiver & archiver,
+                                       IRecallHandler & recall_handler,
                                        DelegateIdentityManager & identity_manager,
                                        p2p_interface & p2p)
     : _peer_manager(service, config.consensus_manager_config, *this)
-    , _cur_epoch(nullptr)
-    , _trans_epoch(nullptr)
     , _service(service)
     , _store(store)
     , _block_cache(block_cache)
     , _alarm(alarm)
     , _config(config)
-    , _archiver(archiver)
+    , _event_proposer(alarm, recall_handler)
+    , _archiver(alarm, store, _event_proposer, recall_handler, block_cache)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
+    , _transition_del_idx(NON_DELEGATE)
     , _p2p(p2p, block_cache)
 {
+    // TODO: remove static and dynamically modify _validate_sig_config based on tx acceptor addition / deletion during the software run
+    // delegate mode, don't need to re-validate sig
+    _validate_sig_config = _config.tx_acceptor_config.validate_sig && _config.tx_acceptor_config.tx_acceptors.empty();
 }
 
 void
 ConsensusContainer::Start()
 {
+    // TODO: bootstrap first; all the operations below need to wait until bootstrapping is complete
+    LOG_INFO(_log) << "ConsensusContainer::Start - Initializing ConsensusContainer.";
+    // Initialize backup / fallback timers for each consensus type
     for (const ConsensusType & CT : CTs)
     {
         _timer_mutexes[CT];
@@ -50,53 +55,190 @@ ConsensusContainer::Start()
         _timer_set[CT] = false;
         _timer_cancelled[CT] = false;
     }
-    uint8_t delegate_idx;
-    std::shared_ptr<ApprovedEB> approvedEb;
-    _identity_manager.CheckAdvertise(_cur_epoch_number, true, delegate_idx, approvedEb);
 
-    _validate_sig_config = _config.tx_acceptor_config.validate_sig &&
-            _config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
+    // Kick off epoch transition event scheduling
+    LOG_INFO(_log) << "ConsensusContainer::Start - Starting epoch transition scheduling.";
+    _event_proposer.Start([this](){
+        this->EpochTransitionEventsStart();
+    }, _store.is_first_epoch());
 
-    // is the node a delegate in this epoch
-    bool in_epoch = delegate_idx != NON_DELEGATE;
+    // Kick off advertisement scheduling
+    LOG_INFO(_log) << "ConsensusContainer::Start - Starting advertisement scheduling.";
+    _identity_manager.CheckAdvertise(_cur_epoch_number, true);
+}
 
-    auto create = [this, approvedEb](const ConsensusManagerConfig &epoch_config) mutable -> void {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _cur_epoch = CreateEpochManager(_cur_epoch_number, epoch_config, EpochTransitionDelegate::None,
-                                        EpochConnection::Current, approvedEb);
-        _binding_map[_cur_epoch->_epoch_number] = _cur_epoch;
-    };
+void
+ConsensusContainer::ActivateConsensus()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    /// TODO epoch_transition_enabled is temp to facilitate testing without transition
-    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
+    /// 1. Determine role in current epoch
+    uint8_t cur_delegate_idx;
+    std::shared_ptr<ApprovedEB> approved_EB_cur;
+    _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Current), cur_delegate_idx, approved_EB_cur);
+    bool in_cur_epoch = cur_delegate_idx != NON_DELEGATE;
+
+    /// 2. If Activated between ETES and ES, set transition delegate type
+    std::shared_ptr<ApprovedEB> approved_EB_next;
+    auto transitioning = TransitionEventsStarted(); // _event_proposer scheduling ensures transition state's correctness
+    if (transitioning)
     {
-        create(_config.consensus_manager_config);
-    }
-    else if (in_epoch)
-    {
-        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
-        create(epoch_config);
+        // Determine delegate role in the next epoch
+        _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Next), _transition_del_idx, approved_EB_next);
+        bool in_next_epoch = _transition_del_idx != NON_DELEGATE;
+
+        // Set transition delegate type accordingly
+        SetTransitionDelegate(in_cur_epoch, in_next_epoch);
     }
 
-    LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
-                    << in_epoch << " epoch transition enabled " << DelegateIdentityManager::IsEpochTransitionEnabled()
-                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
-                    << " " << _cur_epoch_number;
+    /// 3. Build current EpochManager if the node is a current delegate; advertise endpoints.
+    if (in_cur_epoch)
+    {
+        ConsensusManagerConfig epoch_config = BuildConsensusConfig(cur_delegate_idx, *approved_EB_cur);
+
+        _identity_manager.AdvertiseAndUpdateDB(_cur_epoch_number, cur_delegate_idx, approved_EB_cur);
+
+        // current epoch manager's epoch connection can only be Current
+        // (only EpochManager built by BuildUpcomingEpochManager can be in Transitioning,
+        // and only a past epoch's EpochManager can be WaitingDisconnect)
+        _binding_map[_cur_epoch_number] = CreateEpochManager(_cur_epoch_number, epoch_config,
+                                                             EpochConnection::Current, approved_EB_cur);
+
+        // Previous incoming address ads might have accumulated. We will have to establish connections here.
+        EstablishConnections(_cur_epoch_number);
+    }
+
+    /// 4. If consensus is activated past ETES, set up next epoch's EpochManager if activated and in office next;
+    /// also advertise endpoints
+    if (_identity_manager.IsActiveInEpoch(QueriedEpoch::Next))  // caller locks _activation_mutex
+    {
+        if (transitioning)
+        {
+            // ETES didn't get to build upcoming EpochManager so we need to build here
+            BuildUpcomingEpochManager(_transition_del_idx, approved_EB_next);  // handles checking _transition_delegate
+        }
+        else  // still have to perform one-time advertisement (this is separate from the scheduled ads)
+        {
+            _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Next), _transition_del_idx, approved_EB_next);
+        }
+
+        // Don't advertise for the next epoch if 1) not a delegate, or
+        // 2) at stale epoch (missing epoch block for upcoming epoch)
+        _identity_manager.AdvertiseAndUpdateDB(_cur_epoch_number + 1, _transition_del_idx, approved_EB_next);
+    }
+
+    std::string transition_summary;
+    if (transitioning)
+    {
+        transition_summary = "; transitioning state: " + TransitionStateToName(_transition_state);
+        transition_summary += "; transition delegate: " + TransitionDelegateToName(_transition_delegate);
+        transition_summary += "; new epoch delegate index: " + std::to_string((int)_transition_del_idx);
+    }
+    else
+    {
+        _transition_del_idx = NON_DELEGATE;
+    }
+
+    LOG_INFO(_log) << "ConsensusContainer::ActivateConsensus - epoch transition enabled: "
+                   << DelegateIdentityManager::IsEpochTransitionEnabled()
+                   << "; current epoch number: " << _cur_epoch_number
+                   << "; delegate is in current epoch: " << in_cur_epoch << ", index " << (int)cur_delegate_idx
+                   << "; delegate is in next epoch: " << (_transition_del_idx != NON_DELEGATE) << transition_summary;
+
+    /// 5. start archiver
+    _archiver.Start(*this);
+}
+
+void
+ConsensusContainer::DeactivateConsensus()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    // Stop archiver
+    LOG_INFO(_log) << "ConsensusContainer::DeactivateConsensus - stopping archiver, current epoch number "
+                   << _cur_epoch_number;
+    _archiver.Stop();
+
+    // clear any running EpochManager
+    while (!_binding_map.empty())
+    {
+        auto entry = _binding_map.begin();
+        assert(entry->first >= _cur_epoch_number -1 && entry->first <= _cur_epoch_number + 1);
+        LOG_INFO(_log) << "ConsensusContainer::DeactivateConsensus - erasing EpochManager for epoch " << entry->first;
+        _binding_map.erase(entry);
+    }
+
+    // Clear DelegateMap.
+    DelegateMap::Clear();
+
+    // Reset transition states
+    _transition_delegate = EpochTransitionDelegate::None;
+    _transition_del_idx = NON_DELEGATE;
+}
+
+bool
+ConsensusContainer::TransitionEventsStarted()
+{
+    return _transition_state == EpochTransitionState::Connecting ||
+           _transition_state == EpochTransitionState::EpochTransitionStart;
+}
+
+void
+ConsensusContainer::UpcomingEpochSetUp()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    // perform one-time advertisement (this is separate from the scheduled ads)
+    std::shared_ptr<ApprovedEB> approved_EB_next;
+    _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Next), _transition_del_idx, approved_EB_next);
+    bool in_next_epoch = _transition_del_idx != NON_DELEGATE;
+
+    // Don't advertise for the next epoch if 1) not a delegate, or
+    // 2) at stale epoch (missing epoch block for upcoming epoch)
+    _identity_manager.AdvertiseAndUpdateDB(_cur_epoch_number + 1, _transition_del_idx, approved_EB_next);
+
+    // Set up (later than scheduled) upcoming epoch's consensus components
+    if (TransitionEventsStarted())
+    {
+        // Determine transition delegate type
+        uint8_t cur_delegate_idx;
+        std::shared_ptr<ApprovedEB> approved_EB_cur;
+        _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Current), cur_delegate_idx, approved_EB_cur);
+        bool in_cur_epoch = cur_delegate_idx != NON_DELEGATE;
+
+        SetTransitionDelegate(in_cur_epoch, in_next_epoch);
+
+        // This method is only called when the node is Activated next; no need to check activation status again.
+        BuildUpcomingEpochManager(_transition_del_idx, approved_EB_next);
+    }
+    else if (_transition_state == EpochTransitionState::None) // reset temporary value
+    {
+        _transition_del_idx = NON_DELEGATE;
+    }
+
+    LOG_INFO(_log) << "ConsensusContainer::UpcomingEpochSetUp - finished setting up for upcoming epoch "
+                   << (_cur_epoch_number + 1);
 }
 
 std::shared_ptr<EpochManager>
 ConsensusContainer::CreateEpochManager(
     uint epoch_number,
     const ConsensusManagerConfig &config,
-    EpochTransitionDelegate delegate,
     EpochConnection connection,
-    std::shared_ptr<ApprovedEB> eb)
+    const std::shared_ptr<ApprovedEB> & eb)
 {
     auto res = std::make_shared<EpochManager>(_service, _store, _block_cache, _alarm, config,
                                               _archiver, _transition_state,
-                                              delegate, connection, epoch_number, *this, *this, _p2p._p2p,
+                                              _transition_delegate, connection, epoch_number, *this, *this, _p2p._p2p,
                                               config.delegate_id, _peer_manager, eb);
     res->Start();
+    LOG_INFO(_log) << "ConsensusContainer::CreateEpochManager - created and started EpochManager"
+                      " for epoch " << epoch_number
+                   << "; current epoch number: " << _cur_epoch_number
+                   << "; transition state: " << TransitionStateToName(_transition_state)
+                   << "; transition delegate: " << TransitionDelegateToName(_transition_delegate)
+                   << "; transition connection: " << TransitionConnectionToName(connection)
+                   << "; delegate index: " << (int)(config.delegate_id);
     return res;
 }
 
@@ -106,13 +248,15 @@ ConsensusContainer::OnDelegateMessage(
     bool should_buffer)
 {
     logos::process_return result;
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_cur_epoch == nullptr)
+    auto proposer_epoch_manager = GetProposerEpochManager();
+    if (!proposer_epoch_manager)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage transaction, the node is not a delegate, "
-                       << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage transaction, the node is not a delegate; "
+                          "activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                       << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
         return result;
     }
 
@@ -127,7 +271,7 @@ ConsensusContainer::OnDelegateMessage(
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_request_manager->OnBenchmarkDelegateMessage(
+        proposer_epoch_manager->_request_manager->OnBenchmarkDelegateMessage(
             static_pointer_cast<DM>(request), result);
     }
     else
@@ -135,7 +279,7 @@ ConsensusContainer::OnDelegateMessage(
         LOG_DEBUG(_log) << "ConsensusContainer::OnDelegateMessage: "
                         << "RequestType="
                         << GetRequestTypeField(request->type);
-        _cur_epoch->_request_manager->OnDelegateMessage(
+        proposer_epoch_manager->_request_manager->OnDelegateMessage(
             static_pointer_cast<DM>(request), result);
     }
 
@@ -146,70 +290,52 @@ TxChannel::Responses
 ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
 {
     logos::process_return result;
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_cur_epoch == nullptr)
+    auto proposer_epoch_manager = GetProposerEpochManager();
+    if (!proposer_epoch_manager)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate.";
         return {{result.code,0}};
     }
 
-    return _cur_epoch->_request_manager->OnSendRequest(blocks);
+    return proposer_epoch_manager->_request_manager->OnSendRequest(blocks);
 }
 
 void
 ConsensusContainer::AttemptInitiateConsensus(ConsensusType CT)
 {
     // Do nothing if we are retired
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_cur_epoch == nullptr)
+    bool archival = CT == ConsensusType::MicroBlock || CT == ConsensusType::Epoch;
+
+    auto proposer_epoch_manager = GetProposerEpochManager(archival);
+    if (!proposer_epoch_manager)
     {
-        LOG_WARN(_log) << "ConsensusContainer::AttemptInitiateConsensus - the node is not a delegate. global id: "
-                       << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::AttemptInitiateConsensus - the node is not currently a delegate "
+                          "for consensus type " << ConsensusToName(CT)
+                       << "; activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                       << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
         return;
     }
 
     switch (CT) {
         case ConsensusType::Request:
-            _cur_epoch->_request_manager->OnMessageQueued();
+            proposer_epoch_manager->_request_manager->OnMessageQueued();
             break;
         case ConsensusType::MicroBlock:
         {
-            auto epoch = GetProposerEpoch();
-            if (epoch)
-            {
-                epoch->_micro_manager->OnMessageQueued();
-            }
+            proposer_epoch_manager->_micro_manager->OnMessageQueued();
             break;
         }
         case ConsensusType::Epoch:  // highly unlikely that epoch block doesn't complete consensus till next epoch start
-            _cur_epoch->_epoch_manager->OnMessageQueued();
+            proposer_epoch_manager->_epoch_manager->OnMessageQueued();
             break;
         default:
             LOG_ERROR(_log) << "ConsensusContainer::AttemptInitiateConsensus - invalid consensus type";
     }
-}
-
-const std::shared_ptr<EpochManager>
-ConsensusContainer::GetProposerEpoch()
-{
-    auto epoch = _cur_epoch;
-    // microblock proposed during epoch transition should be proposed by the new delegate set
-    if (_transition_state != EpochTransitionState::None &&
-        _cur_epoch->GetConnection() != EpochConnection::Transitioning)
-    {
-        if (_trans_epoch == nullptr || _trans_epoch->GetConnection() != EpochConnection::Transitioning)
-        {
-            LOG_WARN(_log) << "ConsensusContainer::GetProposerEpoch - not new delegate set "
-                           << (int) DelegateIdentityManager::GetGlobalDelegateIdx();
-            return nullptr;
-        }
-        epoch = _trans_epoch;
-    }
-    return epoch;
 }
 
 void
@@ -291,44 +417,51 @@ void
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_cur_epoch == nullptr)
+    auto proposer_epoch_manager = GetProposerEpochManager();
+    if (!proposer_epoch_manager)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::BufferComplete transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::BufferComplete transaction, the node is not a delegate; "
+                          "activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                       << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
         return;
     }
 
-    _cur_epoch->_request_manager->BufferComplete(result);
+    proposer_epoch_manager->_request_manager->BufferComplete(result);
+}
+
+void
+ConsensusContainer::UpdateCurEpochNumberToLatest()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    // TODO: the StaleEpoch check is inaccurate if we are at GENESIS_EPOCH + 1 due to the extra-long first epoch.
+    //  Furthermore, the StaleEpoch check would lead to a potentially incorrect result if an epoch proposal is delayed.
+    //  Further logic is needed in the future.
+    SetCurEpochNumber(_store.epoch_number_stored() + (DelegateIdentityManager::StaleEpoch() ? 2 : 1));
 }
 
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
     std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     logos::process_return result;
     using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
-    if (_cur_epoch == nullptr)
+    auto proposer_epoch_manager = GetProposerEpochManager();
+    if (!proposer_epoch_manager)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage microblock, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage microblock, the node is not a delegate; "
+                          "activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                       << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
         return result;
     }
 
-    auto epoch = GetProposerEpoch();
-    if (!epoch)
-    {
-        result.code = logos::process_result::old;
-        return result;
-    }
-
-    message->delegates_epoch_number = epoch->_epoch_number;
-    epoch->_micro_manager->OnDelegateMessage(
+    message->delegates_epoch_number = proposer_epoch_manager->_epoch_number;
+    proposer_epoch_manager->_micro_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
     return result;
@@ -338,20 +471,22 @@ logos::process_return
 ConsensusContainer::OnDelegateMessage(
     std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message)
 {
-    OptLock lock(_transition_state, _mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     logos::process_return result;
     using Request = DelegateMessage<ConsensusType::Epoch>;
 
-    if (_cur_epoch == nullptr)
+    auto proposer_epoch_manager = GetProposerEpochManager();
+    if (!proposer_epoch_manager)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage epoch, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage epoch, the node is not a delegate; "
+                          "activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                       << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
         return result;
     }
 
     message->delegates_epoch_number = _cur_epoch_number;
-    _cur_epoch->_epoch_manager->OnDelegateMessage(
+    proposer_epoch_manager->_epoch_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
     return result;
@@ -373,15 +508,6 @@ ConsensusContainer::Bind(
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_cur_epoch == nullptr && _trans_epoch == nullptr)
-    {
-        LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
-                        << ", delegate = " << unsigned(delegate_id)
-                        << ", epoch_number = " << epoch_number;
-        return false;
-    }
-
     if (_binding_map.find(epoch_number) == _binding_map.end())
     {
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
@@ -392,11 +518,17 @@ ConsensusContainer::Bind(
 
     auto epoch = _binding_map[epoch_number];
 
+    // After Epoch Start, a retiring EpochManager's connection state becomes WaitingDisconnect
+    if (epoch->_connection_state == EpochConnection::WaitingDisconnect)
+    {
+        LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections.";
+        return false;
+    }
+
     LOG_INFO(_log) << "ConsensusContainer::PeerBinder, binding connection "
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
                     << " state " << epoch->GetStateName()
-                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                     << ", delegate_id = " << unsigned(delegate_id)
                     << ", epoch_number = " << epoch_number;
 
@@ -406,89 +538,267 @@ ConsensusContainer::Bind(
 }
 
 void
-ConsensusContainer::EpochTransitionEventsStart()
+ConsensusContainer::EstablishConnections(uint32_t epoch_number)
+{
+    if (_binding_map.find(epoch_number) == _binding_map.end())
+        return;
+
+    auto epoch_manager = _binding_map[epoch_number];
+    LOG_DEBUG(_log) << "ConsensusContainer::EstablishConnections - establishing connections for epoch " << epoch_number;
+
+    for (uint8_t delegate_id = 0; delegate_id < NUM_DELEGATES; delegate_id++)
+    {
+        if (_identity_manager._address_ad.find({epoch_number, delegate_id}) != _identity_manager._address_ad.end())
+        {
+            auto ad = _identity_manager._address_ad[{epoch_number, delegate_id}];
+            epoch_manager->_netio_manager->AddDelegate(delegate_id, ad.ip, ad.port);
+        }
+    }
+}
+
+uint8_t
+ConsensusContainer::GetCurDelegateIdx()
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    uint8_t delegate_idx;
-    std::shared_ptr<ApprovedEB> approvedEb;
+    if (_binding_map.find(GetCurEpochNumber()) != _binding_map.end())
+    {
+        return _binding_map[GetCurEpochNumber()]->GetDelegateId();
+    }
+    return NON_DELEGATE;
+}
+
+void
+ConsensusContainer::LogEvent(const std::string & where, const uint32_t & new_epoch_num)
+{
+    LOG_INFO(_log) << "ConsensusContainer::" << where
+                   << " - transition state: " << TransitionStateToName(_transition_state)
+                   << "; transition delegate: " << TransitionDelegateToName(_transition_delegate)
+                   << "; transition delegate index: " << (int)_transition_del_idx
+                   << "; epoch " << (new_epoch_num - 1) << "==>" << new_epoch_num
+                   << "; current epoch number: " << _cur_epoch_number
+                   << "; activated now = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Current)
+                   << "; activated next = " << _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
+}
+
+void
+ConsensusContainer::EpochTransitionEventsStart()
+{
+    LOG_DEBUG(_log) << "ConsensusContainer::" << __func__ << " - acquiring locks.";
+    auto lock(LockStateAndActivation());
 
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
-                           "epoch transition is not supported by this delegate "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+                           "epoch transition is not supported by this delegate";
+        _binding_map[_cur_epoch_number + 1] = _binding_map[_cur_epoch_number];
+        _binding_map.erase(_cur_epoch_number);
+        _cur_epoch_number++;
+        _identity_manager.ApplyActivationSchedule();
         return;
     }
 
-    _identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, approvedEb);
-
-    if (delegate_idx == NON_DELEGATE && _cur_epoch == nullptr)
-    {
-        LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart not a delegate in current or next epoch, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
-        return;
-    }
-
-    if (delegate_idx == NON_DELEGATE)
-    {
-        _transition_delegate = EpochTransitionDelegate::Retiring;
-    }
-    else if (_cur_epoch == nullptr)
-    {
-        // update epoch number
-        ApprovedEB eb;
-        Tip tip;
-        BlockHash &hash = tip.digest;
-        if (_store.epoch_tip_get(tip))
-        {
-            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch tip";
-            trace_and_halt();
-        }
-
-        if (_store.epoch_get(hash, eb))
-        {
-            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch "
-                            << hash.to_string();
-            trace_and_halt();
-        }
-        _cur_epoch_number = eb.epoch_number + 1;
-
-        _transition_delegate = EpochTransitionDelegate::New;
-    }
-    else
-    {
-        _transition_delegate = EpochTransitionDelegate::Persistent;
-    }
-
+    /// 1. Advance transition state
     _transition_state = EpochTransitionState::Connecting;
 
-    if (_transition_delegate != EpochTransitionDelegate::Retiring)
+    if (_identity_manager.IsSleeved())
     {
-        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
-        _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
-                                          EpochConnection::Transitioning, approvedEb);
+        /// 2. If active in either the current or the next epoch, determine transition delegate type
+        bool active_cur = _identity_manager.IsActiveInEpoch(QueriedEpoch::Current);
+        bool active_next = _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
+
+        if (active_cur || active_next)
+        {
+            bool in_cur_epoch = false;
+            if (GetProposerEpochManager())
+            {
+                // Delegate must be in current epoch if an EpochManager exists
+                assert(active_cur);
+                in_cur_epoch = true;
+            }
+            else
+            {
+                // Check if delegate is in current epoch but not activated
+                uint8_t cur_delegate_idx;
+                std::shared_ptr<ApprovedEB> approved_EB_cur;
+                _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Current), cur_delegate_idx, approved_EB_cur);
+                if (cur_delegate_idx != NON_DELEGATE)
+                {
+                    assert(!active_cur);
+                    in_cur_epoch = true;
+                }
+            }
+
+            std::shared_ptr<ApprovedEB> approved_EB_next;
+            _identity_manager.IdentifyDelegates(QueriedEpochToNumber(QueriedEpoch::Next), _transition_del_idx, approved_EB_next);
+            bool in_next_epoch = _transition_del_idx != NON_DELEGATE;
+
+            // Set transition delegate type accordingly
+            SetTransitionDelegate(in_cur_epoch, in_next_epoch);
+
+            /// 3. Build and start epoch manager for next epoch, if activated
+            if (active_next)
+            {
+                BuildUpcomingEpochManager(_transition_del_idx, approved_EB_next);
+            }
+        }
+    }
+
+    LogEvent(__func__, _cur_epoch_number + 1);
+
+    /// 4. Schedule ETS
+    ScheduleEpochTransitionStart();
+}
+
+void
+ConsensusContainer::EpochTransitionStart()
+{
+    auto lock(LockStateAndActivation());
+
+    if (_transition_state != EpochTransitionState::Connecting)
+    {
+        LOG_WARN(_log) << "ConsensusContainer::EpochTransitionStart - Expecting state "
+                       << TransitionStateToName(EpochTransitionState::Connecting)
+                       << ". Current transition state is "
+                       << TransitionStateToName(_transition_state)
+                       << ". New epoch start may have been triggered by consensus peer messages.";
+        return;
+    }
+
+    /// 1. Advance transition state
+    _transition_state = EpochTransitionState::EpochTransitionStart;
+
+    // Sanity check
+    if ((_transition_delegate == EpochTransitionDelegate::New
+        || _transition_delegate == EpochTransitionDelegate::Persistent)
+        && _identity_manager.IsActiveInEpoch(QueriedEpoch::Next))
+    {
+        CheckEpochNull(_binding_map.find(_cur_epoch_number + 1) == _binding_map.end(), "EpochTransitionStart");
+    }
+
+    LogEvent(__func__, _cur_epoch_number + 1);
+
+    /// 2. Schedule ES
+    auto epoch_start = ArchivalTimer::GetNextEpochTime();
+    auto lapse = epoch_start < EPOCH_TRANSITION_START ? epoch_start : EPOCH_TRANSITION_START;
+    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochStart, this));
+}
+
+void
+ConsensusContainer::TransitionDelegate()
+{
+    if (_transition_delegate == EpochTransitionDelegate::Retiring || _transition_delegate == EpochTransitionDelegate::Persistent)
+    {
+        // returns _binding_map's _cur_epoch_number, which hasn't been incremented yet
+        auto proposer_epoch_manager = GetProposerEpochManager();
+        CheckEpochNull(!proposer_epoch_manager, "TransitionDelegate");
 
         if (_transition_delegate == EpochTransitionDelegate::Persistent)
         {
-            CheckEpochNull(!_cur_epoch, "EpochTransitionEventsStart");
-            _cur_epoch->_delegate = EpochTransitionDelegate::Persistent;
+            bool active_next = _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
+            CheckEpochNull(active_next && !_binding_map[_cur_epoch_number + 1], "TransitionDelegate - Persistent");
         }
-        LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart"
-            << " - binding epoch manager for epoch_number = " 
-            << _trans_epoch->_epoch_number;
 
-        // New and Persistent delegates in the new delegate's set
-        _binding_map[_trans_epoch->_epoch_number] = _trans_epoch;
+        proposer_epoch_manager->_connection_state = EpochConnection::WaitingDisconnect;
     }
-    else
+}
+
+void
+ConsensusContainer::EpochStart()
+{
+    // TODO: need to support the scenario where a non-del node receives post-committed block with new epoch number
+    auto lock(LockStateAndActivation());
+
+    // use _transition_state as gatekeeper
+    if (_transition_state != EpochTransitionState::EpochTransitionStart)
     {
-        _cur_epoch->_delegate = EpochTransitionDelegate::Retiring;
+        LOG_WARN(_log) << "ConsensusContainer::EpochStart - Expecting state "
+                       << TransitionStateToName(EpochTransitionState::EpochTransitionStart)
+                       << ". Current transition state is "
+                       << TransitionStateToName(_transition_state);
+
+        if (_transition_state != EpochTransitionState::Connecting)
+        {
+            return;
+        }
+
+        // TODO: if state _is_ Connecting, then other delegate peers might be more than EPOCH_TRANSITION_START
+        //  ahead of us and triggered this call through OnPostCommit or OnPrePrepareRejected,
+        //  which would require a clock re-sync.
     }
 
+    /// 1. Advance transition state
+    _transition_state = EpochTransitionState::EpochStart;
+
+    /// 2. Set the connection state of the current delegate (if any) to WaitingDisconnect
+    bool active_cur = _identity_manager.IsActiveInEpoch(QueriedEpoch::Current);
+    bool active_next = _identity_manager.IsActiveInEpoch(QueriedEpoch::Next);
+    if (active_cur)
+    {
+        TransitionDelegate();
+        /// 3. Stop archival if not activated next
+        if (!active_next)
+        {
+            _archiver.Stop();
+        }
+    }
+    else if (active_next)
+    {
+        _archiver.Start(*this);
+    }
+
+    /// 4. Increment epoch number counter
+    // Note that epoch number must be incremented after TransitionDelegate() so as to not interfere with GetProposerEpochManager()
+    _cur_epoch_number++;
+
+    /// 5. Update activation settings
+    // DelegateIdentityManager's Activation Schedule change is always coupled with epoch number increment
+    _identity_manager.ApplyActivationSchedule();
+
+    LogEvent(__func__, _cur_epoch_number);
+
+    /// 6. Schedule ETE
+    _alarm.add(EPOCH_TRANSITION_END, std::bind(&ConsensusContainer::EpochTransitionEnd, this));
+}
+
+void
+ConsensusContainer::EpochTransitionEnd()
+{
+    std::lock_guard<std::mutex>   lock(_mutex);
+
+    /// 1. Reset transition state
+    _transition_state = EpochTransitionState::None;
+    LogEvent(__func__, _cur_epoch_number);  // Note that logging takes place before delegate type / idx change
+
+    /// 2. Clean up previous epoch's EpochManager, if any exists
+    auto prev_epoch = _cur_epoch_number - 1;
+    if (_binding_map.find(prev_epoch) != _binding_map.end())
+    {
+        assert(_transition_delegate != EpochTransitionDelegate::New);
+        _binding_map.erase(prev_epoch);
+    }
+
+    /// 3. Change the current EpochManager's connection state
+    // (EM only exists if delegate type is Persistent or New, and node is active next)
+    if ((_transition_delegate == EpochTransitionDelegate::New ||
+         _transition_delegate == EpochTransitionDelegate::Persistent) &&
+        _identity_manager.IsActiveInEpoch(QueriedEpoch::Current))
+    {
+        auto proposer_epoch_manager = GetProposerEpochManager();
+        CheckEpochNull(!proposer_epoch_manager, "EpochTransitionEnd");
+        proposer_epoch_manager->_connection_state = EpochConnection::Current;
+    }
+
+    /// 4. Reset transition delegate type and index
+    _transition_delegate = EpochTransitionDelegate::None;
+    _transition_del_idx = NON_DELEGATE;
+}
+
+void
+ConsensusContainer::ScheduleEpochTransitionStart()
+{
     // TODO recall may have different timers
     Milliseconds lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
-    EpochTimeUtil util;
-    Milliseconds epoch_start = util.GetNextEpochTime();
+    Milliseconds epoch_start = ArchivalTimer::GetNextEpochTime();
     if (epoch_start > EPOCH_TRANSITION_START && epoch_start < EPOCH_DELEGATES_CONNECT)
     {
         lapse = epoch_start - EPOCH_TRANSITION_START;
@@ -498,158 +808,20 @@ ConsensusContainer::EpochTransitionEventsStart()
         lapse = Milliseconds(0);
     }
 
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
-                   << TransitionStateToName(_transition_state) << " "
-                   << TransitionDelegateToName(_transition_delegate) <<  " "
-                   << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
-                   << ", epoch " << _cur_epoch_number
-                   << ", binding map " << ((_trans_epoch) ? _trans_epoch->_epoch_number : 0);
-
-    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
+    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this));
 }
 
 void
-ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
+ConsensusContainer::SetTransitionDelegate(bool in_cur_epoch, bool in_next_epoch)
 {
-    std::lock_guard<std::mutex>   lock(_mutex);
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionStart "
-                    << TransitionDelegateToName(_transition_delegate) <<  " "
-                    << (int)delegate_idx
-                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
-                    << " " << _cur_epoch_number;
-
-    _transition_state = EpochTransitionState::EpochTransitionStart;
-
-    if (_transition_delegate == EpochTransitionDelegate::New)
+    if (in_cur_epoch)
     {
-        CheckEpochNull(!_trans_epoch, "EpochTransitionStart");
-        _cur_epoch = _trans_epoch;
-        _trans_epoch = nullptr;
+        _transition_delegate = in_next_epoch ? EpochTransitionDelegate::Persistent : EpochTransitionDelegate::Retiring;
     }
-
-    EpochTimeUtil util;
-    auto epoch_start = util.GetNextEpochTime();
-    auto lapse = epoch_start < EPOCH_START ? epoch_start : EPOCH_START;
-
-    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochStart, this, delegate_idx));
-}
-
-void
-ConsensusContainer::OnPostCommit(uint32_t epoch_number)
-{
-    std::lock_guard<std::mutex>   lock(_mutex);
-
-    CheckEpochNull(!_cur_epoch && !_trans_epoch, "OnPostCommit");
-
-    // only transition if it hasn't happened already (avoiding transitioning twice in race conditions)
-    if (_trans_epoch && _trans_epoch->_epoch_number == epoch_number)
+    else if (in_next_epoch)
     {
-        TransitionPersistent();
+        _transition_delegate = EpochTransitionDelegate::New;
     }
-}
-
-void
-ConsensusContainer::TransitionPersistent()
-{
-    if (_trans_epoch->_delegate != EpochTransitionDelegate::PersistentReject)
-    {
-        _cur_epoch.swap(_trans_epoch);
-        _trans_epoch->_delegate = EpochTransitionDelegate::PersistentReject;
-        _trans_epoch->_connection_state = EpochConnection::WaitingDisconnect;
-    }
-}
-
-void
-ConsensusContainer::TransitionDelegate(EpochTransitionDelegate delegate)
-{
-    if (delegate == EpochTransitionDelegate::Retiring)
-    {
-        if (!_cur_epoch)
-        {
-            // We may have already called TransitionRetiring once (from OnPrePrepareRejected)
-            CheckEpochNull(!_trans_epoch || _trans_epoch->_delegate != EpochTransitionDelegate::RetiringForwardOnly,
-                    "TransitionDelegateRetiring");
-            return;
-        }
-        TransitionRetiring();
-    }
-    else if (delegate == EpochTransitionDelegate::Persistent)
-    {
-        CheckEpochNull(!_cur_epoch || !_trans_epoch, "TransitionDelegate Persistent");
-        TransitionPersistent();
-    }
-}
-
-void
-ConsensusContainer::OnPrePrepareRejected(EpochTransitionDelegate delegate)
-{
-    std::lock_guard<std::mutex>   lock(_mutex);
-    TransitionDelegate(delegate);
-}
-
-void
-ConsensusContainer::TransitionRetiring()
-{
-    _cur_epoch->_delegate = EpochTransitionDelegate::RetiringForwardOnly;
-    _cur_epoch->_connection_state = EpochConnection::WaitingDisconnect;
-
-    // stop receiving requests
-    _trans_epoch.swap(_cur_epoch);
-    _cur_epoch = nullptr;
-}
-
-void
-ConsensusContainer::EpochStart(uint8_t delegate_idx)
-{
-    std::lock_guard<std::mutex>   lock(_mutex);
-
-    LOG_INFO(_log) << "ConsensusContainer::EpochStart "
-                    << TransitionDelegateToName(_transition_delegate) <<  " "
-                    << (int)delegate_idx << " "
-                    << (int)DelegateIdentityManager::GetGlobalDelegateIdx() << " " << (_cur_epoch_number + 1);
-
-    _transition_state = EpochTransitionState::EpochStart;
-
-    TransitionDelegate(_transition_delegate);
-
-    _binding_map.erase(_cur_epoch_number);
-
-    _cur_epoch_number++;
-
-    _alarm.add(EPOCH_TRANSITION_END, std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
-}
-
-void
-ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
-{
-    std::lock_guard<std::mutex>   lock(_mutex);
-
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
-                   << TransitionDelegateToName(_transition_delegate)
-                   << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
-                   << " " << _cur_epoch_number;
-
-    _transition_state = EpochTransitionState::None;
-
-    if (_transition_delegate != EpochTransitionDelegate::New)
-    {
-        _trans_epoch->CleanUp();
-    }
-
-    _trans_epoch = nullptr;
-
-    if (_transition_delegate == EpochTransitionDelegate::Retiring)
-    {
-        _binding_map.clear();
-    }
-    else
-    {
-        CheckEpochNull(!_cur_epoch, "EpochTransitionEnd");
-        _cur_epoch->_delegate = EpochTransitionDelegate::None;
-        _cur_epoch->_connection_state = EpochConnection::Current;
-    }
-
-    _transition_delegate = EpochTransitionDelegate::None;
 }
 
 ConsensusManagerConfig
@@ -660,7 +832,6 @@ ConsensusContainer::BuildConsensusConfig(
    ConsensusManagerConfig config = _config.consensus_manager_config;
 
    config.delegate_id = delegate_idx;
-   config.local_address = _config.consensus_manager_config.local_address;
    config.delegates.clear();
 
    stringstream str;
@@ -681,6 +852,21 @@ ConsensusContainer::BuildConsensusConfig(
    return config;
 }
 
+void
+ConsensusContainer::BuildUpcomingEpochManager(const uint8_t & delegate_idx, const std::shared_ptr<ApprovedEB> & approvedEb)
+{
+    if (_transition_delegate == EpochTransitionDelegate::New ||
+        _transition_delegate == EpochTransitionDelegate::Persistent)
+    {
+        // New and Persistent delegates in the new delegate's set
+        auto trans_epoch_num = _cur_epoch_number + 1;
+        assert(_binding_map.find(trans_epoch_num) == _binding_map.end());
+        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
+        _binding_map[trans_epoch_num] = CreateEpochManager(trans_epoch_num, epoch_config,
+                                                           EpochConnection::Transitioning, approvedEb);
+    }
+}
+
 bool
 ConsensusContainer::IsRecall()
 {
@@ -693,7 +879,10 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
     if (is_null)
     {
         LOG_FATAL(_log) << "ConsensusContainer::" << where
-                        << " cur null " << !_cur_epoch << " trans null " << !_trans_epoch;
+                        << " - binding exists for current epoch: " << (_binding_map.find(GetCurEpochNumber()) != _binding_map.end())
+                        << " for next epoch: " << (_binding_map.find(GetCurEpochNumber() + 1) != _binding_map.end())
+                        << " _transition_state: " << TransitionStateToName(_transition_state)
+                        << " _transition_delegate: " << TransitionDelegateToName(_transition_delegate);
         trace_and_halt();
     }
 }
@@ -711,6 +900,32 @@ std::shared_ptr<Request> Deserialize(uint8_t* data, uint32_t size)
         return nullptr;
     }
     return req;
+}
+
+std::shared_ptr<EpochManager>
+ConsensusContainer::GetProposerEpochManager(bool archival)
+{
+    // During the period between EpochTransitionStart and EpochStart,
+    // a `New` delegate's EpochManager can start processing before cur epoch number is incremented )
+    bool transition_new_indicator = _transition_delegate == EpochTransitionDelegate::New;
+    if (archival)
+    {
+        // Additionally, archival block proposed during epoch transition should be proposed
+        // by the new delegate set even for `Persistent` delegates
+        transition_new_indicator |= _transition_delegate == EpochTransitionDelegate::Persistent;
+    }
+
+    auto cur_binding_epoch_num = (_transition_state == EpochTransitionState::EpochTransitionStart && transition_new_indicator) ? GetCurEpochNumber() + 1 : GetCurEpochNumber();
+
+    auto proposer = (_binding_map.find(cur_binding_epoch_num) != _binding_map.end())
+                    ? _binding_map[cur_binding_epoch_num] : nullptr;
+    LOG_DEBUG(_log) << "ConsensusContainer::GetProposerEpochManager "
+                       "- transition state: " << TransitionStateToName(_transition_state)
+                    << "; transition delegate: " << TransitionDelegateToName(_transition_delegate)
+                    << "; current epoch number: " << _cur_epoch_number
+                    << "; desired binding number: " << cur_binding_epoch_num
+                    << "; proposer exists? " << (bool)proposer;
+    return proposer;
 }
 
 bool
@@ -869,12 +1084,11 @@ ConsensusContainer::OnP2pConsensus(uint8_t *data, size_t size)
     std::shared_ptr<EpochManager> epoch = nullptr;
 
     {
-        OptLock lock(_transition_state, _mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
-        if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pconsensus_header.epoch_number) {
-            epoch = _cur_epoch;
-        } else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pconsensus_header.epoch_number) {
-            epoch = _trans_epoch;
+        if (_binding_map.find(p2pconsensus_header.epoch_number) != _binding_map.end())
+        {
+            epoch = _binding_map[p2pconsensus_header.epoch_number];
         }
     }
 
@@ -904,19 +1118,7 @@ ConsensusContainer::OnP2pConsensus(uint8_t *data, size_t size)
 std::shared_ptr<EpochManager>
 ConsensusContainer::GetEpochManager(uint32_t epoch_number)
 {
-    OptLock lock(_transition_state, _mutex);
-
-    std::shared_ptr<EpochManager> epoch = nullptr;
-    if (_cur_epoch && _cur_epoch->GetEpochNumber() == epoch_number)
-    {
-        epoch = _cur_epoch;
-    }
-    else if (_trans_epoch && _trans_epoch->GetEpochNumber() == epoch_number)
-    {
-        epoch = _trans_epoch;
-    }
-
-    return epoch;
+    return (_binding_map.find(epoch_number) != _binding_map.end()) ? _binding_map[epoch_number] : nullptr;
 }
 
 bool
@@ -931,18 +1133,21 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
         return false;
     }
 
+    auto lock(LockStateAndActivation());
+    // Activation mutex lock is needed because address ad db read/write needs to be protected to ensure correct behavior
     auto epoch = GetEpochManager(prequel.epoch_number);
 
     LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
                     << " delegate id " << (int)prequel.delegate_id
                     << " encr delegate id " << (int)prequel.encr_delegate_id
-                    << " from epoch delegate id " << ((epoch!=0)?(int)epoch->_delegate_id:255)
+                    << " from epoch delegate id " << (epoch?(int)epoch->_delegate_id:255)
                     << " size " << size;
 
     std::string ip = "";
     uint16_t port = 0;
 
-    if (_identity_manager.OnAddressAd(data, size, prequel, ip, port) && epoch)
+    if (_identity_manager.OnAddressAd(data, size, prequel, ip, port) &&
+        epoch && epoch->GetDelegateId() == prequel.encr_delegate_id)
     {
         epoch->_netio_manager->AddDelegate(prequel.delegate_id, ip, port);
     }

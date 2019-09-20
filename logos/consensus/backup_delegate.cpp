@@ -214,7 +214,7 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
                 << _pre_prepare_hash.to_string()
                 << " - "
                 << hash.to_string();
-        assert(_pre_prepare);
+        //assert(_pre_prepare);
         _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);
@@ -476,12 +476,12 @@ bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
     auto delegate = notifier->GetDelegate();
     auto state = notifier->GetState();
     auto connect = notifier->GetConnection();
-    if (delegate == EpochTransitionDelegate::PersistentReject ||
-        delegate == EpochTransitionDelegate::RetiringForwardOnly)
+    if (connect == EpochConnection::WaitingDisconnect)  // Persistent in old Delegate set or Retiring, after EpochStart
     {
         _reason = RejectionReason::New_Epoch;
         valid = false;
     }
+    // Too early to participate in consensus
     else if (state == EpochTransitionState::Connecting &&
             ((delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
               connect == EpochConnection::Transitioning) ||

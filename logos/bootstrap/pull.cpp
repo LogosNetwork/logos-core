@@ -109,7 +109,9 @@ namespace Bootstrap
     {
         if(--num_blocks_to_download == 0)
         {
-            LOG_TRACE(log) << "Puller::"<< __func__ << " num_blocks_to_download == 0";
+            LOG_TRACE(log) << "Puller::"<< __func__ << " num_blocks_to_download == 0;"
+                                                       " waiting_pulls size: " << waiting_pulls.size()
+                                                    << " ongoing_pulls size: " << ongoing_pulls.size();
             assert(waiting_pulls.empty());
             assert(ongoing_pulls.empty());
             state = PullerState::Done;
@@ -215,7 +217,8 @@ namespace Bootstrap
                 << " block->previous: " << block->previous.to_string()
                 << " pull->prev_hash: " << pull->prev_hash.to_string();
 
-        assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
+        assert(state==PullerState::Batch || state==PullerState::Batch_No_MB ||
+               state==PullerState::Batch_No_MB_Next_Epoch);
         bool good_block = block->previous == pull->prev_hash &&
                 block->primary_delegate < NUM_DELEGATES &&
                 block_cache.AddRequestBlock(block) != logos::IBlockCache::add_result::FAILED;
@@ -492,9 +495,13 @@ namespace Bootstrap
 
     void Puller::UpdateMyBSBTip(BSBPtr block)
     {
-        LOG_TRACE(log) << "Puller::"<<__func__;
+        LOG_TRACE(log) << "Puller::"<<__func__ << " - block JSON representation: " << block->ToJson();
         auto d_idx = block->primary_delegate;
         assert(d_idx < NUM_DELEGATES);
+        LOG_TRACE(log) << "Puller::" << __func__
+                       << " block=" << block->ToJson()
+                       << " my_tips.bsb_vec[d_idx]=" << my_tips.bsb_vec[d_idx].to_string()
+                       << " my_tips.bsb_vec_new_epoch[d_idx]=" << my_tips.bsb_vec_new_epoch[d_idx].to_string();
 
         BlockHash digest = block->Hash();
         //try old epoch

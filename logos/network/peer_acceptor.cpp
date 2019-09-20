@@ -41,9 +41,11 @@ void PeerAcceptor::Start()
 void PeerAcceptor::Accept()
 {
     auto socket(std::make_shared<Socket> (_service));
+    std::weak_ptr<PeerAcceptor> this_w = shared_from_this();
     _acceptor.async_accept(*socket, _accepted_endpoint,
-                           [this, socket](boost::system::error_code const & ec) {
-                               OnAccept(ec, socket);
+                           [this_w, socket](boost::system::error_code const & ec) {
+                               auto this_s = GetSharedPtr(this_w, "PeerAcceptor::Accept - object destroyed");
+                               this_s->OnAccept(ec, socket);
                            });
 }
 
@@ -51,9 +53,10 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
 {
     if (ec)
     {
-       LOG_ERROR (_log) << "PeerAcceptor - Error while accepting peer connections: "
-                        << ec.message();
-       return;
+        Log log;
+        LOG_ERROR (log) << "PeerAcceptor - Error while accepting peer connections: "
+                         << ec.message();
+        return;
     }
 
     LOG_INFO (_log) << "PeerAcceptor - Connection accepted from "

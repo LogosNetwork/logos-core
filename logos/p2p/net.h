@@ -30,6 +30,16 @@
 #include <uint256.h>
 #include <threadinterrupt.h>
 #include <chainparams.h>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/filesystem.hpp>
+
+namespace logos{
+    class DNSHandler;
+}
 
 class CNode;
 
@@ -197,9 +207,19 @@ struct LocalServiceInfo
     int nPort;
 };
 
+namespace // unnamed namespace to prevent visibility in other files
+{
+    namespace HTTP  = boost::beast::http;
+}
+
 class NetEventsInterface;
+class DNSHandler;
 class CConnman
 {
+protected:
+    using Service     = boost::asio::io_service;
+    using TCP         = boost::asio::ip::tcp;
+
 public:
 
     enum NumConnections
@@ -454,6 +474,8 @@ public:
     bool                                                            fLogIPs;
     bool                                                            fDiscover;
     bool                                                            fListen;
+    std::shared_ptr<DNSHandler>                                     handler;
+    
 
     /** Subversion as sent to the P2P network in `version` messages */
     std::string                                                     strSubVersion;
@@ -845,6 +867,49 @@ public:
     //! Sets the addrName only if it was not previously set
     void MaybeSetAddrName(const std::string& addrNameIn);
     friend class AsioSession;
+};
+
+class DNSHandler : public std::enable_shared_from_this<DNSHandler>
+{
+
+    using Service  = boost::asio::io_service;
+    using Endpoint = boost::asio::ip::tcp::endpoint;
+    using Socket   = boost::asio::ip::tcp::socket;
+    using Request  = boost::beast::http::request<boost::beast::http::string_body>;
+    using Response = boost::beast::http::response<boost::beast::http::string_body>;
+    using Buffer   = boost::beast::flat_buffer;
+    using Iter     = boost::asio::ip::tcp::resolver::iterator;
+
+public:
+
+    DNSHandler(const Endpoint callback_endpoint, Iter & iter,
+                    Service & service, CAddrMan & addrman, CConnman & cconnman, std::string seed, std::string host, std::string target);
+    void Start();
+
+    std::string ips [DEFAULT_MAX_PEER_CONNECTIONS];
+private:
+
+    void OnConnect(const boost::system::error_code & ec);
+    void OnWrite(const boost::system::error_code & ec, size_t bytes);
+    void OnRead(boost::system::error_code const & ec, size_t bytes);
+
+    // XXX: Do not use this object at all
+    //      after calling this method.
+    void Done();
+
+    Socket                    _socket;
+    Endpoint                  _callback_endpoint;
+    std::shared_ptr<Request>  _request;
+    std::shared_ptr<Buffer>   _buffer;
+    std::shared_ptr<Response> _response;
+    Log                       _log;
+    Iter                      _iter;
+    CAddrMan                & _addrman;
+    CConnman                & _cconnman;
+    std::string               _seed;
+    std::string               _host;
+    std::string               _target;
+
 };
 
 #endif // BITCOIN_NET_H

@@ -4,6 +4,7 @@
 #pragma once
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/consensus/messages/byte_arrays.hpp>
 
 #include <cryptopp/eccrypto.h>
 #include <cryptopp/pubkey.h>
@@ -29,15 +30,12 @@ using CryptoPP::ArraySink;
 using CryptoPP::StringSource;
 using CryptoPP::PK_EncryptorFilter;
 using CryptoPP::PK_DecryptorFilter;
+using RawKey = ByteArray<32>;
 
 template<typename Key>
 class ECIESKey : public Key {
 public:
     ECIESKey() = default;
-    ECIESKey(std::string &str, bool is_hex)
-    {
-        FromString(str, is_hex);
-    }
     virtual ~ECIESKey() = default;
 
     void FromString(std::string &str, bool is_hex)
@@ -50,13 +48,8 @@ public:
         }
     }
 
-    std::string ToString() const
-    {
-        std::string str;
-        StringSink sink(str);
-        Key::Save(sink);
-        return str;
-    }
+    virtual std::string ToString() const = 0;
+    virtual void FromString(const std::string &in) = 0;
 
     size_t Serialize(logos::stream &stream, bool is_hex = false) const
     {
@@ -70,14 +63,7 @@ public:
 
     std::string ToHexString() const
     {
-        std::string in = ToString();
-        std::stringstream str;
-
-        str << std::hex << std::setfill('0');
-        for (size_t i = 0; in.length() > i; ++i) {
-            str << std::setw(2) << static_cast<unsigned int>(static_cast<unsigned char>(in[i]));
-        }
-        return str.str();
+        return logos::unicode_to_hex(ToString());
     }
 
     bool Deserialize(logos::stream &stream, bool is_hex = false)
@@ -98,29 +84,9 @@ public:
         return true;
     }
 
-    void FromString(const std::string &in)
-    {
-        StringSource src(in, true);
-        Key::Load(src);
-    }
-
     void FromHexString(const std::string &in)
     {
-        std::string output;
-
-        assert((in.length() % 2) == 0);
-
-        size_t cnt = in.length() / 2;
-
-        for (size_t i = 0; cnt > i; ++i) {
-            uint32_t s = 0;
-            std::stringstream ss;
-            ss << std::hex << in.substr(i * 2, 2);
-            ss >> s;
-
-            output.push_back(static_cast<unsigned char>(s));
-        }
-        FromString(output);
+        FromString(logos::hex_to_unicode(in));
     }
 
     void Hash(blake2b_state & hash) const
@@ -131,13 +97,39 @@ public:
 };
 
 class ECIESPrivateKey : public ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> {
+    using Key = CryptoPP::DL_PrivateKey_EC<ECP>;
+
 public:
     ECIESPrivateKey() : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> () {
         CryptoPP::AutoSeededRandomPool prng;
         Initialize(prng, CryptoPP::ASN1::secp256r1());
     }
-    ECIESPrivateKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> (str, is_hex){}
+    ECIESPrivateKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> ()
+    {
+        ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>>::FromString(str, is_hex);
+    }
+    ECIESPrivateKey(RawKey const & raw) : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> () {
+        CryptoPP::Integer x;
+        x.Decode(raw.data(), raw.size());
+        Initialize(CryptoPP::ASN1::secp256r1(), x);
+    };
     ~ECIESPrivateKey() = default;
+
+    std::string ToString() const override
+    {
+        std::string out_str;
+        StringSink out_sink(out_str);
+        GetPrivateExponent().Encode(out_sink, CONSENSUS_PRIV_KEY_SIZE);
+        return out_str;
+    }
+
+    void FromString(const std::string &in) override
+    {
+        StringSource src(in, true/*pumpAll*/);
+        CryptoPP::Integer x;
+        x.Decode(src, CONSENSUS_PRIV_KEY_SIZE);
+        Initialize(CryptoPP::ASN1::secp256r1(), x);
+    }
 
     template<typename ... Args>
     void Decrypt(const std::string &cyphertex, Args ... args)
@@ -152,6 +144,11 @@ public:
         ECIES<ECP>::Decryptor d(*this);
         StringSource stringSource(cyphertex, true, new PK_DecryptorFilter(prng, d, new StringSink(text)));
     }
+
+    bool operator==(const ECIESPrivateKey &rhs) const
+    {
+        return this->GetPrivateExponent() == rhs.GetPrivateExponent();
+    }
 };
 
 class ECIESPublicKey : public ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> {
@@ -161,8 +158,31 @@ public:
     {
         AssignFrom(pkey);
     }
-    ECIESPublicKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> (str, is_hex){}
+    ECIESPublicKey(std::string &str, bool is_hex = true) : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> ()
+    {
+        ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>>::FromString(str, is_hex);
+    }
     ~ECIESPublicKey() = default;
+
+    std::string ToString() const override
+    {
+        std::string str;
+        auto P (GetPublicElement());
+        StringSink sink(str);
+        P.x.Encode(sink, CONSENSUS_PRIV_KEY_SIZE);
+        P.y.Encode(sink, CONSENSUS_PRIV_KEY_SIZE);
+        return str;
+    }
+
+    void FromString(const std::string &in) override
+    {
+        StringSource src(in, true/*pumpAll*/);
+        typename ECP::Point P;
+        P.identity = false;
+        P.x.Decode(src, CONSENSUS_PRIV_KEY_SIZE);
+        P.y.Decode(src, CONSENSUS_PRIV_KEY_SIZE);
+        Initialize(CryptoPP::ASN1::secp256r1(), P);
+    }
 
     template <typename ... Args>
     void Encrypt(std::string &cyphertext, Args ... args)
@@ -170,6 +190,11 @@ public:
         CryptoPP::AutoSeededRandomPool prng;
         ECIES<ECP>::Encryptor e(*this);
         StringSource stringSource(args ..., true, new PK_EncryptorFilter(prng, e, new StringSink(cyphertext)));
+    }
+
+    bool operator==(const ECIESPublicKey &rhs) const
+    {
+        return this->GetGroupParameters() == rhs.GetGroupParameters() && this->GetPublicElement() == rhs.GetPublicElement();
     }
 };
 
@@ -179,19 +204,16 @@ struct ECIESKeyPair {
         pub.AssignFrom(prv);
     }
     ~ECIESKeyPair() = default;
-    ECIESKeyPair(std::string &&hex, bool is_hex = true)
+    ECIESKeyPair(RawKey const & raw) : prv(raw)
     {
-        std::stringstream str(hex);
-        std::string prv_hex, pub_hex;
-        str >> prv_hex;
-        if (is_hex) {
-            prv.FromHexString(prv_hex);
-        }
-        else {
-            prv.FromString(prv_hex);
-        }
         pub.AssignFrom(prv);
     }
+
+    bool operator==(const ECIESKeyPair &rhs) const
+    {
+        return this->prv == rhs.prv && this->pub == rhs.pub;
+    }
+
     ECIESPrivateKey prv;
     ECIESPublicKey pub;
 };

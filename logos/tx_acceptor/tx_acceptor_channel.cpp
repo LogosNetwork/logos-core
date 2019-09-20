@@ -14,14 +14,14 @@ TxAcceptorChannel::TxAcceptorChannel(Service &service,
                                      const TxAcceptorConfig &config)
     : _service(service)
     , _endpoint(Endpoint(boost::asio::ip::make_address_v4(config.acceptor_ip), config.port))
-    , _delegate(service, _endpoint, *this)
+    , _delegate(std::make_shared<PeerAcceptor>(service, _endpoint, *this))
     , _inactivity_timer(service)
     , _config(config)
 {
     assert(_config.bls_pub != "");
     stringstream str(_config.bls_pub);
     str >> _bls_pub;
-    _delegate.Start();
+    _delegate->Start();
 }
 
 void
@@ -141,7 +141,7 @@ void
 TxAcceptorChannel::Validate(std::shared_ptr<Socket> socket)
 {
     std::weak_ptr<TxAcceptorChannel> this_w = Self<TxAcceptorChannel>::shared_from_this();
-    DelegateIdentityManager::ValidateTxAcceptorConnection(socket, _bls_pub, [this_w, socket](bool result, const char *err){
+    DelegateIdentityManager::TxAValidateDelegate(socket, _bls_pub, [this_w, socket](bool result, const char *err){
         auto this_s = GetSharedPtr(this_w, "TxAcceptorChannel::Validate, object destroyed");
         if (!this_s)
         {

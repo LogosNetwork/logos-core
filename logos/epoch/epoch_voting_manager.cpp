@@ -346,14 +346,14 @@ EpochVotingManager::ValidateEpochDelegates(
 
    for (auto delegate : logos::genesis_delegates)
    {
-       verify[delegate.key.pub] = true;
+       verify[delegate] = true;
    }
 
    for (int i = 0; i < NUM_DELEGATES; ++i)
    {
        if (verify.find(delegates[i].account) == verify.end())
        {
-           LOG_ERROR(log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
+           LOG_ERROR(log) << "EpochVotingManager::ValidateEpochDelegates invalid account "
                            << delegates[i].account.to_account();
            return false;
        }

@@ -3105,7 +3105,7 @@ Reward PersistenceManager<R>::ProcessClaim(const std::shared_ptr<const Claim> cl
 
     info.claim_epoch = claim->epoch_number;
 
-    return Reward(sum.numerator() / sum.denominator(),
+    return Reward((sum.numerator() / sum.denominator()).convert_to<logos::uint128_t>(),
                   Rational(sum.numerator() % sum.denominator(),
                            sum.denominator()));
 }

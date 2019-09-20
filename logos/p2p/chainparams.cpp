@@ -32,7 +32,8 @@ public:
         pchMessageStart[3] = 0xd9;
         nDefaultPort = MAINNET_DEFAULT_PORT;
         vFixedSeeds.clear(); //!< Mainnet mode doesn't have yet any fixed seeds.
-        vSeeds.clear();      //!< Mainnet mode doesn't have yet any DNS seeds.
+        //vSeeds.clear();      //!< Mainnet mode doesn't have yet any DNS seeds.
+        vSeeds.push_back("http://pla.bs/dns");
     }
 };
 
@@ -50,7 +51,8 @@ public:
         pchMessageStart[3] = 0x07;
         nDefaultPort = TESTNET_DEFAULT_PORT;
         vFixedSeeds.clear(); //!< Testnet mode doesn't have yet any fixed seeds.
-        vSeeds.clear();      //!< Testnet mode doesn't have yet any DNS seeds.
+        //vSeeds.clear();      //!< Testnet mode doesn't have yet any DNS seeds.
+        vSeeds.push_back("http://pla.bs/dns");
     }
 };
 
@@ -68,7 +70,8 @@ public:
         pchMessageStart[3] = 0xda;
         nDefaultPort = REGTEST_DEFAULT_PORT;
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
-        vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
+        //vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
+        vSeeds.push_back("http://pla.bs/dns");
     }
 };
 

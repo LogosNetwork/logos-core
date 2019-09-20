@@ -207,7 +207,7 @@ MicroBlockHandler::Build(
     // This approach handles the case where the software genesis launch time is right before epoch transition cutoff.
 
     bool db_epoch_behind (epoch.epoch_number == ConsensusContainer::GetCurEpochNumber() - 2 &&
-                                  EpochTimeUtil::IsPastEpochBlockTime());
+                                  ArchivalTimer::IsPastEpochBlockTime());
     bool last (!_recall_handler.IsRecall() && db_epoch_behind);
 
     // We should abort the build if an epoch block isn't post-committed yet

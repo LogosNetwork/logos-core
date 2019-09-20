@@ -18,6 +18,7 @@ namespace logos
 {
     class alarm;
     class block_store;
+    class IBlockCache;
 }
 
 class ArchiverMicroBlockHandler
@@ -48,15 +49,20 @@ class Archiver : public ArchiverMicroBlockHandler
 
 public:
     /// Class constructor
-    /// @param alarm logos alarm reference [in]
-    /// @param store logos block_store reference [in]
-    /// @param recall recall handler interface [in]
-    Archiver(logos::alarm&, BlockStore&, IRecallHandler &);
+    /// @param[in] alarm logos alarm reference
+    /// @param[in] store logos block_store reference
+    /// @param[in] event proposer reference
+    /// @param[in] recall recall handler interface reference
+    /// @param[in] block cache interface reference
+    Archiver(logos::alarm &, BlockStore &, EventProposer &, IRecallHandler &, logos::IBlockCache &);
     ~Archiver() = default;
 
     /// Start archiving events
     /// @param internal consensus interface reference
     void Start(InternalConsensus&);
+
+    // Stop archiving events (epoch transition event still continues)
+    void Stop();
 
     /// Commit micro block to the database, propose epoch
     /// @param block to commit
@@ -72,13 +78,9 @@ private:
     static constexpr uint8_t SELECT_PRIMARY_DELEGATE = 0x1F;
 
     /// Used by MicroBlockTester to start microblock generation
-    /// @param consensus send microblock for consensus [in]
-    /// @param last_microblock last microblock flag
+    /// @param[in] consensus send microblock for consensus
+    /// @param[in] last_microblock last microblock flag
     void Test_ProposeMicroBlock(InternalConsensus&, bool last_microblock);
-
-    /// Is this the first MicroBlock
-    /// @param store reference to block store
-    bool IsFirstMicroBlock(BlockStore &store);
 
     /// Archive MicroBlock, if a new one should be built
     /// This method is passed to EventProposer as a scheduled action
@@ -91,15 +93,15 @@ private:
     /// or an ongoing MB consensus session is not finished
     bool ShouldSkipMBBuild();
 
-    bool                       _first_epoch;
     EpochSeq                   _counter;        ///< indicates the most recently BUILT MB's <epoch number, sequence number>
     EpochVotingManager         _voting_manager;
-    EventProposer              _event_proposer;
+    EventProposer &            _event_proposer;
     MicroBlockHandler          _micro_block_handler;
     EpochHandler               _epoch_handler;
     MicroBlockMessageHandler & _mb_message_handler;
     IRecallHandler &           _recall_handler;
     logos::block_store &       _store;
+    logos::IBlockCache &       _block_cache;
     Log                        _log;
 
     friend class Archival_ShouldSkipMBProposal_Test;
