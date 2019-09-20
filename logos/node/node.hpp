@@ -21,6 +21,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/iostreams/device/array.hpp>
+#include <boost/log/sinks.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
@@ -100,10 +101,27 @@ public:
     Handle                     operation_handle;
 };
 
+typedef boost::log::sinks::text_file_backend log_file_backend;
+typedef boost::log::sinks::asynchronous_sink<
+        log_file_backend,
+        boost::log::sinks::bounded_fifo_queue<               /*< log record queueing strategy >*/
+                1000,                                        /*< record queue capacity >*/
+                boost::log::sinks::drop_on_overflow          /*< overflow handling policy >*/
+        >
+> log_file_sink_drop;
+
+//the default QueueingStrategyT = unbounded_fifo_queue
+typedef boost::log::sinks::asynchronous_sink<
+        log_file_backend
+> log_file_sink_all;
+
+constexpr int LOGGER_NICE_VALUE = 19;
+
 class logging
 {
 public:
     logging ();
+    ~logging();
     void serialize_json (boost::property_tree::ptree &) const;
     bool deserialize_json (bool &, boost::property_tree::ptree &);
     bool upgrade_json (unsigned, boost::property_tree::ptree &);
@@ -142,8 +160,34 @@ public:
     bool flush;
     uintmax_t max_size;
     uintmax_t rotation_size;
-    boost::log::sources::logger_mt log;
+    bool drop_if_over_flow;
+    bool low_priority_thread;
 };
+
+/*
+ * async file logger with low thread priority
+ */
+class file_logger
+{
+public:
+    file_logger();
+    ~file_logger();
+    void init (boost::filesystem::path const & log_file_path,
+               uintmax_t rotation_size,
+               uintmax_t max_size,
+               bool flush,
+               bool drop_if_over_flow,
+               bool low_priority_thread);
+    void flush_and_stop();
+
+private:
+    //only one of file_sink_type_drop and file_sink_type_all will be used.
+    boost::shared_ptr<log_file_sink_drop> file_sink_type_drop;
+    boost::shared_ptr<log_file_sink_all> file_sink_type_all;
+    std::shared_ptr<std::thread> log_writer;
+    std::atomic<bool> stopped;
+};
+
 class node_init
 {
 public:
