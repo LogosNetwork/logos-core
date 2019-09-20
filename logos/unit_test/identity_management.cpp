@@ -3,11 +3,10 @@
 #include <logos/node/node.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
 
+#include <boost/dll.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/utility/setup/console.hpp>
-
-#define IM_TEST_DIR  "./im_test"
 
 const Milliseconds START_DELAY (1000);
 const std::string ecies_prv_str = "ccc3cdefdef6fe4c5ce4c2282b0d89d097c58ea5de5bd43aec5f6a2691d4a8d7";
@@ -177,7 +176,9 @@ private:
 
 std::shared_ptr<TestNode> CreateTestNode(boost::asio::io_service & service)
 {
-    system("rm -rf " IM_TEST_DIR);
+    auto path (boost::dll::program_location().parent_path());
+    auto remove ("rm -rf " + (path / "*.ldb").string());
+    system(remove.c_str());
     logos::node_init init;
     logos::node_config config;
     // generate placeholder configuration
@@ -197,7 +198,7 @@ std::shared_ptr<TestNode> CreateTestNode(boost::asio::io_service & service)
     );
 
     // create node smart pointer
-    auto node (std::make_shared<TestNode>(init, service, config, IM_TEST_DIR));
+    auto node (std::make_shared<TestNode>(init, service, config, path));
     if (!init.error())
     {
         return node;
