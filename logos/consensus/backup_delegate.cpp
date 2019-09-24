@@ -206,7 +206,7 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
     //even if we haven't received the preprepare at all for this block
     //advance the consensus state if we know it must be the next block from
     //the remote delegate
-    if((_pre_prepare && _pre_prepare_hash == hash) || _prev_pre_prepare_hash == block.previous)
+    if(_pre_prepare && (_pre_prepare_hash == hash || _prev_pre_prepare_hash == block.previous))
     {
 
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
@@ -214,7 +214,7 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
                 << _pre_prepare_hash.to_string()
                 << " - "
                 << hash.to_string();
-        //assert(_pre_prepare);
+        assert(_pre_prepare);
         _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);
