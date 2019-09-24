@@ -209,6 +209,8 @@ std::shared_ptr<TestNode> CreateTestNode(boost::asio::io_service & service)
         LOG_FATAL(log) << "CreateTestNode - Error creating TestNode.";
         trace_and_halt();
     }
+
+    return std::shared_ptr<TestNode>();
 }
 
 void SetTestTimeUtil(uint64_t addn_offset = 0)
