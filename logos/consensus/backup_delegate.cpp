@@ -206,8 +206,14 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
     //even if we haven't received the preprepare at all for this block
     //advance the consensus state if we know it must be the next block from
     //the remote delegate
-    if(_pre_prepare && (_pre_prepare_hash == hash || _prev_pre_prepare_hash == block.previous))
+    if((_pre_prepare && _pre_prepare_hash == hash) || _prev_pre_prepare_hash == block.previous)
     {
+        if (!_pre_prepare || _pre_prepare_hash != hash)
+        {
+            PrePrepare mess(block);
+            SetPrePrepare(mess);
+            _pre_prepare_hash = hash;
+        }
 
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
             << ">::OnPostCommittedBlock-clearing matching consensus session - "
