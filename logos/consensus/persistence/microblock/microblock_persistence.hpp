@@ -26,9 +26,9 @@ protected:
     {
         MVP_BEGIN,      /* initial state, validation not started */
         MVP_DRIFT,      /* timestamp drift validated */
+        MVP_PREVIOUS,   /* previous microblock found */
         MVP_TIPS_FIRST, /* validation of request tips started, some not found */
         MVP_TIPS_DONE,  /* all request tips found */
-        MVP_PREVIOUS,   /* previous microblock found, micro tip validated */
         MVP_END         /* final state, validation OK */
     };
 

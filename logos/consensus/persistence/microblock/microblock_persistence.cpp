@@ -15,6 +15,29 @@ PersistenceManager<MBCT>::Validate(
 {
     using namespace logos;
     LOG_TRACE(_log) << "PersistenceManager<MBCT>::Validate {";
+    ApprovedMB previous_microblock;
+    bool previous_microblock_on = false;
+
+    if (!status || status->progress < MVP_PREVIOUS)
+    {
+        // previous microblock doesn't exist
+        if (_store.micro_block_get(block.previous, previous_microblock))
+        {
+            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock previous doesn't exist "
+                            << " hash " << block.Hash().to_string()
+                            << " previous " << block.previous.to_string();
+            UpdateStatusReason(status, process_result::gap_previous);
+
+            // TODO: high speed bootstrap
+            logos_global::Bootstrap();
+
+            return false;
+        }
+        previous_microblock_on = true;
+
+        if (status)
+            status->progress = MVP_PREVIOUS;
+    }
 
     if (!status || status->progress < MVP_TIPS_DONE)
     {
@@ -52,22 +75,15 @@ PersistenceManager<MBCT>::Validate(
             status->progress = MVP_TIPS_DONE;
     }
 
-    if (!status || status->progress < MVP_PREVIOUS)
+    if (!status || status->progress < MVP_END)
     {
-        ApprovedMB previous_microblock;
-
         // previous microblock doesn't exist
-        if (_store.micro_block_get(block.previous, previous_microblock))
+        if (!previous_microblock_on && _store.micro_block_get(block.previous, previous_microblock))
         {
-            LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock previous doesn't exist "
+            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock can't get existed previous microblock "
                             << " hash " << block.Hash().to_string()
                             << " previous " << block.previous.to_string();
-            UpdateStatusReason(status, process_result::gap_previous);
-
-            // TODO: high speed bootstrap
-            logos_global::Bootstrap();
-
-            return false;
+            trace_and_halt();
         }
 
         if (block.sequence != (previous_microblock.sequence + 1))
@@ -117,21 +133,15 @@ PersistenceManager<MBCT>::Validate(
             return false;
         }
 
-        if (status)
-            status->progress = MVP_PREVIOUS;
-    }
-
-    if (!status || status->progress < MVP_END)
-    {
         if (block.primary_delegate >= NUM_DELEGATES)
         {
-            UpdateStatusReason(status, process_result::invalid_request);
+            /* reason changed to not_delegate since invalid_request used if one of request tips not exists */
+            UpdateStatusReason(status, process_result::not_delegate);
             LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) block.primary_delegate;
             return false;
         }
 
         ApprovedEB previous_epoch;
-        Tip tip;
         if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "

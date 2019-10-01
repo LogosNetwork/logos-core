@@ -84,6 +84,13 @@ PersistenceManager<ECT>::Validate(
             return false;
         }
 
+        if (!last_micro_block.last_micro_block) {
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate failed to verify last microblock: " <<
+                            epoch.micro_block_tip.digest.to_string();
+            UpdateStatusReason(status, process_result::invalid_request);
+            return false;
+        }
+
         // verify microblock tip exists
         if (_store.micro_block_tip_get(micro_block_tip))
         {
