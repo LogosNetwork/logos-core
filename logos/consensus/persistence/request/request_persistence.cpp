@@ -285,28 +285,6 @@ bool PersistenceManager<R>::ValidateRequest(
     //        return false;
     //    }
 
-    // This account has issued at least one send transaction.
-    if(info->block_count)
-    {
-        if(request->previous.is_zero())
-        {
-            result.code = logos::process_result::fork;
-            LOG_WARN (_log) << "FORK: unexpected block " << request->previous.to_string()
-                            << "; current account info head is: " << info->head.to_string();
-            return false;
-        }
-    }
-    else
-    {
-        if(!request->previous.is_zero())
-        {
-            result.code = logos::process_result::invalid_request;
-            LOG_ERROR (_log) << "ILL REQUEST: previous exists but was not counted; sqn="
-                            << request->sequence;
-            return false;
-        }
-    }
-
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
