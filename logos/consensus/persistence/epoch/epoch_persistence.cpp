@@ -26,10 +26,11 @@ PersistenceManager<ECT>::Validate(
     ValidationStatus * status)
 {
     using namespace logos;
+    ApprovedEB previous_epoch;
+    bool previous_epoch_on = false;
 
     if (!status || status->progress < EVP_EPOCH_TIP)
     {
-        ApprovedEB previous_epoch;
         Tip epoch_tip;
 
         if (_store.epoch_get(epoch.previous, previous_epoch))
@@ -39,6 +40,8 @@ PersistenceManager<ECT>::Validate(
             UpdateStatusReason(status, process_result::gap_previous);
             return false;
         }
+
+        previous_epoch_on = true;
 
         if (_store.epoch_tip_get(epoch_tip))
         {
@@ -104,6 +107,29 @@ PersistenceManager<ECT>::Validate(
             LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate previous micro block doesn't exist " <<
                             epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
             UpdateStatusReason(status, process_result::invalid_tip);
+            return false;
+        }
+
+        if (!previous_epoch_on && _store.epoch_get(epoch.previous, previous_epoch))
+        {
+            LOG_ERROR(_log) << "PersistenceManager<ECT>::Validate failed to get existed epoch: " <<
+                            epoch.previous.to_string();
+            trace_and_halt();
+        }
+
+        uint64_t total_RBs = 0;
+        for (int del = 0; del < NUM_DELEGATES; ++del)
+        {
+            if (!last_micro_block.tips[del].digest.is_zero())
+                total_RBs += last_micro_block.tips[del].sqn + 1;
+        }
+        if (epoch.total_RBs != previous_epoch.total_RBs + total_RBs)
+        {
+            LOG_ERROR(_log) << "PersistenceManager::VerifyEpoch number of batch blocks doesn't match in block: "
+                            << " hash " << epoch.Hash().to_string()
+                            << " number in block received=" << epoch.total_RBs
+                            << " locally expect=" << previous_epoch.total_RBs + total_RBs;
+            UpdateStatusReason(status, process_result::invalid_number_blocks);
             return false;
         }
 
