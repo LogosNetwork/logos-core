@@ -7,9 +7,83 @@
 #include <boost/program_options.hpp>
 
 #include <bls/bls.hpp>
+#include <signal.h>
+#include <sys/wait.h>
+
+#define REG_(name) sprintf(buf + strlen(buf), #name "=%llx, ", (unsigned long long)uc->uc_mcontext.gregs[REG_##name])
+
+static void signal_catch(int signum, siginfo_t *info, void *context)
+{
+    static void *callstack[100];
+    int frames, i;
+    char **strs;
+    Log log;
+    LOG_FATAL(log) << "Signal " << signum << " delivered";
+#ifdef __x86_64__
+    {
+    static char buf[0x100]; *buf = 0;
+    ucontext_t *uc = (ucontext_t *)context;
+    REG_(RIP); REG_(EFL); REG_(ERR); REG_(CR2);
+    LOG_FATAL(log) << buf; *buf = 0;
+    REG_(RAX); REG_(RBX); REG_(RCX); REG_(RDX); REG_(RSI); REG_(RDI); REG_(RBP); REG_(RSP);
+    LOG_FATAL(log) << buf; *buf = 0;
+    REG_(R8); REG_(R9); REG_(R10); REG_(R11); REG_(R12); REG_(R13); REG_(R14); REG_(R15);
+    LOG_FATAL(log) << buf;
+    }
+#endif
+    frames = backtrace(callstack, 100);
+    strs = backtrace_symbols(callstack, frames);
+    for (i = 0; i < frames; ++i)
+    {
+        LOG_FATAL(log) << strs[i];
+    }
+    signal(signum, SIG_DFL);
+    kill(getpid(), signum);
+    exit(-2);
+}
+
+static int signals_init(void)
+{
+    int i;
+    struct sigaction sa;
+    sa.sa_sigaction = signal_catch;
+    sigemptyset (&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    for (i = 1; i < 32; ++i)
+    {
+        if (i != SIGURG && i != SIGCHLD && i != SIGCONT && i != SIGPIPE && i != SIGINT && i != SIGTERM && i != SIGWINCH && i != SIGHUP)
+        {
+            sigaction(i, &sa, 0);
+        }
+    }
+    return 0;
+}
+
+static int angelize(void) {
+    int iter = 0;
+    int stat;
+    pid_t childpid;
+    while ((childpid = fork())) {
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTERM, SIG_IGN);
+        if (childpid > 0) while (waitpid(childpid, &stat, 0) == -1) {
+            if (errno != EINTR) {
+                abort();
+            }
+        }
+        if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0 || WEXITSTATUS(stat) == 0xff)) {
+            exit(WEXITSTATUS(stat));
+        }
+        sleep(10);
+        iter = 1;
+    }
+    return iter;
+}
 
 int main (int argc, char * const * argv)
 {
+    int run_after_fail = angelize();
+    signals_init();
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
     bls::init();
 
@@ -52,6 +126,12 @@ int main (int argc, char * const * argv)
     boost::program_options::notify (vm);
     int result (0);
     boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : logos::working_path ();
+
+    if (run_after_fail)
+    {
+        // remove if the daemon not fail after restart with non-empty database
+        boost::filesystem::remove(data_path / "data.ldb");
+    }
 
     if (!logos::handle_node_options (vm))
     {

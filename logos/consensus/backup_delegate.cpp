@@ -208,13 +208,19 @@ void BackupDelegate<CT>::OnPostCommittedBlock(ApprovedBlock const & block)
     //the remote delegate
     if((_pre_prepare && _pre_prepare_hash == hash) || _prev_pre_prepare_hash == block.previous)
     {
+        if (!_pre_prepare || _pre_prepare_hash != hash)
+        {
+            PrePrepare mess(block);
+            SetPrePrepare(mess);
+            _pre_prepare_hash = hash;
+        }
 
         LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT)
             << ">::OnPostCommittedBlock-clearing matching consensus session - "
                 << _pre_prepare_hash.to_string()
                 << " - "
                 << hash.to_string();
-        //assert(_pre_prepare);
+        assert(_pre_prepare);
         _post_commit_sig = block.post_commit_sig;
         OnPostCommit();
         BlocksCallback::Callback<CT>(block);

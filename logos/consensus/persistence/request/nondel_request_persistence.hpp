@@ -61,6 +61,40 @@ public:
                     UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
                     return false;
                 }
+
+                if (previous.epoch_number == message.epoch_number)
+                {
+                    if (previous.primary_delegate != message.primary_delegate)
+                    {
+                        LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":not_delegate:"
+                                << " previous=" << previous.epoch_number << ":" << previous.primary_delegate
+                                << " verifiee=" << message.epoch_number << ":" << message.primary_delegate;
+
+                        UpdateStatusReason(status, logos::process_result::not_delegate);
+                        return false;
+                    }
+
+                    Tip tip;
+                    if (_store.request_tip_get(previous.primary_delegate, previous.epoch_number, tip))
+                    {
+                        LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":can't load tip:"
+                                << " previous=" << previous.epoch_number << ":" << previous.sequence
+                                << " verifiee=" << message.epoch_number << ":" << message.sequence;
+                        UpdateStatusReason(status, process_result::invalid_tip);
+                        return false;
+                    }
+
+                    if (tip.epoch != previous.epoch_number
+                            || tip.sqn != previous.sequence
+                            || tip.digest != message.previous)
+                    {
+                        LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":can't load tip:"
+                                << " previous=" << previous.epoch_number << ":" << previous.sequence
+                                << " verifiee=" << message.epoch_number << ":" << message.sequence;
+                        UpdateStatusReason(status, process_result::invalid_tip);
+                        return false;
+                    }
+                }
             }
 
             if (status)

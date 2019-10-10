@@ -256,6 +256,7 @@ public:
             case QueriedEpoch::Next:
                 return GetCurEpochNumber() - 1;
         }
+	return -1u;
     }
 
     /// Binds connected socket to the correct delegates set, mostly applicable during epoch transition

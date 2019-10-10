@@ -37,13 +37,14 @@ static RBPtr make_rb(int epoch_num, uint8_t delegate_id, int sequence, const Blo
     return rb;
 }
 
-static MBPtr make_mb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous)
+static MBPtr make_mb(int epoch_num, uint8_t delegate_id, int sequence, const BlockHash &previous, bool last = false)
 {
     MBPtr mb = std::make_shared<ApprovedMB>();
     mb->epoch_number = epoch_num;
     mb->primary_delegate = delegate_id;
     mb->sequence = sequence;
     mb->previous = previous;
+    mb->last_micro_block = last;
     return mb;
 }
 
@@ -75,12 +76,12 @@ struct test_data
     Tip                     mtip;
     std::queue<BlockHash>   store_q;
 
-    test_data()
+    test_data(bool last = false)
         : error(system("rm -rf " TEST_DIR "; mkdir " TEST_DIR))
         , data_path(TEST_DB)
         , store(error, data_path)
         , e0(make_eb(2, 0, Tip(), BlockHash(), 0))
-        , m0(make_mb(3, 1, 0, BlockHash()))
+        , m0(make_mb(3, 1, 0, BlockHash(), last))
         //, m1(make_mb(4, 2, 0, BlockHash()))
     {
         etip.epoch = 2;
@@ -105,7 +106,7 @@ struct test_data
 
 TEST (BlockCache, VerifyTest)
 {
-    test_data t;
+    test_data t(true);
     EXPECT_EQ(t.error, false);
     boost::asio::io_service service;
     logos::BlockWriteQueue q(service, t.store, 0, &t.store_q);
@@ -162,7 +163,7 @@ TEST (BlockCache, WriteTest)
         hashes.push_back(hash);
     }
 
-    MBPtr mb = make_mb(3, 9, 1, t.m0->Hash());
+    MBPtr mb = make_mb(3, 9, 1, t.m0->Hash(), true);
     hash = mb->Hash();
     EXPECT_EQ(q.BlockExists(mb), false);
     q.StoreBlock(mb);
@@ -205,7 +206,7 @@ TEST (BlockCache, MicroBlocksLinearTest)
 
     for (int i = 0; i < N_BLOCKS; ++i)
     {
-        MBPtr mb = make_mb(3, i, i + 1, hash);
+        MBPtr mb = make_mb(3, i, i + 1, hash, i == N_BLOCKS - 1);
         hash = mb->Hash();
         hashes.push_back(hash);
         mbs.push_back(mb);
@@ -358,7 +359,7 @@ TEST (BlockCache, MixedBlocksTest)
             }
             if ((j + 1) % (N_RBLOCKS / N_MBLOCKS) == 0)
             {
-                MBPtr mb = make_mb(3 + i, N_DELEGATES * (i + 1), ++mb_sqn, mhash);
+                MBPtr mb = make_mb(3 + i, N_DELEGATES * (i + 1), ++mb_sqn, mhash, j == N_RBLOCKS - 1);
                 for (int k = 0; k < NUM_DELEGATES; ++k)
                 {
                     mb->tips[k].epoch = 3 + i;

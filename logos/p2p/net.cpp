@@ -1168,9 +1168,8 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint(ec);
     if (ec)
     {
-        Log log;
-        LOG_FATAL(log) << "CConnman::AcceptConnection - error retrieving remote endpoint with code: " << ec.message();
-        trace_and_halt();
+        LogError(BCLog::NET, "CConnman::AcceptConnection - error retrieving remote endpoint with code: %s", ec.message().c_str());
+        return nullptr;
     }
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr);
